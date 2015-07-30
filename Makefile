@@ -1,9 +1,7 @@
 # Particle Swarm Stepwise (PaSS) Algorithm
 # The main Makefile
 
-TOP = .
-
-MAKEINC = $(TOP)/Makefile.inc
+MAKEINC = Makefile.inc
 
 include $(MAKEINC)
 
@@ -11,13 +9,23 @@ TGTDIR = mk
 
 TGT = $(wildcard $(TGTDIR)/*.mk)
 
+MODEL = bin/genlin_inglai
+
+RUN = sh/genlin.sh
+
 .PHONY: all $(TGT) run clean
 
 all: $(TGT)
 	@ echo > /dev/null
 
 $(TGT):
-	@ ( $(MAKE) -f $@ all )
+	@ - ( $(MAKE) -f $@ all )
+
+run: $(MODEL) $(RUN)
+	@ mkdir -p $@
+	( cd run ; ../$(MODEL) )
+	( cd run ; ../$(RUN) )
+
 
 clean:
 	@ for tgt in $(TGT) ; do ( $(MAKE) -f $$tgt clean ) done

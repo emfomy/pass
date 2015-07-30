@@ -25,20 +25,19 @@ HDR = $(wildcard $(SRCDIR)/*.hpp)
 
 OBJ = $(SRC:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 
-.PHONY: all clean
+.PHONY: all run clean
 
 all: $(BIN)
 	@ echo > /dev/null
 
-$(BIN): $(OBJ) $(MAKEINC) | $(BINDIR) 
-	$(ARCHIVE) $@ $(OBJ)
-	- $(RANLIB) $@
+$(BIN): $(OBJ) $(MAKEINC) | $(BINDIR)
+	$(BGCXX) $(BGCXXFLAGS) $(OBJ) $(INC) $(INCLUDE) $(LIB) $(LIBRARY) -o $@
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(HDR) $(MAKEINC) | $(OBJDIR) 
 	$(BGCXX) $(BGCXXFLAGS) -c $< $(INC) $(INCLUDE) -o $@
 
 $(BINDIR) $(OBJDIR):
-	mkdir -p $@
+	@ mkdir -p $@
 
 clean:
 	$(RM) $(BIN) $(OBJ)

@@ -25,6 +25,9 @@ The source files.
 #### `/genlin`
 The PaSS algorithm for general linear model.
 
+#### `/model`
+The model generators.
+
 ### `/obj`
 The object files.
 
@@ -36,3 +39,6 @@ The Makefiles.
 
 ### `/sh`
 The shell scripts.
+
+### `/run`
+The working directory.

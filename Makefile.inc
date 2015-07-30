@@ -4,7 +4,7 @@
 MAKEFLAGS += --no-print-directory
 
 CXX        = g++
-CXXFLAGS   = -O3 -std=c++0x -Wall
+CXXFLAGS   = -O3 -std=c++0x
 BGCXX      = mpixlcxx_r
 BGCXXFLAGS = -O3 -qlanglvl=extended0x -qsmp=omp
 
