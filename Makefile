@@ -13,7 +13,7 @@ MODEL = bin/genlin_inglai
 
 RUN = sh/genlin.sh
 
-.PHONY: all $(TGT) run clean
+.PHONY: all $(TGT) run clean cancel
 
 all: $(TGT)
 	@ echo > /dev/null
@@ -30,3 +30,6 @@ run: $(MODEL) $(RUN)
 clean:
 	@ for tgt in $(TGT) ; do ( $(MAKE) -f $$tgt clean ) done
 	$(RM) bin obj run
+
+cancel:
+	scancel -A xntmuyang

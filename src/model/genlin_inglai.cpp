@@ -82,13 +82,13 @@ int main( int argc, char **argv ) {
   // Create data                                                            //
   ////////////////////////////////////////////////////////////////////////////
 
-  printf("Creating a linear data using Ing and Lai's method...\n");
+  printf("Creating a linear data using Ing and Lai's method... ");
 
   // Allocate memory
   X = new float[n*p];
   Y = new float[n];
-  J = new bool[p];
-  auto S = new float[n];
+  J = new bool[p]();
+  auto S = new float[n]();
 
   // Generate X & Y using normal random
   for ( auto i = 0; i < n*p; ++i ) {
@@ -105,20 +105,26 @@ int main( int argc, char **argv ) {
     }
   }
 
-  // X[i col] := sqrt(.75/r) * S + .5 * X[i col], i >= r
-  // Y += X[0~r cols] * Beta
+  // X[j col] := sqrt(.75/r) * S + .5 * X[j col], j >= r
   float dtemp = sqrt(0.75f/r);
-  for ( auto i = r; i < p; ++i ) {
-    for ( auto j = 0; j < n; ++j ) {
-      Y[j] += Beta[i] * (dtemp * S[j] * 0.5f * X[i*n+j]);
+  for ( auto i = 0; i < n; ++i ) {
+    for ( auto j = 0; j < r; ++j ) {
+      X[i+j*n] *= 0.5f;
+      X[i+j*n] += dtemp * S[i];
+    }
+  }
+
+  // Y += X[0~r cols] * Beta
+  for ( auto i = 0; i < n; ++i ) {
+    for ( auto j = 0; j < r; ++j ) {
+      Y[i] += Beta[j] * X[i+j*n];
     }
   }
 
   // Generate J
-  memset(J, false, sizeof(bool) * p);
-  for ( auto i = 0; i < r; ++i ) {
-    J[i] = true;
-  }
+  memset(J, true, sizeof(bool) * r);
+
+  printf("Done.\n");
 
   ////////////////////////////////////////////////////////////////////////////
 
@@ -145,7 +151,7 @@ int main( int argc, char **argv ) {
 void IngLaiConfig( const char* fileroot ) {
   const int kBufferSize = 1024;
 
-  printf("Loading config from '%s'...\n", fileroot);
+  printf("Loading config from '%s'... ", fileroot);
 
   // Open file
   auto file = fopen(fileroot, "r");
@@ -170,17 +176,17 @@ void IngLaiConfig( const char* fileroot ) {
     // Close file
     fclose(file);
 
-    printf("Loaded config from '%s'.\n", fileroot);
+    printf("Done.\n");
   } else {
-    printf("Unable to open file '%s'!\n", fileroot);
+    printf("Failed!\n");
+    printf("Creating config file '%s'... ", fileroot);
 
     // Open file
     file = fopen(fileroot, "w");
     if ( !file ) {
-      printf("Unable to create file '%s'!\n", fileroot);
+      printf("Failed!\n");
       exit(1);
     }
-    printf("Creating config file '%s'...\n", fileroot);
   
     // Generate Beta
     Beta = new float[r];
@@ -199,7 +205,7 @@ void IngLaiConfig( const char* fileroot ) {
     // Close file
     fclose(file);
 
-    printf("Created config file '%s'.\n", fileroot);
+    printf("Done.\n");
     printf("Uses default config.\n");
   }
 }
@@ -214,12 +220,12 @@ void IngLaiSave( const char* fileroot ) {
   FILE *file;
   int size = strlen(dataname)+1;
 
-  printf("Saving model into '%s'...\n", fileroot);
+  printf("Saving model into '%s'... ", fileroot);
 
   // Open file
   file = fopen(fileroot, "wb");
   if ( !file ) {
-    printf("Unable to open file '%s'!\n", fileroot);
+    printf("Failed!\n");
     exit(1);
   }
 
@@ -235,5 +241,5 @@ void IngLaiSave( const char* fileroot ) {
   // Close file
   fclose(file);
 
-  printf("Saved model into '%s'.\n", fileroot);
+  printf("Done.\n");
 }

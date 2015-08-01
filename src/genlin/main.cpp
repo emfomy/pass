@@ -12,6 +12,7 @@
 #include <cstring>
 #include <ctime>
 #include <cmath>
+#include <omp.h>
 #include "pass.hpp"
 
 using namespace pass;
@@ -54,14 +55,15 @@ int main( int argc, char **argv ) {
   I0   = new bool[p];
 
   // Display parameters
+  auto num_thread = omp_get_max_threads();
   if ( parameter.criterion == EBIC ) {
     printf("%s: n=%d, p=%d, nP=%d, nI=%d, nT=%d, cri=%s, gamma=%.1lf\n",
-           dataname, n, p, parameter.num_particle, parameter.num_iteration,
+           dataname, n, p, num_thread, parameter.num_iteration,
            num_test, Criterion2String(parameter.criterion),
            parameter.ebic_gamma);
   } else {
     printf("%s: n=%d, p=%d, nP=%d, nI=%d, nT=%d, cri=%s\n",
-           dataname, n, p, parameter.num_particle, parameter.num_iteration,
+           dataname, n, p, num_thread, parameter.num_iteration,
            num_test, Criterion2String(parameter.criterion));
   }
 
@@ -71,18 +73,18 @@ int main( int argc, char **argv ) {
 
   printf("================================================================\n");
 
-  for ( auto i = 0; i < num_test; ++i ) {
+  for ( auto t = 0; t < num_test; ++t ) {
     // Run PaSS
     GenLin();
 
     // Display model
     auto isize = static_cast<int>(log10(p))+1;
-    for( i = 0; i < p; i++ ) {
+    for( auto i = 0; i < p; i++ ) {
       if( I0[i] ) {
-        printf( "%-*d ", isize, i );
+        printf("%-*d ", isize, i);
       }
     }
-    printf( "\n" );
+    printf("\n");
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -111,7 +113,7 @@ int main( int argc, char **argv ) {
 void PassConfig( const char* fileroot ) {
   const int kBufferSize = 1024;
 
-  printf("Loading config from '%s'...\n", fileroot);
+  printf("Loading config from '%s'... ", fileroot);
 
   // Open file
   auto file = fopen(fileroot, "r");
@@ -121,9 +123,7 @@ void PassConfig( const char* fileroot ) {
     // Read data
     char line[kBufferSize];
     fgets(line, kBufferSize, file);
-    sscanf(line, "%*s %d %d",
-           &parameter.num_particle,
-           &parameter.num_iteration);
+    sscanf(line, "%*s %d", &parameter.num_iteration);
     fgets(line, kBufferSize, file);
     sscanf(line, "%*s %f %f %f %f %f",
            &parameter.prob_forward_global,
@@ -157,7 +157,7 @@ void PassConfig( const char* fileroot ) {
       parameter.criterion = HDHQ;
     }
     else {
-      printf("There is no criterion named '%s'!\n", cristr);
+      printf("Failed!\nThere is no criterion named '%s'!\n", cristr);
       exit(1);
     }
 
@@ -167,22 +167,21 @@ void PassConfig( const char* fileroot ) {
     // Close file
     fclose(file);
 
-    printf("Loaded config from '%s'.\n", fileroot);
+    printf("Done.\n");
   }
   else {
-    printf("Unable to open file '%s'!\n", fileroot);
+    printf("Failed!\n");
+    printf("Creating config file '%s'... ", fileroot);
 
     // Open file
     file = fopen( fileroot, "w" );
     if ( !file ) {
-      printf("Unable to create file '%s'!\n", fileroot);
+      printf("Failed!\n");
       exit(1);
     }
-    printf("Creating config file '%s'...\n", fileroot);
 
     // Write data
-    fprintf(file, "nP/nI %d %d\n",
-            parameter.num_particle,
+    fprintf(file, "nI    %d\n",
             parameter.num_iteration);
     fprintf(file, "prob  %.1f %.1f %.1f %.1f %.1f\n",
             parameter.prob_forward_global,
@@ -201,7 +200,6 @@ void PassConfig( const char* fileroot ) {
     fprintf(file, "nT    %d\n", num_test);
 
     fprintf(file, "\n\nNote:\n");
-    fprintf(file, "<nP>:   the number of particles.\n");
     fprintf(file, "<nI>:   the number of iterations.\n");
     fprintf(file, "<prob>: <pfg> <pfl> <pfr> <pbl> <pbr>\n");
     fprintf(file, "<pfg>:  the probability of forward step: global\n");
@@ -227,7 +225,7 @@ void PassConfig( const char* fileroot ) {
     // Close file
     fclose(file);
 
-    printf("Created config file '%s'.\n", fileroot);
+    printf("Done.\n");
     printf("Uses default config.\n");
   }
 }
@@ -242,12 +240,12 @@ void PassLoad( const char* fileroot ) {
   FILE *file;
   int size;
 
-  printf("Loading model from '%s'...\n", fileroot);
+  printf("Loading model from '%s'... ", fileroot);
 
   // Open file
   file = fopen(fileroot, "rb");
   if ( !file ) {
-    printf("Unable to open file '%s'!\n", fileroot);
+    printf("Failed!\n");
     exit(1);
   }
 
@@ -267,5 +265,5 @@ void PassLoad( const char* fileroot ) {
   // Close file
   fclose(file);
 
-  printf("Loaded model into '%s'.\n", fileroot);
+  printf("Done.\n");
 }

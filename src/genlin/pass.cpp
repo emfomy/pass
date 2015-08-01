@@ -66,16 +66,7 @@ void GenLin() {
   srand(time(NULL));
 
   // Check parameters
-  auto num_therad = omp_get_max_threads();
-  if ( parameter.num_particle <= 0 ) {
-    printf("The number of particles must be positive!\n");
-    printf("Set the number of particles as %d!\n", num_therad);
-    parameter.num_particle = num_therad;
-  } else if ( parameter.num_particle > num_therad ) {
-    printf("No enough threads!\n");
-    printf("Set the number of particles as %d!\n", num_therad);
-    parameter.num_particle = num_therad;
-  }
+  auto num_thread = omp_get_max_threads();
   if ( parameter.num_iteration < 0 ) {
     printf("The number of iterations must be positive or zero!\n");
     exit(1);
@@ -85,110 +76,87 @@ void GenLin() {
   // Centralize and normalize the original data                             //
   ////////////////////////////////////////////////////////////////////////////
 
-  // Centralize X0
+  // Centralize and normalize X0
   for ( auto i = 0; i < p; ++i ) {
-    float stemp = 0.0f;
-    for ( auto j = 0; j < n; ++j ) {
-      stemp += X0[i*n+j];
-    }
-    stemp /= n;
-    for ( auto j = 0; j < n; ++j ) {
-      X0[i*n+j] -= stemp;
-    }
+    float stemp = 1.0f;
+    stemp = sdot(n, X0+i*n, 1, &stemp, 0) / n;
+    sves(n, X0+i*n, 1, &stemp, 0, X0+i*n, 1);
+    sscal(n, (1.0f/snorm2(n, X0+i*n, 1)), X0+i*n, 1);
   }
 
-  // Normalize X0
-  for ( auto i = 0; i < p; ++i ) {
-    sscal(n, 1.0f / snorm2(n, X0 + i*n, 1), X0 + i*n, 1);
-  }
-
-  // Centralize Y0
+  // Centralize and normalize Y0
   {
-    float stemp = 0.0f;
-    for ( auto j = 0; j < n; ++j ) {
-      stemp += Y0[j];
-    }
-    stemp /= n;
-    for ( auto j = 0; j < n; ++j ) {
-      Y0[j] -= stemp;
-    }
+    float stemp = 1.0f;
+    stemp = sdot(n, Y0, 1, &stemp, 0) / n;
+    sves(n, Y0, 1, &stemp, 0, Y0, 1);
+    sscal(n, (1.0f/snorm2(n, Y0, 1)), Y0, 1);
   }
-
-  // Normalize Y0
-  sscal(n, 1.0f / snorm2(n, Y0, 1), Y0, 1);
 
   ////////////////////////////////////////////////////////////////////////////
   // Run PaSS                                                               //
   ////////////////////////////////////////////////////////////////////////////
 
   // Allocate particles
-  printf("Allocate particle\n");
-  auto particle = new Particle[parameter.num_particle];
+  auto particle = new Particle[num_thread];
 
   // Use openMP parallel
-  #pragma omp parallel num_threads(parameter.num_particle)
+  #pragma omp parallel
   {
-    auto j = omp_get_thread_num();
+    auto tid = omp_get_thread_num();
 
     // Initialize particles
-    if ( !j ) printf("Initialize particle\n");
-    particle[j].InitializeModel(rand() % p);
-    particle[j].ComputeCriterion();
-    particle[j].phi_old = particle[j].phi;
+    particle[tid].InitializeModel(rand() % p);
+    particle[tid].ComputeCriterion();
+    particle[tid].phi_old = particle[tid].phi;
 
     // Copy best model
-    if ( !j ) printf("Copy best model\n");
-    particle[j].phi_best = particle[j].phi;
-    memcpy(particle[j].I_best, particle[j].I, sizeof(int) * p);
+    particle[tid].phi_best = particle[tid].phi;
+    memcpy(particle[tid].I_best, particle[tid].I, sizeof(bool) * p);
 
     #pragma omp barrier
 
     // Find best model
-    if ( !j ) printf("Find best model\n");
     for ( auto i = 1; i < parameter.num_iteration; ++i ) {
-      if ( !j ) printf("%d\n", i);
       // Update model
       int idx;
-      particle[j].SelectIndex(idx);
-      particle[j].UpdateModel(idx);
-      particle[j].ComputeCriterion();
+      particle[tid].SelectIndex(idx);
+      particle[tid].UpdateModel(idx);
+      particle[tid].ComputeCriterion();
 
       // Change status
-      if ( particle[j].phi > particle[j].phi_old ) {
-        particle[j].status = !particle[j].status;
+      if ( particle[tid].phi > particle[tid].phi_old ) {
+        particle[tid].status = !particle[tid].status;
       }
-      if ( particle[j].k <= 1 ) {
-        particle[j].status = true;
+      if ( particle[tid].k <= 1 ) {
+        particle[tid].status = true;
       }
-      if ( particle[j].k >= n-4 || particle[j].k >= p-4 ) {
-        particle[j].status = false;
+      if ( particle[tid].k >= n-4 || particle[tid].k >= p-4 ) {
+        particle[tid].status = false;
       }
 
-      particle[j].phi_old = particle[j].phi;
+      particle[tid].phi_old = particle[tid].phi;
 
       // Copy best model
-      for ( auto k = j-2; k < j+2; ++k ) {
-        auto l = (k+parameter.num_particle) % parameter.num_particle;
-        if ( particle[l].phi_best > particle[j].phi ) {
-          particle[l].phi_best = particle[j].phi;
-          memcpy( particle[l].I_best, particle[j].I, sizeof(int) * p );
+      for ( auto k = tid-2; k < tid+2; ++k ) {
+        auto l = (k+num_thread) % num_thread;
+        if ( particle[l].phi_best > particle[tid].phi ) {
+          particle[l].phi_best = particle[tid].phi;
+          memcpy( particle[l].I_best, particle[tid].I, sizeof(bool) * p );
         }
       }
     }
-    if ( !j ) printf("Done\n");
   }
 
   // Find best model
-  printf("Find best model\n");
   auto ftemp = 0.0f/0.0f;
   int i_best;
-  for ( auto j = 0; j < parameter.num_particle; ++j ) {
-    if ( !(particle[j].phi_best > ftemp) ) {
-      i_best = j;
-      ftemp = particle[j].phi_best;
+  for ( auto i = 0; i < num_thread; ++i ) {
+    if ( !(particle[i].phi_best > ftemp) ) {
+      i_best = i;
+      ftemp = particle[i].phi_best;
     }
   }
-  memcpy(I0, particle[i_best].I_best, sizeof(int) * p);
+  memcpy(I0, particle[i_best].I_best, sizeof(bool) * p);
 
   ////////////////////////////////////////////////////////////////////////////
 
@@ -248,17 +216,15 @@ void Particle::InitializeModel( const int idx ) {
   k = 1;
 
   // Initialize index
-  for ( auto i = 0; i < p; ++i ) {
-    I[i] = 0;
-  }
+  memset(I, false, sizeof(bool) * p);
 
   // Update index
-  I[idx] = 1;
+  I[idx] = true;
   Idx_lf[0] = idx;
   Idx_fl[idx] = 0;
 
   // X := X0[idx col]
-  scopy(n, X0 + idx*n, 1, X, 1);
+  scopy(n, X0+idx*n, 1, X, 1);
 
   // Y := Y0
   scopy(n, Y0, 1, Y, 1);
@@ -289,15 +255,15 @@ void Particle::UpdateModel( const int idx ) {
     k++;
 
     // Update index
-    I[idx] = 1;
-    Idx_lf[k] = idx;
-    Idx_fl[idx] = k;
+    I[idx] = true;
+    Idx_lf[km] = idx;
+    Idx_fl[idx] = km;
 
     // Set Xnew
-    auto Xnew = X + km*n;
+    auto Xnew = X+km*n;
 
     // Insert new row of X
-    scopy(n, X0 + idx*n, 1, Xnew, 1);
+    scopy(n, X0+idx*n, 1, Xnew, 1);
 
     ////////////////////////////////////////////////////////////////////////
     // Solve Y = X * Beta for Beta                                        //
@@ -313,21 +279,21 @@ void Particle::UpdateModel( const int idx ) {
     auto a = 1.0f / (sdot(n, Xnew, 1, Xnew, 1) - sdot(km, B, 1, D, 1));
 
     // insert D by -1.0
-    D[k] = -1.0f;
+    D[km] = -1.0f;
 
     // insert M by zeros
-    for ( auto j = 0; j < k; j++ ) {
-      M[k*n+j] = 0.0f;
+    for ( auto i = 0; i < k; i++ ) {
+      M[km*n+i] = 0.0f;
     }
 
     // M += a * D * D'
     ssyr("U", k, a, D, 1, M, n);
 
     // insert Theta by Xnew' * Y
-    Theta[k] = sdot(n, Xnew, 1, Y, 1);
+    Theta[km] = sdot(n, Xnew, 1, Y, 1);
 
     // insert Beta by zero
-    Beta[k] = 0.0f;
+    Beta[km] = 0.0f;
 
     // Beta += a * (D' * Theta) * D
     saxpy(k, a*sdot(k, D, 1, Theta, 1), D, 1, Beta, 1);
@@ -339,7 +305,7 @@ void Particle::UpdateModel( const int idx ) {
     k--;
 
     // Update index
-    I[idx] = 0;
+    I[idx] = false;
 
     // Find index
     auto j = Idx_fl[idx];
@@ -351,24 +317,24 @@ void Particle::UpdateModel( const int idx ) {
       a = M[j*n+j];
       b = Beta[j];
 
-      scopy(n, X + k*n, 1, X + j*n, 1);
+      scopy(n, X+k*n, 1, X+j*n, 1);
       Beta[j] = Beta[k];
       Theta[j] = Theta[k];
       Idx_lf[j] = Idx_lf[k];
       Idx_fl[Idx_lf[j]] = j;
 
-      scopy(j, M + j*n, 1, D, 1);
-      scopy(k-j-1, M + j*n+n+j, n, D + j+1, 1);
+      scopy(j, M+j*n, 1, D, 1);
+      scopy(k-j-1, M+j*n+n+j, n, D+j+1, 1);
       D[j] = M[k*n+j];
 
-      scopy(j, M + k*n, 1, M + j*n, 1);
-      scopy(k-j-1, M + k*n+j+1, 1, M + j*n+n+j, n);
+      scopy(j, M+k*n, 1, M+j*n, 1);
+      scopy(k-j-1, M+k*n+j+1, 1, M+j*n+n+j, n);
       M[j*n+j] = M[k*n+k];
     }
     else {
       a = M[k*n+k];
       b = Beta[k];
-      scopy(k, M + k*n, 1, D, 1);
+      scopy(k, M+k*n, 1, D, 1);
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -433,7 +399,7 @@ void Particle::SelectIndex( int& idx ) {
         for ( auto i = 0; i < p; ++i ) {
           if ( !I[i] ) {
             // ftemp := abs( X0[i col]' * R )
-            auto ftemp = fabs(sdot(n, X0 + i*n, 1, R, 1));
+            auto ftemp = fabs(sdot(n, X0+i*n, 1, R, 1));
 
             // Check if this value is maximum
             if ( !(ftemp < phi_temp) ) {
@@ -454,9 +420,8 @@ void Particle::SelectIndex( int& idx ) {
       auto phi_temp = 0.0f/0.0f;
       for ( auto i = 0; i < p; ++i ) {
         if ( I[i] ) {
-          // B := R + Beta[i] * X[i col]
-          scopy(n, R, 1, B, 1);
-          saxpy(n, Beta[Idx_fl[i]], X + Idx_fl[i]*n, 1, B, 1);
+          // B := R + Beta[#] * X[# col]
+          szaxpy(n, Beta[Idx_fl[i]], X+Idx_fl[i]*n, 1, R, 1, B, 1);
 
           // ftemp = norm(B)
           auto ftemp = snorm2(n, B, 1);
