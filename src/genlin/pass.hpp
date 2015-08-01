@@ -91,6 +91,7 @@ struct Parameter {
   float prob_backward_random;  // the probability of backward step: random
   Criterion criterion;         // the criterion
   float ebic_gamma;            // the penalty parameter for EBIC
+  bool is_normalized;          // the data is normalized of not
 
   // Constructor
   Parameter() {
@@ -102,6 +103,7 @@ struct Parameter {
     prob_backward_random = 0.1;
     criterion = EBIC;
     ebic_gamma = 1.0;
+    is_normalized = false;
   }
 };
 

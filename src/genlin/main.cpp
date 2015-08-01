@@ -12,6 +12,7 @@
 #include <cstring>
 #include <ctime>
 #include <cmath>
+#include <essl.h>
 #include <omp.h>
 #include "pass.hpp"
 
@@ -68,17 +69,49 @@ int main( int argc, char **argv ) {
   }
 
   ////////////////////////////////////////////////////////////////////////////
+  // Centralize and normalize the original data                             //
+  ////////////////////////////////////////////////////////////////////////////
+
+  printf("Normalizing data... ");
+
+  // Centralize and normalize X0
+  for ( auto i = 0; i < p; ++i ) {
+    float stemp = 1.0f;
+    stemp = sdot(n, X0+i*n, 1, &stemp, 0) / n;
+    sves(n, X0+i*n, 1, &stemp, 0, X0+i*n, 1);
+    sscal(n, (1.0f/snorm2(n, X0+i*n, 1)), X0+i*n, 1);
+  }
+
+  // Centralize and normalize Y0
+  {
+    float stemp = 1.0f;
+    stemp = sdot(n, Y0, 1, &stemp, 0) / n;
+    sves(n, Y0, 1, &stemp, 0, Y0, 1);
+    sscal(n, (1.0f/snorm2(n, Y0, 1)), Y0, 1);
+  }
+
+  parameter.is_normalized = true;
+
+  printf("Done.\n");
+
+  ////////////////////////////////////////////////////////////////////////////
   // Run PaSS                                                               //
   ////////////////////////////////////////////////////////////////////////////
+
+  double start_time, total_time = 0.0;
+  auto isize = static_cast<int>(log10(p))+1;
 
   printf("================================================================\n");
 
   for ( auto t = 0; t < num_test; ++t ) {
     // Run PaSS
+
+    start_time = omp_get_wtime();
     GenLin();
+    total_time += omp_get_wtime() - start_time;
 
     // Display model
-    auto isize = static_cast<int>(log10(p))+1;
+    printf("%4d:\t", t);
     for( auto i = 0; i < p; i++ ) {
       if( I0[i] ) {
         printf("%-*d ", isize, i);
@@ -87,13 +120,15 @@ int main( int argc, char **argv ) {
     printf("\n");
   }
 
+  printf( "\nTime = %.6lf sec\n", total_time / num_test );
+
+  printf("================================================================\n");
+
   ////////////////////////////////////////////////////////////////////////////
 
   delete[] X0;
   delete[] Y0;
   delete[] J0;
-
-  printf("================================================================\n");
 
   return 0;
 }

@@ -76,20 +76,22 @@ void GenLin() {
   // Centralize and normalize the original data                             //
   ////////////////////////////////////////////////////////////////////////////
 
-  // Centralize and normalize X0
-  for ( auto i = 0; i < p; ++i ) {
-    float stemp = 1.0f;
-    stemp = sdot(n, X0+i*n, 1, &stemp, 0) / n;
-    sves(n, X0+i*n, 1, &stemp, 0, X0+i*n, 1);
-    sscal(n, (1.0f/snorm2(n, X0+i*n, 1)), X0+i*n, 1);
-  }
+  if ( !parameter.is_normalized ) {
+    // Centralize and normalize X0
+    for ( auto i = 0; i < p; ++i ) {
+      float stemp = 1.0f;
+      stemp = sdot(n, X0+i*n, 1, &stemp, 0) / n;
+      sves(n, X0+i*n, 1, &stemp, 0, X0+i*n, 1);
+      sscal(n, (1.0f/snorm2(n, X0+i*n, 1)), X0+i*n, 1);
+    }
 
-  // Centralize and normalize Y0
-  {
-    float stemp = 1.0f;
-    stemp = sdot(n, Y0, 1, &stemp, 0) / n;
-    sves(n, Y0, 1, &stemp, 0, Y0, 1);
-    sscal(n, (1.0f/snorm2(n, Y0, 1)), Y0, 1);
+    // Centralize and normalize Y0
+    {
+      float stemp = 1.0f;
+      stemp = sdot(n, Y0, 1, &stemp, 0) / n;
+      sves(n, Y0, 1, &stemp, 0, Y0, 1);
+      sscal(n, (1.0f/snorm2(n, Y0, 1)), Y0, 1);
+    }
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -97,7 +99,7 @@ void GenLin() {
   ////////////////////////////////////////////////////////////////////////////
 
   // Allocate particles
-  auto particle = new Particle[num_thread];
+  static auto particle = new Particle[num_thread];
 
   // Use openMP parallel
   #pragma omp parallel
@@ -160,7 +162,7 @@ void GenLin() {
 
   ////////////////////////////////////////////////////////////////////////////
 
-  delete[] particle;
+  // delete[] particle;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
