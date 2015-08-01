@@ -57,15 +57,21 @@ int main( int argc, char **argv ) {
 
   // Display parameters
   auto num_thread = omp_get_max_threads();
+  auto num_proc = omp_get_num_procs();
+  if ( num_thread > num_proc ) {
+    printf("No enough threads!\n");
+    omp_set_num_threads(num_proc);
+    num_thread = num_proc;
+  }
   if ( parameter.criterion == EBIC ) {
-    printf("%s: n=%d, p=%d, nP=%d, nI=%d, nT=%d, cri=%s, gamma=%.1lf\n",
-           dataname, n, p, num_thread, parameter.num_iteration,
-           num_test, Criterion2String(parameter.criterion),
+    printf("%s: n=%d, p=%d, nP=%d, nI=%d, nthr=%d, nT=%d, cri=%s, gamma=%.1f\n",
+           dataname, n, p, parameter.num_particle, parameter.num_iteration,
+           num_thread, num_test, Criterion2String(parameter.criterion),
            parameter.ebic_gamma);
   } else {
-    printf("%s: n=%d, p=%d, nP=%d, nI=%d, nT=%d, cri=%s\n",
-           dataname, n, p, num_thread, parameter.num_iteration,
-           num_test, Criterion2String(parameter.criterion));
+    printf("%s: n=%d, p=%d, nP=%d, nI=%d, nthr=%d, nT=%d, cri=%s\n",
+           dataname, n, p, parameter.num_particle, parameter.num_iteration,
+           num_thread, num_test, Criterion2String(parameter.criterion));
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -158,7 +164,9 @@ void PassConfig( const char* fileroot ) {
     // Read data
     char line[kBufferSize];
     fgets(line, kBufferSize, file);
-    sscanf(line, "%*s %d", &parameter.num_iteration);
+    sscanf(line, "%*s %d %d",
+           &parameter.num_particle,
+           &parameter.num_iteration);
     fgets(line, kBufferSize, file);
     sscanf(line, "%*s %f %f %f %f %f",
            &parameter.prob_forward_global,
@@ -216,7 +224,8 @@ void PassConfig( const char* fileroot ) {
     }
 
     // Write data
-    fprintf(file, "nI    %d\n",
+    fprintf(file, "nP/nI %d %d\n",
+            parameter.num_particle,
             parameter.num_iteration);
     fprintf(file, "prob  %.1f %.1f %.1f %.1f %.1f\n",
             parameter.prob_forward_global,
@@ -235,6 +244,7 @@ void PassConfig( const char* fileroot ) {
     fprintf(file, "nT    %d\n", num_test);
 
     fprintf(file, "\n\nNote:\n");
+    fprintf(file, "<nP>:   the number of particles.\n");
     fprintf(file, "<nI>:   the number of iterations.\n");
     fprintf(file, "<prob>: <pfg> <pfl> <pfr> <pbl> <pbr>\n");
     fprintf(file, "<pfg>:  the probability of forward step: global\n");

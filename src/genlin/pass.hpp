@@ -83,6 +83,7 @@ static const char* Criterion2String( const Criterion criterion ) {
 // The parameters of the PaSS algorithm                                       //
 ////////////////////////////////////////////////////////////////////////////////
 struct Parameter {
+  int num_particle;            // the number of particles
   int num_iteration;           // the number of iterations
   float prob_forward_global;   // the probability of forward step: global
   float prob_forward_local;    // the probability of forward step: local
@@ -95,6 +96,7 @@ struct Parameter {
 
   // Constructor
   Parameter() {
+    num_particle = 256;
     num_iteration = 1024;
     prob_forward_global = 0.1;
     prob_forward_local = 0.8;

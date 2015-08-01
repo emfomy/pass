@@ -67,6 +67,9 @@ void GenLin() {
 
   // Check parameters
   auto num_thread = omp_get_max_threads();
+  if ( num_thread > parameter.num_particle ) {
+    num_thread = parameter.num_particle;
+  }
   if ( parameter.num_iteration < 0 ) {
     printf("The number of iterations must be positive or zero!\n");
     exit(1);
@@ -99,51 +102,55 @@ void GenLin() {
   ////////////////////////////////////////////////////////////////////////////
 
   // Allocate particles
-  static auto particle = new Particle[num_thread];
+  static auto particle = new Particle[parameter.num_particle];
 
   // Use openMP parallel
   #pragma omp parallel
   {
     auto tid = omp_get_thread_num();
 
-    // Initialize particles
-    particle[tid].InitializeModel(rand() % p);
-    particle[tid].ComputeCriterion();
-    particle[tid].phi_old = particle[tid].phi;
+    for ( auto j = tid; j < parameter.num_particle; j+=num_thread ) {
+      // Initialize particles
+      particle[j].InitializeModel(rand() % p);
+      particle[j].ComputeCriterion();
+      particle[j].phi_old = particle[j].phi;
 
-    // Copy best model
-    particle[tid].phi_best = particle[tid].phi;
-    memcpy(particle[tid].I_best, particle[tid].I, sizeof(bool) * p);
+      // Copy best model
+      particle[j].phi_best = particle[j].phi;
+      memcpy(particle[j].I_best, particle[j].I, sizeof(bool) * p);
+    }
 
     #pragma omp barrier
 
     // Find best model
     for ( auto i = 1; i < parameter.num_iteration; ++i ) {
-      // Update model
-      int idx;
-      particle[tid].SelectIndex(idx);
-      particle[tid].UpdateModel(idx);
-      particle[tid].ComputeCriterion();
+      for ( auto j = tid; j < parameter.num_particle; j+=num_thread ) {
+        // Update model
+        int idx;
+        particle[j].SelectIndex(idx);
+        particle[j].UpdateModel(idx);
+        particle[j].ComputeCriterion();
 
-      // Change status
-      if ( particle[tid].phi > particle[tid].phi_old ) {
-        particle[tid].status = !particle[tid].status;
-      }
-      if ( particle[tid].k <= 1 ) {
-        particle[tid].status = true;
-      }
-      if ( particle[tid].k >= n-4 || particle[tid].k >= p-4 ) {
-        particle[tid].status = false;
-      }
+        // Change status
+        if ( particle[j].phi > particle[j].phi_old ) {
+          particle[j].status = !particle[j].status;
+        }
+        if ( particle[j].k <= 1 ) {
+          particle[j].status = true;
+        }
+        if ( particle[j].k >= n-4 || particle[j].k >= p-4 ) {
+          particle[j].status = false;
+        }
 
-      particle[tid].phi_old = particle[tid].phi;
+        particle[j].phi_old = particle[j].phi;
 
-      // Copy best model
-      for ( auto k = tid-2; k < tid+2; ++k ) {
-        auto l = (k+num_thread) % num_thread;
-        if ( particle[l].phi_best > particle[tid].phi ) {
-          particle[l].phi_best = particle[tid].phi;
-          memcpy( particle[l].I_best, particle[tid].I, sizeof(bool) * p );
+        // Copy best model
+        for ( auto k = j-2; k < j+2; ++k ) {
+          auto l = (k+parameter.num_particle) % parameter.num_particle;
+          if ( particle[l].phi_best > particle[j].phi ) {
+            particle[l].phi_best = particle[j].phi;
+            memcpy( particle[l].I_best, particle[j].I, sizeof(bool) * p );
+          }
         }
       }
     }
@@ -151,14 +158,14 @@ void GenLin() {
 
   // Find best model
   auto ftemp = 0.0f/0.0f;
-  int i_best;
-  for ( auto i = 0; i < num_thread; ++i ) {
-    if ( !(particle[i].phi_best > ftemp) ) {
-      i_best = i;
-      ftemp = particle[i].phi_best;
+  int j_best;
+  for ( auto j = 0; j < parameter.num_particle; ++j ) {
+    if ( !(particle[j].phi_best > ftemp) ) {
+      j_best = j;
+      ftemp = particle[j].phi_best;
     }
   }
-  memcpy(I0, particle[i_best].I_best, sizeof(bool) * p);
+  memcpy(I0, particle[j_best].I_best, sizeof(bool) * p);
 
   ////////////////////////////////////////////////////////////////////////////
 
