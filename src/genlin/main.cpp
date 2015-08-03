@@ -25,6 +25,19 @@ char *dataname;  // string, the name of data
 
 using namespace pass;
 
+// The statistic structure
+struct Statistic {
+  int total_true_selection;       // the total selection of solution model
+  int total_test_selection;       // the total selection of test model
+  int num_correct;                // the number of correct
+  int num_positive_selection;     // the number of positive selection
+  int num_false_discovery;        // the number of false discovery
+  float rate_correct;             // the correct rate
+  float rate_incorrect;           // the incorrect rate
+  float rate_positive_selection;  // the positive selection rate
+  float rate_false_discovery;     // the false discovery rate
+};
+
 // Functions
 void PassConfig( const char* fileroot );
 void PassLoad( const char* fileroot );
@@ -46,6 +59,16 @@ int main( int argc, char **argv ) {
   PassConfig(cfgroot);
 
   // Check parameters
+  auto num_thread = omp_get_max_threads();
+  auto num_proc = omp_get_num_procs();
+  if ( num_thread > num_proc ) {
+    printf("No enough threads!\n");
+    omp_set_num_threads(num_proc);
+    num_thread = num_proc;
+  }
+  if ( parameter.num_particle <= 0 ) {
+    parameter.num_particle = num_thread;
+  }
   if ( num_test < 0 ) {
     printf("nT must be positive or zero!\n");
     exit(1);
@@ -56,13 +79,6 @@ int main( int argc, char **argv ) {
   I0   = new bool[p];
 
   // Display parameters
-  auto num_thread = omp_get_max_threads();
-  auto num_proc = omp_get_num_procs();
-  if ( num_thread > num_proc ) {
-    printf("No enough threads!\n");
-    omp_set_num_threads(num_proc);
-    num_thread = num_proc;
-  }
   if ( parameter.criterion == EBIC ) {
     printf("%s: n=%d, p=%d, nP=%d, nI=%d, nthr=%d, nT=%d, cri=%s, gamma=%.1f\n",
            dataname, n, p, parameter.num_particle, parameter.num_iteration,
@@ -104,10 +120,28 @@ int main( int argc, char **argv ) {
   // Run PaSS                                                               //
   ////////////////////////////////////////////////////////////////////////////
 
-  double start_time, total_time = 0.0;
-  auto isize = static_cast<int>(log10(p))+1;
-
   printf("================================================================\n");
+
+  // Initialize statistic data
+  int isize = static_cast<int>(log10(p))+1;
+  double start_time, total_time = 0.0;
+  Statistic statistic;
+  statistic.total_true_selection = 0;
+  statistic.total_test_selection = 0;
+  statistic.num_correct = 0;
+  statistic.num_positive_selection = 0;
+  statistic.num_false_discovery = 0;
+
+  // Display solution model
+  printf("True:\t");
+  for ( auto i = 0; i < p; i++ ) {
+    if ( J0[i] ) {
+      printf("%-*d ", isize, i);
+      statistic.total_true_selection++;
+    }
+  }
+  printf("\n\n");
+  statistic.total_true_selection *= num_test;
 
   for ( auto t = 0; t < num_test; ++t ) {
     // Run PaSS
@@ -117,17 +151,65 @@ int main( int argc, char **argv ) {
     total_time += omp_get_wtime() - start_time;
 
     // Display model
+    bool btemp = true;
     printf("%4d:\t", t);
-    for( auto i = 0; i < p; i++ ) {
-      if( I0[i] ) {
+    for ( auto i = 0; i < p; i++ ) {
+      if ( I0[i] && J0[i] ) {
         printf("%-*d ", isize, i);
+        statistic.total_test_selection++;
+        statistic.num_positive_selection++;
+      } else if ( I0[i] ) {
+        printf("%-*d ", isize, i);
+        statistic.total_test_selection++;
+        statistic.num_false_discovery++;
+        btemp = false;
+      } else if ( J0[i] ) {
+        btemp = false;
       }
     }
     printf("\n");
+    statistic.num_correct += btemp;
   }
 
-  printf( "\nTime = %.6lf sec\n", total_time / num_test );
+  printf("================================================================\n");
 
+  ////////////////////////////////////////////////////////////////////////////
+  // Display statistic report                                               //
+  ////////////////////////////////////////////////////////////////////////////
+
+  // Compute accuracy rate
+  statistic.rate_correct =
+      static_cast<float>(statistic.num_correct)
+      / num_test;
+  statistic.rate_incorrect =
+      1.0f - statistic.rate_correct;
+  statistic.rate_positive_selection =
+      static_cast<float>(statistic.num_positive_selection)
+      / statistic.total_true_selection;
+  statistic.rate_false_discovery =
+      static_cast<float>(statistic.num_false_discovery)
+      / statistic.total_test_selection;
+
+  // Display statistic report
+  printf("%s\n", dataname);
+  printf("nthr  = %d\n", num_thread);
+  printf("nP    = %d\n", parameter.num_particle);
+  printf("nI    = %d\n", parameter.num_iteration);
+  printf("pfg   = %.2f\n", parameter.prob_forward_global);
+  printf("pfl   = %.2f\n", parameter.prob_forward_local);
+  printf("pfr   = %.2f\n", parameter.prob_forward_random);
+  printf("pbl   = %.2f\n", parameter.prob_backward_local);
+  printf("pbr   = %.2f\n", parameter.prob_backward_random);
+  printf("cri   = %s\n", Criterion2String(parameter.criterion));
+  if ( parameter.criterion == EBIC ) {
+    printf("gamma = %.2f\n", parameter.ebic_gamma);
+  }
+  printf("nT    = %d\n", num_test);
+  printf("CR    = %.6f\n", statistic.rate_correct);
+  printf("ICR   = %.6f\n", statistic.rate_incorrect);
+  printf("PSR   = %.6f\n", statistic.rate_positive_selection);
+  printf("FDR   = %.6f\n", statistic.rate_false_discovery);
+  printf("Time  = %.6lf sec\n", total_time / num_test);
   printf("================================================================\n");
 
   ////////////////////////////////////////////////////////////////////////////
