@@ -5,6 +5,11 @@
 // Create a linear data using Ing and Lai's method                            //
 //                                                                            //
 // Author: emfo<emfomy@gmail.com>                                             //
+//                                                                            //
+// Reference:                                                                 //
+// Ing, C.-K., & Lai, T. L. (2011, October). A stepwise regression method and //
+//   consistent model selection for high-dimensional sparse linear models.    //
+//   http://doi.org/10.5705/ss.2010.081                                       //
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <cstdio>
