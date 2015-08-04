@@ -46,6 +46,7 @@ int p;               // scalar, the number of total effects
 float* X0;           // matrix, n by p, the regressors
 float* Y0;           // vector, n by 1, the regressand
 bool* I0;            // vector, 1 by p, the chosen indices
+float phi0;          // scalar, the value given by criterion
 Parameter parameter; // the parameters
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -54,12 +55,13 @@ Parameter parameter; // the parameters
 // Input Parameters:                                                          //
 // n:         scalar, the number of statistical units                         //
 // p:         scalar, the number of total effects                             //
-// X:         matrix, n by p, the regressors                                  //
-// Y:         vector, n by 1, the regressand                                  //
+// X0:        matrix, n by p, the regressors                                  //
+// Y0:        vector, n by 1, the regressand                                  //
 // parameter: the parameters                                                  //
 //                                                                            //
 // Output Global Variables:                                                   //
-// I:         vector, 1 by p, the chosen indices                              //
+// I0:        vector, 1 by p, the chosen indices                              //
+// phi0:      scalar, the value given by criterion                            //
 ////////////////////////////////////////////////////////////////////////////////
 void GenLin() {
   // Initialize random seed
@@ -166,6 +168,7 @@ void GenLin() {
     }
   }
   memcpy(I0, particle[j_best].I_best, sizeof(bool) * p);
+  phi0 = particle[j_best].phi_best;
 
   ////////////////////////////////////////////////////////////////////////////
 
@@ -246,6 +249,9 @@ void Particle::InitializeModel( const int idx ) {
 
   // Beta := M * Theta
   Beta[0] = M[0] * Theta[0];
+
+  // R = Y - X * Beta
+  szaxpy(n, -Beta[0], X, 1, Y, 1, R, 1);
 
   // Set status
   status = true;
@@ -358,6 +364,10 @@ void Particle::UpdateModel( const int idx ) {
 
     ////////////////////////////////////////////////////////////////////////
   }
+  
+  // R = Y - X * Beta
+  scopy(n, Y, 1, R, 1);
+  sgemv("N", n, k, -1.0f, X, n, Beta, 1, 1.0f, R, 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -450,10 +460,6 @@ void Particle::SelectIndex( int& idx ) {
 // Compute the value given by criterion                                       //
 ////////////////////////////////////////////////////////////////////////////////
 void Particle::ComputeCriterion() {
-  // R = Y - X * Beta
-  scopy(n, Y, 1, R, 1);
-  sgemv("N", n, k, -1.0f, X, n, Beta, 1, 1.0f, R, 1);
-
   // e := norm(R)
   e = snorm2(n, R, 1);
 

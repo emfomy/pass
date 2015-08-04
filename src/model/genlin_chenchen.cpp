@@ -148,6 +148,14 @@ int main( int argc, char **argv ) {
   cblas_strmm(CblasColMajor, CblasRight, CblasLower, CblasTrans, CblasNonUnit,
               n, p, 1.0f, R, p, X, n);
 
+  // Permutate X
+  if ( type != 1 ) {
+    for ( auto i = 1; i < p-1; ++i ) {
+      auto j = rand() % i;
+      cblas_sswap(n, X+i*n, 1, X+j*n, 1);
+    }
+  }
+
   // Y += X[0~r cols] * Beta
   cblas_sgemv(CblasColMajor, CblasNoTrans,
               n, r, 1.0f, X, n, Beta, 1, 1.0f, Y, 1);

@@ -22,6 +22,7 @@ extern int p;                      // scalar, the number of total effects
 extern float* X0;                  // matrix, n by p, the regressors
 extern float* Y0;                  // vector, n by 1, the regressand
 extern bool* I0;                   // vector, 1 by p, the chosen indices
+extern float phi0;                 // scalar, the value given by criterion
 extern struct Parameter parameter; // the parameters
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -30,12 +31,13 @@ extern struct Parameter parameter; // the parameters
 // Input Parameters:                                                          //
 // n:         scalar, the number of statistical units                         //
 // p:         scalar, the number of total effects                             //
-// X:         matrix, n by p, the regressors                                  //
-// Y:         vector, n by 1, the regressand                                  //
+// X0:        matrix, n by p, the regressors                                  //
+// Y0:        vector, n by 1, the regressand                                  //
 // parameter: the parameters                                                  //
 //                                                                            //
 // Output Global Variables:                                                   //
-// I:         vector, 1 by p, the chosen indices                              //
+// I0:        vector, 1 by p, the chosen indices                              //
+// phi0:      scalar, the value given by criterion                            //
 ////////////////////////////////////////////////////////////////////////////////
 void GenLin();
 

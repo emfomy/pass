@@ -96,13 +96,13 @@ int main( int argc, char **argv ) {
 
   // S[i] := sum( X[i, 0~r] )
   stemp = 1.0f;
-  for ( auto i = 0; i < n; ++i ) {
+  for ( auto i = 0; i < r; ++i ) {
     S[i] = cblas_sdot(r, X+i*n, n, &stemp, 0);
   }
 
   // X[i col] := sqrt(.75/r) * S + .5 * X[i col], i >= r
   stemp = sqrt(0.75f/r);
-  for ( auto i = 0; i < r; ++i ) {
+  for ( auto i = r; i < p; ++i ) {
     cblas_sscal(n, 0.5f, X+i*n, 1);
     cblas_saxpy(n, stemp, S, 1, X+i*n, 1);
   }

@@ -23,8 +23,6 @@ bool *J0;        // vector, 1 by p, the chosen indices (solution)
 int num_test;    // scalar, the number of tests
 char *dataname;  // string, the name of data
 
-using namespace pass;
-
 // The statistic structure
 struct Statistic {
   int num_correct;                // the total number of correct selection
@@ -77,7 +75,7 @@ int main( int argc, char **argv ) {
 
   // Display parameters
   if ( parameter.criterion == EBIC ) {
-    printf("%s: n=%d, p=%d, nP=%d, nI=%d, nthr=%d, nT=%d, cri=%s, gamma=%.1f\n",
+    printf("%s: n=%d, p=%d, nP=%d, nI=%d, nthr=%d, nT=%d, cri=%s%.1f\n",
            dataname, n, p, parameter.num_particle, parameter.num_iteration,
            num_thread, num_test, Criterion2String(parameter.criterion),
            parameter.ebic_gamma);
@@ -126,9 +124,24 @@ int main( int argc, char **argv ) {
   statistic.rate_positive_selection = 0.0f;
   statistic.rate_false_discovery    = 0.0f;
 
+  // Create solution model
+  Particle solution;
+  bool btemp = true;
+  for ( auto i = 0; i < p; i++ ) {
+    if ( J0[i] ) {
+      if ( btemp ) {
+        solution.InitializeModel(i);
+        btemp = false;
+      } else {
+        solution.UpdateModel(i);
+      }
+    }
+  }
+  solution.ComputeCriterion();
+
   // Display solution model
   statistic.num_true_selection = 0;
-  printf("True:\t");
+  printf("True:\t%12.6f; ", solution.phi);
   for ( auto i = 0; i < p; i++ ) {
     if ( J0[i] ) {
       printf("%-*d ", isize, i);
@@ -138,8 +151,6 @@ int main( int argc, char **argv ) {
   printf("\n\n");
 
   for ( auto t = 0; t < num_test; ++t ) {
-    printf("%4d:\t", t);
-
     // Run PaSS
     start_time = omp_get_wtime();
     GenLin();
@@ -149,6 +160,7 @@ int main( int argc, char **argv ) {
     statistic.num_correct = 0;
     statistic.num_incorrect = 0;
     statistic.num_test_selection = 0;
+    printf("%4d:\t%12.6f; ", t, phi0);
     for ( auto i = 0; i < p; i++ ) {
       if ( I0[i] ) {
         printf("%-*d ", isize, i);
@@ -187,9 +199,13 @@ int main( int argc, char **argv ) {
   printf("pfr   = %.2f\n", parameter.prob_forward_random);
   printf("pbl   = %.2f\n", parameter.prob_backward_local);
   printf("pbr   = %.2f\n", parameter.prob_backward_random);
-  printf("cri   = %s\n", Criterion2String(parameter.criterion));
   if ( parameter.criterion == EBIC ) {
-    printf("gamma = %.2f\n", parameter.ebic_gamma);
+    printf("cri   = %s%.1f\n",
+           Criterion2String(parameter.criterion),
+           parameter.ebic_gamma);
+  } else {
+    printf("cri   = %s\n",
+           Criterion2String(parameter.criterion));
   }
   printf("nT    = %d\n", num_test);
   printf("PSR   = %.6f\n", statistic.rate_positive_selection / num_test);
