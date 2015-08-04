@@ -427,19 +427,17 @@ void Particle::SelectIndex( int& idx ) {
   } else {  // backward step
     if ( frand < parameter.prob_backward_local ) {  // Local best
       auto phi_temp = 0.0f/0.0f;
-      for ( auto i = 0; i < p; ++i ) {
-        if ( I[i] ) {
-          // B := R + Beta[#] * X[# col]
-          szaxpy(n, Beta[Idx_fl[i]], X+Idx_fl[i]*n, 1, R, 1, B, 1);
+      for ( auto i = 0; i < k; ++i ) {
+        // B := R + Beta[i] * X[i col]
+        szaxpy(n, Beta[i], X+i*n, 1, R, 1, B, 1);
 
-          // ftemp = norm(B)
-          auto ftemp = snorm2(n, B, 1);
+        // ftemp = norm(B)
+        auto ftemp = snorm2(n, B, 1);
 
-          // Check if this value is minimal
-          if ( !(ftemp > phi_temp) ) {
-            phi_temp = ftemp;
-            idx = i;
-          }
+        // Check if this value is minimal
+        if ( !(ftemp > phi_temp) ) {
+          phi_temp = ftemp;
+          idx = Idx_lf[i];
         }
       }
     } else {  // Random

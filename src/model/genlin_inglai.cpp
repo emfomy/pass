@@ -11,10 +11,8 @@
 #include <cstring>
 #include <ctime>
 #include <random>
-#include <boost/random.hpp>
-#include <boost/random/normal_distribution.hpp>
-
-using namespace boost;
+#include <cblas.h>
+#include <lapacke.h>
 
 // Global variables
 int n;           // scalar, the number of statistical units
@@ -40,11 +38,8 @@ int main( int argc, char **argv ) {
   ////////////////////////////////////////////////////////////////////////////
 
   // Initialize random generator
-  mt19937 *rng = new mt19937();
-  rng->seed(time(NULL));
-
-  normal_distribution<> distribution(1.0f, 1.0f);
-  variate_generator<mt19937, normal_distribution<>> dist(*rng, distribution);
+  srand(time(NULL));
+  int iseed[4] = {rand()%4096, rand()%4096, rand()%4096, (rand()%2048)*2+1};
 
   // Initialize variables
   n = 400;
@@ -88,38 +83,29 @@ int main( int argc, char **argv ) {
   X = new float[n*p];
   Y = new float[n];
   J = new bool[p]();
-  auto S = new float[n]();
+  auto S = new float[n];
+  float stemp;
 
   // Generate X & Y using normal random
-  for ( auto i = 0; i < n*p; ++i ) {
-    X[i] = dist();
-  }
-  for ( auto i = 0; i < n; ++i ) {
-    Y[i] = dist();
-  }
+  LAPACKE_slarnv(3, iseed, n*p, X);
+  LAPACKE_slarnv(3, iseed, n, Y);
 
   // S[i] := sum( X[i, 0~r] )
+  stemp = 1.0f;
   for ( auto i = 0; i < n; ++i ) {
-    for ( auto j = 0; j < r; ++j ) {
-      S[i] += X[i+j*n];
-    }
+    S[i] = cblas_sdot(r, X+i*n, n, &stemp, 0);
   }
 
-  // X[j col] := sqrt(.75/r) * S + .5 * X[j col], j >= r
-  float dtemp = sqrt(0.75f/r);
-  for ( auto i = 0; i < n; ++i ) {
-    for ( auto j = 0; j < r; ++j ) {
-      X[i+j*n] *= 0.5f;
-      X[i+j*n] += dtemp * S[i];
-    }
+  // X[i col] := sqrt(.75/r) * S + .5 * X[i col], i >= r
+  stemp = sqrt(0.75f/r);
+  for ( auto i = 0; i < r; ++i ) {
+    cblas_sscal(n, 0.5f, X+i*n, 1);
+    cblas_saxpy(n, stemp, S, 1, X+i*n, 1);
   }
 
   // Y += X[0~r cols] * Beta
-  for ( auto i = 0; i < n; ++i ) {
-    for ( auto j = 0; j < r; ++j ) {
-      Y[i] += Beta[j] * X[i+j*n];
-    }
-  }
+  cblas_sgemv(CblasColMajor, CblasNoTrans,
+              n, r, 1.0f, X, n, Beta, 1, 1.0f, Y, 1);
 
   // Generate J
   memset(J, true, sizeof(bool) * r);
