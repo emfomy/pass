@@ -9,7 +9,7 @@ TGTDIR = mk
 
 TGT = $(wildcard $(TGTDIR)/*.mk)
 
-MODEL = bin/genlin_inglai
+MODEL = bin/genlin_chenchen
 
 RUN = sh/genlin.sh
 

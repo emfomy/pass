@@ -26,8 +26,8 @@
 //     = argmin_{i in I} norm( R + Beta[i] * X[i col] )                       //
 //                                                                            //
 // References:                                                                //
-// Chen, R.-B., Huang, C.-C., & Wang, W. (2013).                              //
-//   Particle Swarm Stepwise (PaSS) Algorithm for Variable Selection, 1–23.   //
+// Chen, R.-B., Huang, C.-C., & Wang, W. (2013). Particle Swarm Stepwise      //
+//   (PaSS) Algorithm for Variable Selection.                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "pass.hpp"
@@ -102,7 +102,7 @@ void GenLin() {
   ////////////////////////////////////////////////////////////////////////////
 
   // Allocate particles
-  static auto particle = new Particle[parameter.num_particle];
+  auto particle = new Particle[parameter.num_particle];
 
   // Use openMP parallel
   #pragma omp parallel
@@ -169,7 +169,7 @@ void GenLin() {
 
   ////////////////////////////////////////////////////////////////////////////
 
-  // delete[] particle;
+  delete[] particle;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

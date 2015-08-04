@@ -27,10 +27,10 @@ using namespace pass;
 
 // The statistic structure
 struct Statistic {
-  int num_correct;                // the number of correct selection
-  int num_incorrect;              // the number of incorrect selection
-  int total_true_selection;       // the total selection of solution model
-  int total_test_selection;       // the total selection of test model
+  int num_correct;                // the total number of correct selection
+  int num_incorrect;              // the total number of incorrect selection
+  int num_true_selection;         // the total selection of solution model
+  int num_test_selection;         // the total selection of test model
   float rate_positive_selection;  // the positive selection rate
   float rate_false_discovery;     // the false discovery rate
 };
@@ -123,35 +123,36 @@ int main( int argc, char **argv ) {
   int isize = static_cast<int>(log10(p))+1;
   double start_time, total_time = 0.0;
   Statistic statistic;
-  statistic.num_correct = 0;
-  statistic.num_incorrect = 0;
-  statistic.total_true_selection = 0;
-  statistic.total_test_selection = 0;
+  statistic.rate_positive_selection = 0.0f;
+  statistic.rate_false_discovery    = 0.0f;
 
   // Display solution model
+  statistic.num_true_selection = 0;
   printf("True:\t");
   for ( auto i = 0; i < p; i++ ) {
     if ( J0[i] ) {
       printf("%-*d ", isize, i);
-      statistic.total_true_selection++;
+      statistic.num_true_selection++;
     }
   }
   printf("\n\n");
-  statistic.total_true_selection *= num_test;
 
   for ( auto t = 0; t < num_test; ++t ) {
-    // Run PaSS
+    printf("%4d:\t", t);
 
+    // Run PaSS
     start_time = omp_get_wtime();
     GenLin();
     total_time += omp_get_wtime() - start_time;
 
     // Display model
-    printf("%4d:\t", t);
+    statistic.num_correct = 0;
+    statistic.num_incorrect = 0;
+    statistic.num_test_selection = 0;
     for ( auto i = 0; i < p; i++ ) {
       if ( I0[i] ) {
         printf("%-*d ", isize, i);
-        statistic.total_test_selection++;
+        statistic.num_test_selection++;
         if ( J0[i] ) {
           statistic.num_correct++;
         } else {
@@ -160,6 +161,14 @@ int main( int argc, char **argv ) {
       }
     }
     printf("\n");
+
+    // Compute accuracy rate
+    statistic.rate_positive_selection +=
+        static_cast<float>(statistic.num_correct) /
+        statistic.num_true_selection;
+    statistic.rate_false_discovery +=
+        static_cast<float>(statistic.num_incorrect) /
+        statistic.num_test_selection;
   }
 
   printf("================================================================\n");
@@ -167,14 +176,6 @@ int main( int argc, char **argv ) {
   ////////////////////////////////////////////////////////////////////////////
   // Display statistic report                                               //
   ////////////////////////////////////////////////////////////////////////////
-
-  // Compute accuracy rate
-  statistic.rate_positive_selection =
-      static_cast<float>(statistic.num_correct)
-      / statistic.total_true_selection;
-  statistic.rate_false_discovery =
-      static_cast<float>(statistic.num_incorrect)
-      / statistic.total_test_selection;
 
   // Display statistic report
   printf("%s\n", dataname);
@@ -191,10 +192,8 @@ int main( int argc, char **argv ) {
     printf("gamma = %.2f\n", parameter.ebic_gamma);
   }
   printf("nT    = %d\n", num_test);
-  printf("C     = %.6f\n", statistic.num_correct);
-  printf("IC    = %.6f\n", statistic.num_incorrect);
-  printf("PSR   = %.6f\n", statistic.rate_positive_selection);
-  printf("FDR   = %.6f\n", statistic.rate_false_discovery);
+  printf("PSR   = %.6f\n", statistic.rate_positive_selection / num_test);
+  printf("FDR   = %.6f\n", statistic.rate_false_discovery / num_test);
   printf("Time  = %.6lf sec\n", total_time / num_test);
   printf("================================================================\n");
 
