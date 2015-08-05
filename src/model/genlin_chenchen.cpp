@@ -99,7 +99,7 @@ int main( int argc, char **argv ) {
   X = new float[n*p];
   Y = new float[n];
   J = new bool[p]();
-  auto R = new float[p*p];
+  auto L = new float[p*p];
 
   // Generate X & Y using normal random
   LAPACKE_slarnv(3, iseed, n*p, X);
@@ -107,13 +107,13 @@ int main( int argc, char **argv ) {
 
   // Create covariance matrix
   for ( auto i = 0; i < p; ++i ) {
-    R[i+i*p] = 1.0f;
+    L[i+i*p] = 1.0f;
   }
   switch ( type ) {
     case 1: {
       for ( auto j = 0; j < p; ++j ) {
         for ( auto i = j+1; i < p; ++i ) {
-          R[i+j*p] = rho;
+          L[i+j*p] = rho;
         }
       }
       strcat(dataname, "_1");
@@ -121,7 +121,7 @@ int main( int argc, char **argv ) {
     }
     case 2: {
       for ( auto i = 1; i < p; ++i ) {
-        R[i+(i-1)*p] = rho;
+        L[i+(i-1)*p] = rho;
       }
       strcat(dataname, "_2");
       break;
@@ -129,7 +129,7 @@ int main( int argc, char **argv ) {
     case 3: {
       for ( auto j = 0; j < p; ++j ) {
         for ( auto i = j+1; i < p; ++i ) {
-          R[i+j*p] = pow(rho, i-j);
+          L[i+j*p] = pow(rho, i-j);
         }
       }
       strcat(dataname, "_3");
@@ -137,16 +137,16 @@ int main( int argc, char **argv ) {
     }
   }
 
-  // Compute the Cholesky factorization of R
-  auto info = LAPACKE_spotrf(LAPACK_COL_MAJOR, 'L', p, R, p);
+  // Compute the Cholesky factorization of L
+  auto info = LAPACKE_spotrf(LAPACK_COL_MAJOR, 'L', p, L, p);
   if ( info ) {
     printf("Failed.\nThe covariance matrix is illegal.\n");
     exit(1);
   }
 
-  // X := X * R
+  // X := X * L'
   cblas_strmm(CblasColMajor, CblasRight, CblasLower, CblasTrans, CblasNonUnit,
-              n, p, 1.0f, R, p, X, n);
+              n, p, 1.0f, L, p, X, n);
 
   // Permutate X
   if ( type != 1 ) {
@@ -175,7 +175,7 @@ int main( int argc, char **argv ) {
   delete[] Y;
   delete[] Beta;
   delete[] J;
-  delete[] R;
+  delete[] L;
 
   printf("================================================================\n");
 

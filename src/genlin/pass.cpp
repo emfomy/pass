@@ -465,7 +465,7 @@ void Particle::ComputeCriterion() {
 
   // Compute criterion
   switch(parameter.criterion) {
-    case AIC: {    // phi := n * log(e^2/n) + 2k
+    case AIC: {    // phi := n*log(e^2/n) + 2k
       phi = n*logf(e*e/n) + 2.0f*k;
       break;
     }
@@ -482,8 +482,12 @@ void Particle::ComputeCriterion() {
       phi = n*logf(e*e/n) + k*logf(n)*logf(p);
       break;
     }
-    case HDHQ: {   // phi := n*log(e^2/n) + 2.01k*log(log(n))*log(p)
-      phi = n*logf(e*e/n) + 2.01f*k*logf(logf(n))*logf(p);
+    case HQC: {   // phi := n*log(e^2/n) + 2k*log(log(n))
+      phi = n*logf(e*e/n) + 2.0f*k*logf(logf(n));
+      break;
+    }
+    case HDHQC: {   // phi := n*log(e^2/n) + 2k*log(log(n))*log(p)
+      phi = n*logf(e*e/n) + 2.0f*k*logf(logf(n))*logf(p);
       break;
     }
   }

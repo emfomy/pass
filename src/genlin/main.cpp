@@ -279,8 +279,11 @@ void PassConfig( const char* fileroot ) {
     else if ( !strcmp(cristr, "HDBIC") ) {
       parameter.criterion = HDBIC;
     }
-    else if ( !strcmp(cristr, "HDHQ") ) {
-      parameter.criterion = HDHQ;
+    else if ( !strcmp(cristr, "HQC") ) {
+      parameter.criterion = HQC;
+    }
+    else if ( !strcmp(cristr, "HDHQC") ) {
+      parameter.criterion = HDHQC;
     }
     else {
       printf("Failed!\nThere is no criterion named '%s'!\n", cristr);
@@ -346,7 +349,9 @@ void PassConfig( const char* fileroot ) {
                   "EBIC with parameter gamma.\n");
     fprintf(file, "        HDBIC:       "
                   "High-dimensional Bayesian information criterion.\n");
-    fprintf(file, "        HDHQ:        "
+    fprintf(file, "        HQC:       "
+                  "Hannan-Quinn information criterion.\n");
+    fprintf(file, "        HDHQC:       "
                   "High-dimensional Hannan-Quinn information criterion.\n");
     fprintf(file, "<nT>    the number of tests.\n");
 

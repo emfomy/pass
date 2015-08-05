@@ -28,6 +28,9 @@ The PaSS algorithm for general linear model.
 #### `/model`
 The model generators.
 
+#### `/data`
+The data loader.
+
 ### `/obj`
 The object files.
 

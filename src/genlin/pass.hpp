@@ -49,7 +49,8 @@ enum Criterion {
   BIC,   // Bayesian information criterion
   EBIC,  // Extended Bayesian information criterion
   HDBIC, // High-dimensional Bayesian information criterion
-  HDHQ   // High-dimensional Hannan-Quinn information criterion
+  HQC,   // Hannan-Quinn information criterion
+  HDHQC  // High-dimensional Hannan-Quinn information criterion
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -72,8 +73,11 @@ static const char* Criterion2String( const Criterion criterion ) {
     case HDBIC: {
       return "HDBIC";
     }
-    case HDHQ: {
-      return "HDHQ";
+    case HQC: {
+      return "HQC";
+    }
+    case HDHQC: {
+      return "HDHQC";
     }
     default: {
       return "";
