@@ -227,7 +227,7 @@ void IngLaiSave( const char* fileroot ) {
   fwrite(&p, sizeof(int), 1, file);
   fwrite(X, sizeof(float), n * p, file);
   fwrite(Y, sizeof(float), n, file);
-  fwrite(J, sizeof(int), p, file);
+  fwrite(J, sizeof(bool), p, file);
 
   // Close file
   fclose(file);
