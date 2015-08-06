@@ -8,16 +8,25 @@ Particle Swarm Stepwise (PaSS) Algorithm
 * Uses [git-flow](http://nvie.com/posts/a-successful-git-branching-model/) to control branches.
 
 ### Cluster
-* [IBM® Blue Gene/Q](http://www-03.ibm.com/systems/technicalcomputing/solutions/bluegene/) in [IBM® Thomas J. Watson Research Center](http://www.research.ibm.com/labs/watson/) ([bgqfen2.watson.ibm.com]()).
+* [IBM Blue Gene/Q](http://www-03.ibm.com/systems/technicalcomputing/solutions/bluegene/) in [IBM Thomas J. Watson Research Center](http://www.research.ibm.com/labs/watson/) ([bgqfen2.watson.ibm.com]()).
 
 ### Compiler
 * [IBM XL C/C++ for Blue Gene, V12.1](http://www-03.ibm.com/software/products/en/xlcc+forbluegene)
 
 ### Library
-* [MPICH2 version 1.5](https://www.mpich.org/)
-* [IBM® ESSL Version 5.1](http://www-03.ibm.com/systems/power/software/essl/)
+* [MPICH2 Version 1.5](https://www.mpich.org/)
+* [IBM ESSL Version 5.1](http://www-03.ibm.com/systems/power/software/essl/)
+* [BLAS Version 3.5.0](http://www.netlib.org/blas/)
+* [LAPACK Version 3.5.0](http://www.netlib.org/lapack/)
 
-## Directories
+### Path
+* `ESSLROOT`: root of IBM ESSL
+* `XLFROOT`: root of IBM XL Fortran
+* `XLSMPROOT`: root of IBM XL SMP
+* `LAPACKROOT`: root of LAPACK
+* `CBLASROOT`: root of CBLAS
+
+## Directory
 
 ### `/src`
 The source files.

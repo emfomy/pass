@@ -55,15 +55,12 @@ int main( int argc, char **argv ) {
   type = 3;
   rho = 0.2;
 
-  auto cfgroot  = (argc > 1) ? argv[1] : "pass_genlin_chenchen.cfg";
-  auto dataroot = (argc > 2) ? argv[2] : "pass_genlin.dat";
+  auto cfgroot  = (argc > 1) ? argv[1] : "genlin_chenchen.cfg";
+  auto dataroot = (argc > 2) ? argv[2] : "genlin.dat";
 
   auto strtemp = "GenLin_ChenChen";
   dataname = new char[strlen(strtemp)+3];
-  memcpy(dataname, strtemp, sizeof(char) * (strlen(strtemp)+1));
-
-  if ( argc > 1 ) cfgroot  = argv[1];
-  if ( argc > 2 ) dataroot = argv[2];
+  strcpy(dataname, strtemp);
 
   ////////////////////////////////////////////////////////////////////////////
   // Load parameters                                                        //
@@ -222,8 +219,7 @@ void ChenChenConfig( const char* fileroot ) {
 
     printf("Done.\n");
   } else {
-    printf("Failed!\n");
-    printf("Creating config file '%s'... ", fileroot);
+    printf("Failed!\nCreating config file '%s'... ", fileroot);
 
     // Open file
     file = fopen(fileroot, "w");
@@ -252,8 +248,7 @@ void ChenChenConfig( const char* fileroot ) {
     // Close file
     fclose(file);
 
-    printf("Done.\n");
-    printf("Uses default config.\n");
+    printf("Done.\nUses default config.\n");
   }
 }
 

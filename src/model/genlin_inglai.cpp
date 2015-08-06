@@ -50,15 +50,12 @@ int main( int argc, char **argv ) {
   p = 4000;
   r = 10;
 
-  auto cfgroot  = (argc > 1) ? argv[1] : "pass_genlin_inglai.cfg";
-  auto dataroot = (argc > 2) ? argv[2] : "pass_genlin.dat";
+  auto cfgroot  = (argc > 1) ? argv[1] : "genlin_inglai.cfg";
+  auto dataroot = (argc > 2) ? argv[2] : "genlin.dat";
 
   auto strtemp = "GenLin_IngLai";
   dataname = new char[strlen(strtemp)+1];
-  memcpy(dataname, strtemp, sizeof(char) * (strlen(strtemp)+1));
-
-  if ( argc > 1 ) cfgroot  = argv[1];
-  if ( argc > 2 ) dataroot = argv[2];
+  strcpy(dataname, strtemp);
 
   ////////////////////////////////////////////////////////////////////////////
   // Load parameters                                                        //
@@ -169,8 +166,7 @@ void IngLaiConfig( const char* fileroot ) {
 
     printf("Done.\n");
   } else {
-    printf("Failed!\n");
-    printf("Creating config file '%s'... ", fileroot);
+    printf("Failed!\nCreating config file '%s'... ", fileroot);
 
     // Open file
     file = fopen(fileroot, "w");
@@ -196,8 +192,7 @@ void IngLaiConfig( const char* fileroot ) {
     // Close file
     fclose(file);
 
-    printf("Done.\n");
-    printf("Uses default config.\n");
+    printf("Done.\nUses default config.\n");
   }
 }
 

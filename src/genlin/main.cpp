@@ -41,8 +41,8 @@ void PassLoad( const char* fileroot );
 // Main function                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 int main( int argc, char **argv ) {
-  auto cfgroot  = (argc > 1) ? argv[1] : "pass_genlin.cfg";
-  auto dataroot = (argc > 2) ? argv[2] : "pass_genlin.dat";
+  auto cfgroot  = (argc > 1) ? argv[1] : "genlin.cfg";
+  auto dataroot = (argc > 2) ? argv[2] : "genlin.dat";
 
   ////////////////////////////////////////////////////////////////////////////
   // Load parameters and data                                               //
@@ -299,8 +299,7 @@ void PassConfig( const char* fileroot ) {
     printf("Done.\n");
   }
   else {
-    printf("Failed!\n");
-    printf("Creating config file '%s'... ", fileroot);
+    printf("Failed!\nCreating config file '%s'... ", fileroot);
 
     // Open file
     file = fopen( fileroot, "w" );
@@ -349,7 +348,7 @@ void PassConfig( const char* fileroot ) {
                   "EBIC with parameter gamma.\n");
     fprintf(file, "        HDBIC:       "
                   "High-dimensional Bayesian information criterion.\n");
-    fprintf(file, "        HQC:       "
+    fprintf(file, "        HQC:         "
                   "Hannan-Quinn information criterion.\n");
     fprintf(file, "        HDHQC:       "
                   "High-dimensional Hannan-Quinn information criterion.\n");
@@ -358,8 +357,7 @@ void PassConfig( const char* fileroot ) {
     // Close file
     fclose(file);
 
-    printf("Done.\n");
-    printf("Uses default config.\n");
+    printf("Done.\nUses default config.\n");
   }
 }
 
@@ -370,19 +368,17 @@ void PassConfig( const char* fileroot ) {
 // fileroot: the root of data file                                            //
 ////////////////////////////////////////////////////////////////////////////////
 void PassLoad( const char* fileroot ) {
-  FILE *file;
-  int size;
-
   printf("Loading model from '%s'... ", fileroot);
 
   // Open file
-  file = fopen(fileroot, "rb");
+  auto file = fopen(fileroot, "rb");
   if ( !file ) {
     printf("Failed!\n");
     exit(1);
   }
 
-  // Write data
+  // Read data
+  int size;
   fread(&size, sizeof(int), 1, file);
   dataname = new char[size];
   fread(dataname, sizeof(char), size, file);
