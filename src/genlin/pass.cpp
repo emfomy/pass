@@ -62,11 +62,11 @@ Parameter parameter; // the parameters
 // Output Global Variables:                                                   //
 // I0:        vector, 1 by p, the chosen indices                              //
 // phi0:      scalar, the value given by criterion                            //
+//                                                                            //
+// Note:                                                                      //
+// Please call srand before using this routine.                               //
 ////////////////////////////////////////////////////////////////////////////////
 void GenLin() {
-  // Initialize random seed
-  srand(time(NULL));
-
   // Check parameters
   auto num_thread = omp_get_max_threads();
   if ( num_thread > parameter.num_particle ) {

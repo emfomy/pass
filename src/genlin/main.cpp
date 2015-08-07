@@ -41,6 +41,10 @@ void PassLoad( const char* fileroot );
 // Main function                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 int main( int argc, char **argv ) {
+  // Initialize random seed
+  srand(time(NULL));
+
+  // Load arguments
   auto cfgroot  = (argc > 1) ? argv[1] : "genlin.cfg";
   auto dataroot = (argc > 2) ? argv[2] : "genlin.dat";
 
