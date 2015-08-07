@@ -9,7 +9,7 @@ TGTDIR = mk
 
 TGT = $(wildcard $(TGTDIR)/*.mk)
 
-MODEL = bin/genlin_inglai
+MODEL = src/data/genlin_hung_1_1.dat
 
 RUN = sh/genlin.sh
 
@@ -23,7 +23,7 @@ $(TGT):
 
 run: $(MODEL) $(RUN)
 	@ mkdir -p $@
-	( cd run ; ../$(MODEL) )
+	cp $(MODEL) run/genlin.dat
 	( cd run ; ../$(RUN) )
 
 clean:

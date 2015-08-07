@@ -48,30 +48,37 @@ function genlin_hung( srcname, srcroot, dstroot )
   end
 
   % Convert indices
-  k = 0;
+  k = 1;
   Idx = zeros(1, size(True_main, 2)+size(True_int, 2));
   for idx = True_main
-    k = k+1;
-    Idx(k) = find(X_ind == idx);
+    i = find(X_ind == idx(1));
+    if ~isempty(i)
+      Idx(k) = i;
+      k = k+1;
+    end
   end
   for idx = True_int
-    k = k+1;
     i = find(X_ind == idx(1));
     j = find(X_ind == idx(2));
-    Idx(k) = i*q - i*(i+1)/2 + j;
+    if ~isempty(i) && ~isempty(j)
+      Idx(k) = i*q - i*(i+1)/2 + j;
+      k = k+1;
+    end
   end
+  Idx(k:end) = [];
 
   % Generate J
   J = false(1, p);
   J(Idx) = true;
 
   % Save data
-  file = fopen(dstroot, 'wb');
-  fwrite(file, length(dstname), 'integer*4', 'ieee-be.l64');
-  fwrite(file, dstname, 'char*1', 'ieee-be.l64');
-  fwrite(file, n, 'integer*4', 'ieee-be.l64');
-  fwrite(file, p, 'integer*4', 'ieee-be.l64');
-  fwrite(file, X, 'real*4', 'ieee-be.l64');
-  fwrite(file, Y, 'real*4', 'ieee-be.l64');
+  file = fopen(dstroot, 'wb', 'ieee-be');
+  fwrite(file, length(dstname), 'integer*4');
+  fwrite(file, dstname, 'char*1');
+  fwrite(file, n, 'integer*4');
+  fwrite(file, p, 'integer*4');
+  fwrite(file, X, 'real*4');
+  fwrite(file, Y, 'real*4');
   fwrite(file, J);
+  fclose(file);
 end
