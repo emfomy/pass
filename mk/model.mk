@@ -5,9 +5,9 @@ MAKEINC = Makefile.inc
 
 include $(MAKEINC)
 
-INC = -I$(CBLASINC) -I$(LAPACKINC)
+INC =
 
-LIB = -L$(CBLASLIB) -L$(LAPACKLIB) -lcblas -llapacke -llapack -lrefblas -ltmglib -lgfortran
+LIB = -llapacke -llapack -lcblas -lblas -ltmglib -lgfortran
 
 TARGET = model
 

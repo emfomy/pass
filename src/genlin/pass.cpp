@@ -72,10 +72,6 @@ void GenLin() {
   if ( num_thread > parameter.num_particle ) {
     num_thread = parameter.num_particle;
   }
-  if ( parameter.num_iteration < 0 ) {
-    printf("The number of iterations must be positive or zero!\n");
-    exit(1);
-  }
 
   ////////////////////////////////////////////////////////////////////////////
   // Centralize and normalize the original data                             //

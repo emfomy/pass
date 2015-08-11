@@ -21,9 +21,10 @@ function genlin_hung( srcname, srcroot, dstroot )
     srcroot = 'genlin_hung.mat';
   end
   if nargin < 3
-    dstroot = '../../run/genlin.dat';
+    dstroot = 'genlin.dat';
   end
   dstname = ['GenLin_Hung_', srcname, 0];
+  dstlen = length(dstname);
 
   % load data
   data = getfield(load(srcroot, srcname), srcname);
@@ -73,7 +74,7 @@ function genlin_hung( srcname, srcroot, dstroot )
 
   % Save data
   file = fopen(dstroot, 'wb', 'ieee-be');
-  fwrite(file, length(dstname), 'integer*4');
+  fwrite(file, dstlen, 'integer*4');
   fwrite(file, dstname, 'char*1');
   fwrite(file, n, 'integer*4');
   fwrite(file, p, 'integer*4');

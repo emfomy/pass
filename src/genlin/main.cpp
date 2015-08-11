@@ -23,16 +23,6 @@ bool *J0;        // vector, 1 by p, the chosen indices (solution)
 int num_test;    // scalar, the number of tests
 char *dataname;  // string, the name of data
 
-// The statistic structure
-struct Statistic {
-  int num_correct;                // the total number of correct selection
-  int num_incorrect;              // the total number of incorrect selection
-  int num_true_selection;         // the total selection of solution model
-  int num_test_selection;         // the total selection of test model
-  float rate_positive_selection;  // the positive selection rate
-  float rate_false_discovery;     // the false discovery rate
-};
-
 // Functions
 void PassConfig( const char* fileroot );
 void PassLoad( const char* fileroot );
@@ -60,13 +50,13 @@ int main( int argc, char **argv ) {
   // Check parameters
   auto num_thread = omp_get_max_threads();
   auto num_proc = omp_get_num_procs();
+  if ( parameter.num_particle <= 0 ) {
+    parameter.num_particle = num_thread;
+  }
   if ( num_thread > num_proc ) {
     printf("No enough threads!\n");
     omp_set_num_threads(num_proc);
     num_thread = num_proc;
-  }
-  if ( parameter.num_particle <= 0 ) {
-    parameter.num_particle = num_thread;
   }
   if ( num_test < 0 ) {
     printf("nT must be positive or zero!\n");
@@ -124,9 +114,8 @@ int main( int argc, char **argv ) {
   // Initialize statistic data
   int isize = static_cast<int>(log10(p))+1;
   double start_time, total_time = 0.0;
-  Statistic statistic;
-  statistic.rate_positive_selection = 0.0f;
-  statistic.rate_false_discovery    = 0.0f;
+  auto rate_positive_selection = new float[num_test];
+  auto rate_false_discovery    = new float[num_test];
 
   // Create solution model
   Particle solution;
@@ -144,12 +133,12 @@ int main( int argc, char **argv ) {
   solution.ComputeCriterion();
 
   // Display solution model
-  statistic.num_true_selection = 0;
+  auto num_true_selection = 0;
   printf("True:\t%12.6f; ", solution.phi);
   for ( auto i = 0; i < p; i++ ) {
     if ( J0[i] ) {
       printf("%-*d ", isize, i);
-      statistic.num_true_selection++;
+      num_true_selection++;
     }
   }
   printf("\n\n");
@@ -161,30 +150,28 @@ int main( int argc, char **argv ) {
     total_time += omp_get_wtime() - start_time;
 
     // Display model
-    statistic.num_correct = 0;
-    statistic.num_incorrect = 0;
-    statistic.num_test_selection = 0;
+    auto num_correct = 0;
+    auto num_incorrect = 0;
+    auto num_test_selection = 0;
     printf("%4d:\t%12.6f; ", t, phi0);
     for ( auto i = 0; i < p; i++ ) {
       if ( I0[i] ) {
         printf("%-*d ", isize, i);
-        statistic.num_test_selection++;
+        num_test_selection++;
         if ( J0[i] ) {
-          statistic.num_correct++;
+          num_correct++;
         } else {
-          statistic.num_incorrect++;
+          num_incorrect++;
         }
       }
     }
     printf("\n");
 
     // Compute accuracy rate
-    statistic.rate_positive_selection +=
-        static_cast<float>(statistic.num_correct) /
-        statistic.num_true_selection;
-    statistic.rate_false_discovery +=
-        static_cast<float>(statistic.num_incorrect) /
-        statistic.num_test_selection;
+    rate_positive_selection[t] =
+        static_cast<float>(num_correct) / num_true_selection;
+    rate_false_discovery[t] =
+        static_cast<float>(num_incorrect) / num_test_selection;
   }
 
   printf("================================================================\n");
@@ -193,28 +180,53 @@ int main( int argc, char **argv ) {
   // Display statistic report                                               //
   ////////////////////////////////////////////////////////////////////////////
 
+  // Compute means and standard deviations
+  float stemp = 1.0f;
+  auto rate_positive_selection_mean =
+      sdot(num_test, rate_positive_selection, 1, &stemp, 0)
+      / num_test;
+  auto rate_positive_selection_meansq =
+      rate_positive_selection_mean * rate_positive_selection_mean;
+  auto rate_positive_selection_sqmean =
+      sdot(num_test, rate_positive_selection, 1, rate_positive_selection, 1)
+      / num_test;
+  auto rate_positive_selection_sd =
+      sqrt(rate_positive_selection_sqmean - rate_positive_selection_meansq);
+  auto rate_false_discovery_mean =
+      sdot(num_test, rate_false_discovery, 1, &stemp, 0)
+      / num_test;
+  auto rate_false_discovery_meansq =
+      rate_false_discovery_mean * rate_false_discovery_mean;
+  auto rate_false_discovery_sqmean =
+      sdot(num_test, rate_false_discovery, 1, rate_false_discovery, 1)
+      / num_test;
+  auto rate_false_discovery_sd =
+      sqrt(rate_false_discovery_sqmean - rate_false_discovery_meansq);
+
   // Display statistic report
   printf("%s\n", dataname);
-  printf("nthr  = %d\n", num_thread);
-  printf("nP    = %d\n", parameter.num_particle);
-  printf("nI    = %d\n", parameter.num_iteration);
-  printf("pfg   = %.2f\n", parameter.prob_forward_global);
-  printf("pfl   = %.2f\n", parameter.prob_forward_local);
-  printf("pfr   = %.2f\n", parameter.prob_forward_random);
-  printf("pbl   = %.2f\n", parameter.prob_backward_local);
-  printf("pbr   = %.2f\n", parameter.prob_backward_random);
+  printf("nthr      = %d\n", num_thread);
+  printf("nP        = %d\n", parameter.num_particle);
+  printf("nI        = %d\n", parameter.num_iteration);
+  printf("pfg       = %.2f\n", parameter.prob_forward_global);
+  printf("pfl       = %.2f\n", parameter.prob_forward_local);
+  printf("pfr       = %.2f\n", parameter.prob_forward_random);
+  printf("pbl       = %.2f\n", parameter.prob_backward_local);
+  printf("pbr       = %.2f\n", parameter.prob_backward_random);
   if ( parameter.criterion == EBIC ) {
-    printf("cri   = %s%.1f\n",
+    printf("cri       = %s%.1f\n",
            Criterion2String(parameter.criterion),
            parameter.ebic_gamma);
   } else {
-    printf("cri   = %s\n",
+    printf("cri       = %s\n",
            Criterion2String(parameter.criterion));
   }
-  printf("nT    = %d\n", num_test);
-  printf("PSR   = %.6f\n", statistic.rate_positive_selection / num_test);
-  printf("FDR   = %.6f\n", statistic.rate_false_discovery / num_test);
-  printf("Time  = %.6lf sec\n", total_time / num_test);
+  printf("nT        = %d\n", num_test);
+  printf("PSR(mean) = %.6f\n", rate_positive_selection_mean);
+  printf("FDR(mean) = %.6f\n", rate_false_discovery_mean);
+  printf("PSR(sd)   = %.6f\n", rate_positive_selection_sd);
+  printf("FDR(sd)   = %.6f\n", rate_false_discovery_sd);
+  printf("Time      = %.6lf sec\n", total_time / num_test);
   printf("================================================================\n");
 
   ////////////////////////////////////////////////////////////////////////////

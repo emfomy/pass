@@ -12,6 +12,7 @@ Particle Swarm Stepwise (PaSS) Algorithm
 
 ### Compiler
 * [IBM XL C/C++ for Blue Gene, V12.1](http://www-03.ibm.com/software/products/en/xlcc+forbluegene)
+* [MATLAB R2014b](http://www.mathworks.com/products/matlab/)
 
 ### Library
 * [MPICH2 Version 1.5](https://www.mpich.org/)
@@ -23,8 +24,6 @@ Particle Swarm Stepwise (PaSS) Algorithm
 * `ESSLROOT`: root of IBM ESSL
 * `XLFROOT`: root of IBM XL Fortran
 * `XLSMPROOT`: root of IBM XL SMP
-* `LAPACKROOT`: root of LAPACK
-* `CBLASROOT`: root of CBLAS
 
 ## Directory
 
@@ -54,3 +53,6 @@ The shell scripts.
 
 ### `/run`
 The working directory.
+
+### `/data`
+The data files.
