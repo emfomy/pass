@@ -143,6 +143,8 @@ struct Particle {
 
   int *Idx_temp;   // vector, p by 1
 
+  unsigned int iseed; // the random seed;
+
   // Constructor
   Particle();
 

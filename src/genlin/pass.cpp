@@ -109,7 +109,7 @@ void GenLin() {
 
     for ( auto j = tid; j < parameter.num_particle; j+=num_thread ) {
       // Initialize particles
-      particle[j].InitializeModel(rand() % p);
+      particle[j].InitializeModel(rand_r(particle[j].iseed) % p);
       particle[j].ComputeCriterion();
       particle[j].phi_old = particle[j].phi;
 
@@ -190,6 +190,8 @@ Particle::Particle() {
   I_best   = new bool[p];
 
   Idx_temp = new int[p];
+
+  iseed    = rand();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -373,7 +375,7 @@ void Particle::UpdateModel( const int idx ) {
 // idx: the index of the effect                                               //
 ////////////////////////////////////////////////////////////////////////////////
 void Particle::SelectIndex( int& idx ) {
-  auto frand = static_cast<float>(rand()) / RAND_MAX;
+  auto frand = static_cast<float>(rand_r(&iseed)) / RAND_MAX;
 
   if ( status ) {  // Forward step
     // Idx_temp[0~itemp] := I_best exclude I
@@ -406,7 +408,7 @@ void Particle::SelectIndex( int& idx ) {
 
     switch( choose ) {
       case 2: {  // Global best
-        idx = Idx_temp[rand() % itemp];
+        idx = Idx_temp[rand_r(&iseed) % itemp];
         break;
       }
       case 1: {  // Local best
@@ -426,7 +428,7 @@ void Particle::SelectIndex( int& idx ) {
         break;
       }
       case 0: {  // Random
-        idx = Idx_temp[rand() % (p-k)];
+        idx = Idx_temp[rand_r(&iseed) % (p-k)];
         break;
       }
     }
@@ -447,7 +449,7 @@ void Particle::SelectIndex( int& idx ) {
         }
       }
     } else {  // Random
-      idx = Idx_lf[rand() % k];
+      idx = Idx_lf[rand_r(&iseed) % k];
     }
   }
 }
@@ -470,8 +472,10 @@ void Particle::ComputeCriterion() {
       break;
     }
     case EBIC: {   // phi := n*log(e^2/n) + k*log(n) + 2gamma*log(p choose k)
+      int itemp;
       phi = n*logf(e*e/n) + k*logf(n) + 2.0f*parameter.ebic_gamma
-          * (lgammaf(p+1.0f)-lgammaf(p-k+1.0f)-lgammaf(k+1.0f));
+          * (lgammaf_r(p+1.0f, &itemp) - lgammaf_r(p-k+1.0f, &itemp)
+                                       - lgammaf_r(k+1.0f, &itemp));
       break;
     }
     case HDBIC: {  // phi := n*log(e^2/n) + k*log(n)*log(p)
