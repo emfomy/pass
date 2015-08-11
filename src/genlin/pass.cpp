@@ -101,6 +101,7 @@ void GenLin() {
 
   // Allocate particles
   auto particle = new Particle[parameter.num_particle];
+  phi0 = 0.0f/0.0f;
 
   // Use openMP parallel
   #pragma omp parallel
@@ -109,13 +110,15 @@ void GenLin() {
 
     for ( auto j = tid; j < parameter.num_particle; j+=num_thread ) {
       // Initialize particles
-      particle[j].InitializeModel(rand_r(particle[j].iseed) % p);
+      particle[j].InitializeModel(rand_r(&particle[j].iseed) % p);
       particle[j].ComputeCriterion();
       particle[j].phi_old = particle[j].phi;
 
       // Copy best model
-      particle[j].phi_best = particle[j].phi;
-      memcpy(particle[j].I_best, particle[j].I, sizeof(bool) * p);
+      if ( !(phi0 <= particle[j].phi) ) {
+        phi0 = particle[j].phi;
+        memcpy(I0, particle[j].I, sizeof(bool) * p);
+      }
     }
 
     #pragma omp barrier
@@ -143,28 +146,16 @@ void GenLin() {
         particle[j].phi_old = particle[j].phi;
 
         // Copy best model
-        for ( auto k = j-2; k < j+2; ++k ) {
-          auto l = (k+parameter.num_particle) % parameter.num_particle;
-          if ( particle[l].phi_best > particle[j].phi ) {
-            particle[l].phi_best = particle[j].phi;
-            memcpy( particle[l].I_best, particle[j].I, sizeof(bool) * p );
-          }
+        if ( !(phi0 <= particle[j].phi) ) {
+          phi0 = particle[j].phi;
+          memcpy(I0, particle[j].I, sizeof(bool) * p);
         }
       }
     }
   }
 
-  // Find best model
-  auto ftemp = 0.0f/0.0f;
-  int j_best;
-  for ( auto j = 0; j < parameter.num_particle; ++j ) {
-    if ( !(particle[j].phi_best > ftemp) ) {
-      j_best = j;
-      ftemp = particle[j].phi_best;
-    }
-  }
-  memcpy(I0, particle[j_best].I_best, sizeof(bool) * p);
-  phi0 = particle[j_best].phi_best;
+  // Copy best model
+  memcpy(I0, I0, sizeof(bool) * p);
 
   ////////////////////////////////////////////////////////////////////////////
 
@@ -187,7 +178,6 @@ Particle::Particle() {
   Idx_lf   = new int[n];
   Idx_fl   = new int[p];
   I        = new bool[p];
-  I_best   = new bool[p];
 
   Idx_temp = new int[p];
 
@@ -210,7 +200,6 @@ Particle::~Particle() {
   delete[] Idx_lf;
   delete[] Idx_fl;
   delete[] I;
-  delete[] I_best;
 
   delete[] Idx_temp;
 }
@@ -378,12 +367,12 @@ void Particle::SelectIndex( int& idx ) {
   auto frand = static_cast<float>(rand_r(&iseed)) / RAND_MAX;
 
   if ( status ) {  // Forward step
-    // Idx_temp[0~itemp] := I_best exclude I
+    // Idx_temp[0~itemp] := I0 exclude I
     // Idx_temp[0~(p-k)] := complement of I
     int itemp = 0;
     for ( auto i = 0, j = p-k; i < p; ++i ) {
       if ( !I[i] ) {
-        if ( I_best[i] ) {
+        if ( I0[i] ) {
           Idx_temp[itemp] = i;
           itemp++;
         }
@@ -419,7 +408,7 @@ void Particle::SelectIndex( int& idx ) {
             auto ftemp = fabs(sdot(n, X0+i*n, 1, R, 1));
 
             // Check if this value is maximum
-            if ( !(ftemp < phi_temp) ) {
+            if ( !(ftemp <= phi_temp) ) {
               phi_temp = ftemp;
               idx = i;
             }
@@ -443,7 +432,7 @@ void Particle::SelectIndex( int& idx ) {
         auto ftemp = snorm2(n, B, 1);
 
         // Check if this value is minimal
-        if ( !(ftemp > phi_temp) ) {
+        if ( !(ftemp >= phi_temp) ) {
           phi_temp = ftemp;
           idx = Idx_lf[i];
         }
