@@ -9,7 +9,7 @@ TGTDIR = mk
 
 TGT = $(wildcard $(TGTDIR)/*.mk)
 
-MODEL = data/genlin_hung_1_1.dat
+MODEL = data/genlin_p7p8p9.dat
 
 RUN = sh/genlin.sh
 

@@ -65,7 +65,7 @@ int main( int argc, char **argv ) {
 
   // Load data and allocate memory
   PassLoad(dataroot);
-  I0   = new bool[p];
+  I0 = new bool[p];
 
   // Display parameters
   if ( parameter.criterion == EBIC ) {
