@@ -7,28 +7,36 @@ include $(MAKEINC)
 
 TGTDIR = mk
 
-TGT = $(wildcard $(TGTDIR)/*.mk)
+RUNDIR = run
 
-MODEL = data/genlin_p7p8p9.dat
+TGTS = $(notdir $(basename $(wildcard $(TGTDIR)/*.mk)))
 
-RUN = sh/genlin.sh
+MODEL = inglai
 
-.PHONY: all $(TGT) run clean cancel
+MAIN = sh/genlin.sh
 
-all: $(TGT)
+.PHONY: all $(TGTS) test clean cancel
+
+all: $(TGTS)
 	@ echo > /dev/null
 
-$(TGT):
-	@ ( $(MAKE) -f $@ all )
+$(TGTS):
+	@ ( $(MAKE) -f $(TGTDIR)/$@.mk dep all )
 
-run: $(MODEL) $(RUN)
+test: $(MAIN) .$(MODEL) | $(RUNDIR)
+	( cd $(RUNDIR) ; ../$< )
+
+.%: bin/genlin_% | $(RUNDIR)
+	( cd $(RUNDIR) ; ../$< )
+
+.%: data/genlin_%.dat | $(RUNDIR)
+	cp $< $(RUNDIR)/genlin.dat
+
+$(RUNDIR):
 	@ mkdir -p $@
-	cp $(MODEL) run/genlin.dat
-	( cd run ; ../$(RUN) )
 
 clean:
-	@ for tgt in $(TGT) ; do ( $(MAKE) -f $$tgt clean ) done
-	$(RM) bin obj run
+	$(RM) bin obj dep run
 
 cancel:
-	scancel -A xntmuyang
+	scancel -A $(USER)

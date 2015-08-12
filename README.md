@@ -42,6 +42,9 @@ The data loader.
 ### `/obj`
 The object files.
 
+### `/dep`
+The dependency files.
+
 ### `/bin`
 The binary files.
 

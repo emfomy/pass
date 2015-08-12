@@ -9,10 +9,10 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 // Notation:                                                                  //
-// X    : the regressors                                                      //
-// Y    : the regressand                                                      //
-// Beta : the effects                                                         //
-// R    : the residual                                                        //
+// X:    the regressors                                                       //
+// Y:    the regressand                                                       //
+// Beta: the effects                                                          //
+// R:    the residual                                                         //
 //                                                                            //
 // Linear model:                                                              //
 // Y = X * Beta + error                                                       //
@@ -26,14 +26,20 @@
 //     = argmin_{i in I} norm( R + Beta[i] * X[i col] )                       //
 //                                                                            //
 // References:                                                                //
-// Chen, R.-B., Huang, C.-C., & Wang, W. (2013). Particle Swarm Stepwise      //
-//   (PaSS) Algorithm for Variable Selection.                                 //
+// Chen, R.-B., Huang, C.-C., & Wang, W. (2013).                              //
+//   Particle Swarm Stepwise (PaSS) Algorithm for Variable Selection.         //
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "pass.hpp"
 #include <cstdlib>
 #include <essl.h>
 #include <omp.h>
+
+// The log-binomial function
+static inline lbinom( const int n, const int k ) {
+  int i;
+  return (lgammaf_r(n+1, &i) - lgammaf_r(n-k+1, &i) - lgammaf_r(k+1, &i));
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // The namespace pass                                                         //
@@ -461,21 +467,18 @@ void Particle::ComputeCriterion() {
       break;
     }
     case EBIC: {   // phi := n*log(e^2/n) + k*log(n) + 2gamma*log(p choose k)
-      int itemp;
-      phi = n*logf(e*e/n) + k*logf(n) + 2.0f*parameter.ebic_gamma
-          * (lgammaf_r(p+1.0f, &itemp) - lgammaf_r(p-k+1.0f, &itemp)
-                                       - lgammaf_r(k+1.0f, &itemp));
+      phi = n*logf(e*e/n) + k*logf(n) + 2.0f*parameter.ebic_gamma*lbinom(p, k);
       break;
     }
     case HDBIC: {  // phi := n*log(e^2/n) + k*log(n)*log(p)
       phi = n*logf(e*e/n) + k*logf(n)*logf(p);
       break;
     }
-    case HQC: {   // phi := n*log(e^2/n) + 2k*log(log(n))
+    case HQC: {    // phi := n*log(e^2/n) + 2k*log(log(n))
       phi = n*logf(e*e/n) + 2.0f*k*logf(logf(n));
       break;
     }
-    case HDHQC: {   // phi := n*log(e^2/n) + 2k*log(log(n))*log(p)
+    case HDHQC: {  // phi := n*log(e^2/n) + 2k*log(log(n))*log(p)
       phi = n*logf(e*e/n) + 2.0f*k*logf(logf(n))*logf(p);
       break;
     }
