@@ -11,11 +11,11 @@ RUNDIR = run
 
 TGTS = $(notdir $(basename $(wildcard $(TGTDIR)/*.mk)))
 
-MODEL = inglai
+MODEL = hung_1_1
 
 MAIN = sh/genlin.sh
 
-.PHONY: all $(TGTS) test clean cancel
+.PHONY: all $(TGTS) demo clean cancel
 
 all: $(TGTS)
 	@ echo > /dev/null
@@ -23,7 +23,7 @@ all: $(TGTS)
 $(TGTS):
 	@ ( $(MAKE) -f $(TGTDIR)/$@.mk dep all )
 
-test: $(MAIN) .$(MODEL) | $(RUNDIR)
+demo: $(MAIN) .$(MODEL) | $(RUNDIR)
 	( cd $(RUNDIR) ; ../$< )
 
 .%: bin/genlin_% | $(RUNDIR)

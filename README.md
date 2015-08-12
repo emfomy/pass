@@ -30,13 +30,13 @@ Particle Swarm Stepwise (PaSS) Algorithm
 ### `/src`
 The source files.
 
-#### `/genlin`
+#### `/src/genlin`
 The PaSS algorithm for general linear model.
 
-#### `/model`
+#### `/src/model`
 The model generators.
 
-#### `/data`
+#### `/src/data`
 The data loader.
 
 ### `/obj`

@@ -13,6 +13,7 @@
 #include <ctime>
 #include <cmath>
 #include <essl.h>
+#include <mpi.h>
 #include <omp.h>
 #include "pass.hpp"
 
@@ -22,6 +23,8 @@ using namespace pass;
 bool *J0;        // vector, 1 by p, the chosen indices (solution)
 int num_test;    // scalar, the number of tests
 char *dataname;  // string, the name of data
+int world_size;  // the size of MPI communicator
+int world_rank;  // the rank of MPI process
 
 // Functions
 void PassConfig( const char* fileroot );
@@ -31,8 +34,14 @@ void PassLoad( const char* fileroot );
 // Main function                                                              //
 ////////////////////////////////////////////////////////////////////////////////
 int main( int argc, char **argv ) {
+  // Initialize MPI
+  MPI_Init(&argc, &argv);
+  MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+
   // Initialize random seed
-  srand(time(NULL));
+  srand(time(NULL) ^ world_rank);
+  srand(rand());
 
   // Load arguments
   auto cfgroot  = (argc > 1) ? argv[1] : "genlin.cfg";
@@ -41,7 +50,10 @@ int main( int argc, char **argv ) {
   ////////////////////////////////////////////////////////////////////////////
   // Load parameters and data                                               //
   ////////////////////////////////////////////////////////////////////////////
-  printf("================================================================\n");
+
+  if ( world_rank == 0 ) {
+    printf("================================================================\n");
+  }
 
   // Load parameters
   num_test = 10;
@@ -50,17 +62,9 @@ int main( int argc, char **argv ) {
   // Check parameters
   auto num_thread = omp_get_max_threads();
   auto num_proc = omp_get_num_procs();
-  if ( parameter.num_particle <= 0 ) {
-    parameter.num_particle = num_thread;
-  }
   if ( num_thread > num_proc ) {
-    printf("No enough threads!\n");
     omp_set_num_threads(num_proc);
     num_thread = num_proc;
-  }
-  if ( num_test < 0 ) {
-    printf("nT must be positive or zero!\n");
-    exit(1);
   }
 
   // Load data and allocate memory
@@ -68,22 +72,29 @@ int main( int argc, char **argv ) {
   I0 = new bool[p];
 
   // Display parameters
-  if ( parameter.criterion == EBIC ) {
-    printf("%s: n=%d, p=%d, nP=%d, nI=%d, nthr=%d, nT=%d, cri=%s%.1f\n",
-           dataname, n, p, parameter.num_particle, parameter.num_iteration,
-           num_thread, num_test, Criterion2String(parameter.criterion),
-           parameter.ebic_gamma);
-  } else {
-    printf("%s: n=%d, p=%d, nP=%d, nI=%d, nthr=%d, nT=%d, cri=%s\n",
-           dataname, n, p, parameter.num_particle, parameter.num_iteration,
-           num_thread, num_test, Criterion2String(parameter.criterion));
+  if ( world_rank == 0 ) {
+    if ( parameter.criterion == EBIC ) {
+      printf("%s: n=%d, p=%d, numNode=%d, numThread=%d, "
+             "numParticle=%d, numIteration=%d, numTest=%d, criterion=%s%.1f\n",
+             dataname, n, p, world_size, num_thread,
+             world_size*num_thread, parameter.num_iteration, num_test,
+             Criterion2String(parameter.criterion), parameter.ebic_gamma);
+    } else {
+      printf("%s: n=%d, p=%d, numNode=%d, numThread=%d, "
+             "numParticle=%d, numIteration=%d, numTest=%d, criterion=%s\n",
+             dataname, n, p, world_size, num_thread,
+             world_size*num_thread, parameter.num_iteration, num_test,
+             Criterion2String(parameter.criterion));
+    }
   }
 
   ////////////////////////////////////////////////////////////////////////////
   // Centralize and normalize the original data                             //
   ////////////////////////////////////////////////////////////////////////////
 
-  printf("Normalizing data... ");
+  if ( world_rank == 0 ) {
+    printf("Normalizing data... ");
+  }
 
   // Centralize and normalize X0
   for ( auto i = 0; i < p; ++i ) {
@@ -103,137 +114,190 @@ int main( int argc, char **argv ) {
 
   parameter.is_normalized = true;
 
-  printf("Done.\n");
+  if ( world_rank == 0 ) {
+    printf("Done.\n");
+  }
 
   ////////////////////////////////////////////////////////////////////////////
   // Run PaSS                                                               //
   ////////////////////////////////////////////////////////////////////////////
 
-  printf("================================================================\n");
-
-  // Initialize statistic data
-  int isize = static_cast<int>(log10(p))+1;
+  // Declare variables
+  int num_correct, num_incorrect, num_true_selection, num_test_selection;
   double start_time, total_time = 0.0;
-  auto rate_positive_selection = new float[num_test];
-  auto rate_false_discovery    = new float[num_test];
+  float *rate_positive_selection, *rate_false_discovery;
 
-  // Create solution model
-  Particle solution;
-  bool btemp = true;
-  for ( auto i = 0; i < p; i++ ) {
-    if ( J0[i] ) {
-      if ( btemp ) {
-        solution.InitializeModel(i);
-        btemp = false;
-      } else {
-        solution.UpdateModel(i);
-      }
-    }
-  }
-  solution.ComputeCriterion();
+  if ( world_rank == 0 ) {
+    printf("================================================================\n");
 
-  // Display solution model
-  auto num_true_selection = 0;
-  printf("True:\t%12.6f; ", solution.phi);
-  for ( auto i = 0; i < p; i++ ) {
-    if ( J0[i] ) {
-      printf("%-*d ", isize, i);
-      num_true_selection++;
-    }
-  }
-  printf("\n\n");
+    // Initialize statistic data
+    rate_positive_selection = new float[num_test];
+    rate_false_discovery    = new float[num_test];
 
-  for ( auto t = 0; t < num_test; ++t ) {
-    // Run PaSS
-    start_time = omp_get_wtime();
-    GenLin();
-    total_time += omp_get_wtime() - start_time;
-
-    // Display model
-    auto num_correct = 0;
-    auto num_incorrect = 0;
-    auto num_test_selection = 0;
-    printf("%4d:\t%12.6f; ", t, phi0);
+    // Create solution model
+    Particle solution;
+    bool btemp = true;
     for ( auto i = 0; i < p; i++ ) {
-      if ( I0[i] ) {
-        printf("%-*d ", isize, i);
-        num_test_selection++;
-        if ( J0[i] ) {
-          num_correct++;
+      if ( J0[i] ) {
+        if ( btemp ) {
+          solution.InitializeModel(i);
+          btemp = false;
         } else {
-          num_incorrect++;
+          solution.UpdateModel(i);
         }
       }
     }
-    printf("\n");
+    solution.ComputeCriterion();
 
-    // Compute accuracy rate
-    rate_positive_selection[t] =
-        static_cast<float>(num_correct) / num_true_selection;
-    rate_false_discovery[t] =
-        static_cast<float>(num_incorrect) / num_test_selection;
+    // Display solution model
+    num_true_selection = 0;
+    auto isize = static_cast<int>(log10(p))+1;
+    printf("True(%02d):\t%12.6f; ", world_rank, solution.phi);
+    for ( auto i = 0; i < p; i++ ) {
+      if ( J0[i] ) {
+        printf("%-*d ", isize, i);
+        num_true_selection++;
+      }
+    }
+    printf("\n\n");
+  } else {
+    num_true_selection = 0;
+    for ( auto i = 0; i < p; i++ ) {
+      if ( J0[i] ) {
+        num_true_selection++;
+      }
+    }
   }
 
-  printf("================================================================\n");
+  for ( auto t = 0; t < num_test; ++t ) {
+    // Record beginning time
+    MPI_Barrier(MPI_COMM_WORLD);
+    if ( world_rank == 0 ) {
+      start_time = omp_get_wtime();
+    }
+
+    // Run PaSS
+    GenLin();
+
+    // Find best model
+    struct { float value; int rank; } send, recv;
+    send.value = phi0;
+    send.rank = world_rank;
+    MPI_Allreduce(&send, &recv, 1, MPI_FLOAT_INT, MPI_MINLOC, MPI_COMM_WORLD);
+
+    // Record ending time
+    MPI_Barrier(MPI_COMM_WORLD);
+    if ( world_rank == 0 ) {
+      total_time += omp_get_wtime() - start_time;
+    }
+
+    if ( world_rank == recv.rank ) {
+      // Display model
+      num_correct = 0;
+      num_incorrect = 0;
+      num_test_selection = 0;
+      auto isize = static_cast<int>(log10(p))+1;
+      printf("%4d(%02d):\t%12.6f; ", t, world_rank, phi0);
+      for ( auto i = 0; i < p; i++ ) {
+        if ( I0[i] ) {
+          printf("%-*d ", isize, i);
+          num_test_selection++;
+          if ( J0[i] ) {
+            num_correct++;
+          } else {
+            num_incorrect++;
+          }
+        }
+      }
+      printf("\n");
+
+      // Compute accuracy rate
+      if ( world_rank == 0 ) {
+        rate_positive_selection[t] =
+            static_cast<float>(num_correct) / num_true_selection;
+        rate_false_discovery[t] =
+            static_cast<float>(num_incorrect) / num_test_selection;
+      } else {
+        float rate_temp[2];
+        rate_temp[0] = static_cast<float>(num_correct) / num_true_selection;
+        rate_temp[1] = static_cast<float>(num_incorrect) / num_test_selection;
+        MPI_Send(rate_temp, 2, MPI_FLOAT, 0, t, MPI_COMM_WORLD);
+      }
+    } else if ( world_rank == 0 ) {
+      float rate_temp[2];
+      MPI_Recv(rate_temp, 2, MPI_FLOAT, recv.rank, t,
+               MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      rate_positive_selection[t] = rate_temp[0];
+      rate_false_discovery[t] = rate_temp[1];
+    }
+  }
 
   ////////////////////////////////////////////////////////////////////////////
   // Display statistic report                                               //
   ////////////////////////////////////////////////////////////////////////////
+  if ( world_rank == 0 ) {
+    printf("================================================================\n");
 
-  // Compute means and standard deviations
-  float stemp = 1.0f;
-  auto rate_positive_selection_mean =
-      sdot(num_test, rate_positive_selection, 1, &stemp, 0)
-      / num_test;
-  auto rate_positive_selection_meansq =
-      rate_positive_selection_mean * rate_positive_selection_mean;
-  auto rate_positive_selection_sqmean =
-      sdot(num_test, rate_positive_selection, 1, rate_positive_selection, 1)
-      / num_test;
-  auto rate_positive_selection_sd =
-      sqrt(rate_positive_selection_sqmean - rate_positive_selection_meansq);
-  auto rate_false_discovery_mean =
-      sdot(num_test, rate_false_discovery, 1, &stemp, 0)
-      / num_test;
-  auto rate_false_discovery_meansq =
-      rate_false_discovery_mean * rate_false_discovery_mean;
-  auto rate_false_discovery_sqmean =
-      sdot(num_test, rate_false_discovery, 1, rate_false_discovery, 1)
-      / num_test;
-  auto rate_false_discovery_sd =
-      sqrt(rate_false_discovery_sqmean - rate_false_discovery_meansq);
+    // Compute means and standard deviations
+    float stemp = 1.0f;
+    auto rate_positive_selection_mean =
+        sdot(num_test, rate_positive_selection, 1, &stemp, 0)
+        / num_test;
+    auto rate_positive_selection_meansq =
+        rate_positive_selection_mean * rate_positive_selection_mean;
+    auto rate_positive_selection_sqmean =
+        sdot(num_test, rate_positive_selection, 1, rate_positive_selection, 1)
+        / num_test;
+    auto rate_positive_selection_sd =
+        sqrt(rate_positive_selection_sqmean - rate_positive_selection_meansq);
+    auto rate_false_discovery_mean =
+        sdot(num_test, rate_false_discovery, 1, &stemp, 0)
+        / num_test;
+    auto rate_false_discovery_meansq =
+        rate_false_discovery_mean * rate_false_discovery_mean;
+    auto rate_false_discovery_sqmean =
+        sdot(num_test, rate_false_discovery, 1, rate_false_discovery, 1)
+        / num_test;
+    auto rate_false_discovery_sd =
+        sqrt(rate_false_discovery_sqmean - rate_false_discovery_meansq);
 
-  // Display statistic report
-  printf("%s\n", dataname);
-  printf("nthr      = %d\n", num_thread);
-  printf("nP        = %d\n", parameter.num_particle);
-  printf("nI        = %d\n", parameter.num_iteration);
-  printf("pfg       = %.2f\n", parameter.prob_forward_global);
-  printf("pfl       = %.2f\n", parameter.prob_forward_local);
-  printf("pfr       = %.2f\n", parameter.prob_forward_random);
-  printf("pbl       = %.2f\n", parameter.prob_backward_local);
-  printf("pbr       = %.2f\n", parameter.prob_backward_random);
-  if ( parameter.criterion == EBIC ) {
-    printf("cri       = %s%.1f\n",
-           Criterion2String(parameter.criterion),
-           parameter.ebic_gamma);
-  } else {
-    printf("cri       = %s\n",
-           Criterion2String(parameter.criterion));
+    // Display statistic report
+    printf("%s\n", dataname);
+    printf("nNode     = %d\n", world_size);
+    printf("nThread   = %d\n", num_thread);
+    printf("nP        = %d\n", num_thread * world_size);
+    printf("nI        = %d\n", parameter.num_iteration);
+    printf("pfg       = %.2f\n", parameter.prob_forward_global);
+    printf("pfl       = %.2f\n", parameter.prob_forward_local);
+    printf("pfr       = %.2f\n", parameter.prob_forward_random);
+    printf("pbl       = %.2f\n", parameter.prob_backward_local);
+    printf("pbr       = %.2f\n", parameter.prob_backward_random);
+    if ( parameter.criterion == EBIC ) {
+      printf("cri       = %s%.1f\n",
+             Criterion2String(parameter.criterion),
+             parameter.ebic_gamma);
+    } else {
+      printf("cri       = %s\n",
+             Criterion2String(parameter.criterion));
+    }
+    printf("nTest     = %d\n", num_test);
+    printf("PSR(mean) = %.6f\n", rate_positive_selection_mean);
+    printf("FDR(mean) = %.6f\n", rate_false_discovery_mean);
+    printf("PSR(sd)   = %.6f\n", rate_positive_selection_sd);
+    printf("FDR(sd)   = %.6f\n", rate_false_discovery_sd);
+    printf("Time      = %.6lf sec\n", total_time / num_test);
+    printf("================================================================\n");
   }
-  printf("nT        = %d\n", num_test);
-  printf("PSR(mean) = %.6f\n", rate_positive_selection_mean);
-  printf("FDR(mean) = %.6f\n", rate_false_discovery_mean);
-  printf("PSR(sd)   = %.6f\n", rate_positive_selection_sd);
-  printf("FDR(sd)   = %.6f\n", rate_false_discovery_sd);
-  printf("Time      = %.6lf sec\n", total_time / num_test);
-  printf("================================================================\n");
 
   ////////////////////////////////////////////////////////////////////////////
 
+  // Delete memory
   delete[] X0;
   delete[] Y0;
   delete[] J0;
+
+  // Finalize MPI
+  MPI_Finalize();
 
   return 0;
 }
@@ -253,7 +317,9 @@ int main( int argc, char **argv ) {
 void PassConfig( const char* fileroot ) {
   const int kBufferSize = 1024;
 
-  printf("Loading config from '%s'... ", fileroot);
+  if ( world_rank == 0 ) {
+    printf("Loading config from '%s'... ", fileroot);
+  }
 
   // Open file
   auto file = fopen(fileroot, "r");
@@ -263,8 +329,7 @@ void PassConfig( const char* fileroot ) {
     // Read data
     char line[kBufferSize];
     fgets(line, kBufferSize, file);
-    sscanf(line, "%*s %d %d",
-           &parameter.num_particle,
+    sscanf(line, "%*s %d",
            &parameter.num_iteration);
     fgets(line, kBufferSize, file);
     sscanf(line, "%*s %f %f %f %f %f",
@@ -302,7 +367,9 @@ void PassConfig( const char* fileroot ) {
       parameter.criterion = HDHQC;
     }
     else {
-      printf("Failed!\nThere is no criterion named '%s'!\n", cristr);
+      if ( world_rank == 0 ) {
+        printf("Failed!\nThere is no criterion named '%s'!\n", cristr);
+      }
       exit(1);
     }
 
@@ -312,21 +379,21 @@ void PassConfig( const char* fileroot ) {
     // Close file
     fclose(file);
 
-    printf("Done.\n");
-  }
-  else {
+    if ( world_rank == 0 ) {
+      printf("Done.\n");
+    }
+  } else if ( world_rank == 0 ) {
     printf("Failed!\nCreating config file '%s'... ", fileroot);
 
     // Open file
     file = fopen( fileroot, "w" );
     if ( !file ) {
-      printf("Failed!\n");
+        printf("Failed!\n");
       exit(1);
     }
 
     // Write data
-    fprintf(file, "nP/nI %d %d\n",
-            parameter.num_particle,
+    fprintf(file, "nI    %d\n",
             parameter.num_iteration);
     fprintf(file, "prob  %.1f %.1f %.1f %.1f %.1f\n",
             parameter.prob_forward_global,
@@ -342,10 +409,9 @@ void PassConfig( const char* fileroot ) {
       fprintf(file, "cri   %s\n",
               Criterion2String(parameter.criterion));
     }
-    fprintf(file, "nT    %d\n", num_test);
+    fprintf(file, "nTest %d\n", num_test);
 
     fprintf(file, "\n\nNote:\n");
-    fprintf(file, "<nP>:   the number of particles.\n");
     fprintf(file, "<nI>:   the number of iterations.\n");
     fprintf(file, "<prob>: <pfg> <pfl> <pfr> <pbl> <pbr>\n");
     fprintf(file, "<pfg>:  the probability of forward step: global\n");
@@ -368,7 +434,7 @@ void PassConfig( const char* fileroot ) {
                   "Hannan-Quinn information criterion.\n");
     fprintf(file, "        HDHQC:       "
                   "High-dimensional Hannan-Quinn information criterion.\n");
-    fprintf(file, "<nT>    the number of tests.\n");
+    fprintf(file, "<nTest> the number of tests.\n");
 
     // Close file
     fclose(file);
@@ -384,12 +450,16 @@ void PassConfig( const char* fileroot ) {
 // fileroot: the root of data file                                            //
 ////////////////////////////////////////////////////////////////////////////////
 void PassLoad( const char* fileroot ) {
-  printf("Loading model from '%s'... ", fileroot);
+  if ( world_rank == 0 ) {
+    printf("Loading model from '%s'... ", fileroot);
+  }
 
   // Open file
   auto file = fopen(fileroot, "rb");
   if ( !file ) {
-    printf("Failed!\n");
+    if ( world_rank == 0 ) {
+      printf("Failed!\n");
+    }
     exit(1);
   }
 
@@ -410,5 +480,7 @@ void PassLoad( const char* fileroot ) {
   // Close file
   fclose(file);
 
-  printf("Done.\n");
+  if ( world_rank == 0 ) {
+    printf("Done.\n");
+  }
 }

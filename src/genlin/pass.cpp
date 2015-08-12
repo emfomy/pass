@@ -75,9 +75,6 @@ Parameter parameter; // the parameters
 void GenLin() {
   // Check parameters
   auto num_thread = omp_get_max_threads();
-  if ( num_thread > parameter.num_particle ) {
-    num_thread = parameter.num_particle;
-  }
 
   ////////////////////////////////////////////////////////////////////////////
   // Centralize and normalize the original data                             //
@@ -106,7 +103,7 @@ void GenLin() {
   ////////////////////////////////////////////////////////////////////////////
 
   // Allocate particles
-  auto particle = new Particle[parameter.num_particle];
+  auto particle = new Particle[num_thread];
   phi0 = 0.0f/0.0f;
 
   // Use openMP parallel
@@ -114,48 +111,44 @@ void GenLin() {
   {
     auto tid = omp_get_thread_num();
 
-    for ( auto j = tid; j < parameter.num_particle; j+=num_thread ) {
-      // Initialize particles
-      particle[j].InitializeModel(rand_r(&particle[j].iseed) % p);
-      particle[j].ComputeCriterion();
-      particle[j].phi_old = particle[j].phi;
+    // Initialize particles
+    particle[tid].InitializeModel(rand_r(&particle[tid].iseed) % p);
+    particle[tid].ComputeCriterion();
+    particle[tid].phi_old = particle[tid].phi;
 
-      // Copy best model
-      if ( !(phi0 <= particle[j].phi) ) {
-        phi0 = particle[j].phi;
-        memcpy(I0, particle[j].I, sizeof(bool) * p);
-      }
+    // Copy best model
+    if ( !(phi0 <= particle[tid].phi) ) {
+      phi0 = particle[tid].phi;
+      memcpy(I0, particle[tid].I, sizeof(bool) * p);
     }
 
     #pragma omp barrier
 
     // Find best model
     for ( auto i = 1; i < parameter.num_iteration; ++i ) {
-      for ( auto j = tid; j < parameter.num_particle; j+=num_thread ) {
-        // Update model
-        int idx;
-        particle[j].SelectIndex(idx);
-        particle[j].UpdateModel(idx);
-        particle[j].ComputeCriterion();
+      // Update model
+      int idx;
+      particle[tid].SelectIndex(idx);
+      particle[tid].UpdateModel(idx);
+      particle[tid].ComputeCriterion();
 
-        // Change status
-        if ( particle[j].phi > particle[j].phi_old ) {
-          particle[j].status = !particle[j].status;
-        }
-        if ( particle[j].k <= 1 ) {
-          particle[j].status = true;
-        }
-        if ( particle[j].k >= n-4 || particle[j].k >= p-4 ) {
-          particle[j].status = false;
-        }
+      // Change status
+      if ( particle[tid].phi > particle[tid].phi_old ) {
+        particle[tid].status = !particle[tid].status;
+      }
+      if ( particle[tid].k <= 1 ) {
+        particle[tid].status = true;
+      }
+      if ( particle[tid].k >= n-4 || particle[tid].k >= p-4 ) {
+        particle[tid].status = false;
+      }
 
-        particle[j].phi_old = particle[j].phi;
+      particle[tid].phi_old = particle[tid].phi;
 
-        // Copy best model
-        if ( !(phi0 <= particle[j].phi) ) {
-          phi0 = particle[j].phi;
-          memcpy(I0, particle[j].I, sizeof(bool) * p);
-        }
+      // Copy best model
+      if ( !(phi0 <= particle[tid].phi) ) {
+        phi0 = particle[tid].phi;
+        memcpy(I0, particle[tid].I, sizeof(bool) * p);
       }
     }
   }
