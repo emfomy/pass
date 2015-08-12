@@ -5,39 +5,52 @@ MAKEINC = Makefile.inc
 
 include $(MAKEINC)
 
-INC =
+INCS = \
+	-I$(ESSLINC)
 
-LIB =
+LIBS = \
+	-L$(ESSLLIB) -lesslbg \
+	-L$(XLFLIB) -lxlopt -lxlf90_r -lxlfmath -lxl
 
-TARGET = genlin
+TGTDIR = genlin
 
 BINDIR = bin
 
-SRCDIR = src/$(TARGET)
+SRCDIR = src/$(TGTDIR)
 
-OBJDIR = obj/$(TARGET)
+OBJDIR = obj/$(TGTDIR)
 
-BIN = $(BINDIR)/$(TARGET)
+DEPDIR = dep/$(TGTDIR)
 
-SRC = $(wildcard $(SRCDIR)/*.cpp)
+BINS = $(BINDIR)/$(TGTDIR)
 
-HDR = $(wildcard $(SRCDIR)/*.hpp)
+SRCS = $(wildcard $(SRCDIR)/*.cpp)
 
-OBJ = $(SRC:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
+OBJS = $(SRCS:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 
-.PHONY: all run clean
+DEPS = $(OBJS:$(OBJDIR)/%.o=$(DEPDIR)/%.d)
 
-all: $(BIN)
+.PHONY: all dep run clean
+
+all: $(BINS)
 	@ echo > /dev/null
 
-$(BIN): $(OBJ) $(MAKEINC) | $(BINDIR)
-	$(BGCXX) $(BGCXXFLAGS) $(OBJ) $(INC) $(INCLUDE) $(LIB) $(LIBRARY) -o $@
+dep: $(DEPS)
+	@ echo > /dev/null
 
-$(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(HDR) $(MAKEINC) | $(OBJDIR) 
-	$(BGCXX) $(BGCXXFLAGS) -c $< $(INC) $(INCLUDE) -o $@
+$(BINS): $(OBJS) $(MAKEINC) | $(BINDIR)
+	$(BGCXX) $(BGCXXFLAGS) $(OBJS) -o $@ $(LIBS)
 
-$(BINDIR) $(OBJDIR):
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(MAKEINC) | $(OBJDIR)
+	$(BGCXX) $(BGCXXFLAGS) -c $< -o $@ $(INCS)
+
+$(DEPDIR)/%.d: $(SRCDIR)/%.cpp $(MAKEINC) | $(DEPDIR)
+	$(CXX) -E -MM $< -MF $@ -MT '$(OBJDIR)/$*.o' $(INCS)
+
+$(BINDIR) $(OBJDIR) $(DEPDIR):
 	@ mkdir -p $@
 
 clean:
-	$(RM) $(BIN) $(OBJ)
+	$(RM) $(BINS) $(OBJS) $(DEPS)
+
+-include $(DEPS)

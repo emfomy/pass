@@ -11,10 +11,3 @@ BGCXXFLAGS = -O3 -qlanglvl=extended0x -qsmp=omp -qstrict
 RM      = rm -rf
 RANLIB  = ranlib
 ARCHIVE = ar rv
-
-INCLUDE = \
-	-I$(ESSLINC)
-
-LIBRARY = \
-	-L$(ESSLLIB) -lesslbg \
-	-L$(XLFLIB) -lxlopt -lxlf90_r -lxlfmath -lxl

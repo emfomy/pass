@@ -1,22 +1,22 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Particle Swarm Stepwise (PaSS) Algorithm                                     %
 %                                                                              %
-% genlin_p7p8p9.m                                                              %
-% Transform p7p8p9 data                                                        %
+% genlin_power.m                                                               %
+% Transform power data                                                         %
 %                                                                              %
 % Author: emfo<emfomy@gmail.com>                                               %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Main function
-function genlin_p7p8p9( srcroot, dstroot )
+function genlin_power( srcroot, dstroot )
   if nargin < 1
-    srcroot = 'genlin_p7p8p9.mat';
+    srcroot = 'genlin_power.mat';
   end
   if nargin < 2
     dstroot = 'genlin.dat';
   end
   srcname = 'p7';
-  dstname = ['GenLin_p7p8p9', 0];
+  dstname = ['GenLin_Power', 0];
   dstlen = length(dstname);
 
   % load data
