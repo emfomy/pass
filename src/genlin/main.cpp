@@ -263,29 +263,29 @@ int main( int argc, char **argv ) {
 
     // Display statistic report
     printf("%s\n", dataname);
-    printf("nNode     = %d\n", world_size);
-    printf("nThread   = %d\n", num_thread);
-    printf("nP        = %d\n", num_thread * world_size);
-    printf("nI        = %d\n", parameter.num_iteration);
-    printf("pfg       = %.2f\n", parameter.prob_forward_global);
-    printf("pfl       = %.2f\n", parameter.prob_forward_local);
-    printf("pfr       = %.2f\n", parameter.prob_forward_random);
-    printf("pbl       = %.2f\n", parameter.prob_backward_local);
-    printf("pbr       = %.2f\n", parameter.prob_backward_random);
+    printf("#Node      = %d\n", world_size);
+    printf("#Thread    = %d\n", num_thread);
+    printf("#Particle  = %d\n", num_thread * world_size);
+    printf("#iteration = %d\n", parameter.num_iteration);
+    printf("pfg        = %.2f\n", parameter.prob_forward_global);
+    printf("pfl        = %.2f\n", parameter.prob_forward_local);
+    printf("pfr        = %.2f\n", parameter.prob_forward_random);
+    printf("pbl        = %.2f\n", parameter.prob_backward_local);
+    printf("pbr        = %.2f\n", parameter.prob_backward_random);
     if ( parameter.criterion == EBIC ) {
-      printf("cri       = %s%.1f\n",
+      printf("cri        = %s%.1f\n",
              Criterion2String(parameter.criterion),
              parameter.ebic_gamma);
     } else {
-      printf("cri       = %s\n",
+      printf("cri        = %s\n",
              Criterion2String(parameter.criterion));
     }
-    printf("nTest     = %d\n", num_test);
-    printf("PSR(mean) = %.6f\n", rate_positive_selection_mean);
-    printf("FDR(mean) = %.6f\n", rate_false_discovery_mean);
-    printf("PSR(sd)   = %.6f\n", rate_positive_selection_sd);
-    printf("FDR(sd)   = %.6f\n", rate_false_discovery_sd);
-    printf("Time      = %.6lf sec\n", total_time / num_test);
+    printf("#Test      = %d\n", num_test);
+    printf("PSR(mean)  = %.6f\n", rate_positive_selection_mean);
+    printf("FDR(mean)  = %.6f\n", rate_false_discovery_mean);
+    printf("PSR(sd)    = %.6f\n", rate_positive_selection_sd);
+    printf("FDR(sd)    = %.6f\n", rate_false_discovery_sd);
+    printf("Time       = %.6lf sec\n", total_time / num_test);
     printf("================================================================\n");
   }
 

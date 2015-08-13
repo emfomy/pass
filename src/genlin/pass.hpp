@@ -117,29 +117,28 @@ struct Parameter {
 // The structure of a particle                                                //
 ////////////////////////////////////////////////////////////////////////////////
 struct Particle {
-  float *X;        // matrix, n by k, the regressors
-  float *Y;        // vector, n by 1, the regressand
-  float *Beta;     // vector, k by 1, the effects
-  float *Theta;    // vector, k by 1, X'*Y
-  float *M;        // matrix, k by k, inv( X'*X ), upper general storage
-  float *R;        // vector, n by 1, the residual
-  float *B;        // vector, n by 1, temporary vecter
-  float *D;        // vector, n by 1, temporary vecter
-  float e;         // scalar, the norm of R
-  float phi;       // scalar, the value given by criterion
-  float phi_old;   // scalar, the value given by criterion, past iteration
+  float *X;           // matrix, n by k, the regressors
+  float *Y;           // vector, n by 1, the regressand
+  float *Beta;        // vector, k by 1, the effects
+  float *Theta;       // vector, k by 1, X'*Y
+  float *M;           // matrix, k by k, inv( X'*X ), upper general storage
+  float *R;           // vector, n by 1, the residual
+  float *B;           // vector, n by 1, temporary vecter
+  float *D;           // vector, n by 1, temporary vecter
+  float e;            // scalar, the norm of R
+  float phi;          // scalar, the value given by criterion
+  float phi_old;      // scalar, the value given by criterion, past iteration
 
-  int *Idx_lf;     // vector, 1 by k, map local effects to full effects
-  int *Idx_fl;     // vector, 1 by p, map full effects to local effects
-  bool *I;         // vector, 1 by p, the chosen indices
-  int k;           // scalar, the number of chosen effects
-  int l;           // scalar, the number of chosen indices
+  int *Idx_lf;        // vector, 1 by k, map local effects to full effects
+  int *Idx_fl;        // vector, 1 by p, map full effects to local effects
+  int *Idx_temp;      // vector, 1 by p, workspace
+  bool *I;            // vector, 1 by p, the chosen indices
+  int k;              // scalar, the number of chosen effects
+  int l;              // scalar, the number of chosen indices
 
-  bool status;     // scalar, the status (forward/backward)
+  bool status;        // scalar, the status (forward/backward)
 
-  int *Idx_temp;   // vector, p by 1
-
-  unsigned int iseed; // the random seed;
+  unsigned int iseed; // scalar, the random seed;
 
   // Constructor
   Particle();
@@ -148,6 +147,7 @@ struct Particle {
   ~Particle();
 
   // Initialize model
+  void InitializeModel();
   void InitializeModel( const int idx );
 
   // Update model

@@ -21,7 +21,7 @@ function genlin_power( srcroot, dstroot )
 
   % load data
   data = getfield(load(srcroot, srcname), srcname);
-  X = data.x;
+  X = normr(data.x);
   Y = data.y;
 
   % Get size

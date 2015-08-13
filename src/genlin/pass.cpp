@@ -104,7 +104,7 @@ void GenLin() {
 
   // Allocate particles
   auto particle = new Particle[num_thread];
-  phi0 = 0.0f/0.0f;
+  phi0 = INFINITY;
 
   // Use openMP parallel
   #pragma omp parallel
@@ -112,12 +112,12 @@ void GenLin() {
     auto tid = omp_get_thread_num();
 
     // Initialize particles
-    particle[tid].InitializeModel(rand_r(&particle[tid].iseed) % p);
+    particle[tid].InitializeModel();
     particle[tid].ComputeCriterion();
     particle[tid].phi_old = particle[tid].phi;
 
     // Copy best model
-    if ( !(phi0 <= particle[tid].phi) ) {
+    if ( phi0 > particle[tid].phi ) {
       phi0 = particle[tid].phi;
       memcpy(I0, particle[tid].I, sizeof(bool) * p);
     }
@@ -132,6 +132,12 @@ void GenLin() {
       particle[tid].UpdateModel(idx);
       particle[tid].ComputeCriterion();
 
+      // Check singularity
+      if ( isnan(particle[tid].phi) ) {
+        particle[tid].InitializeModel();
+        particle[tid].ComputeCriterion();
+      }
+
       // Change status
       if ( particle[tid].phi > particle[tid].phi_old ) {
         particle[tid].status = !particle[tid].status;
@@ -139,14 +145,14 @@ void GenLin() {
       if ( particle[tid].k <= 1 ) {
         particle[tid].status = true;
       }
-      if ( particle[tid].k >= n-4 || particle[tid].k >= p-4 ) {
+      if ( particle[tid].k >= n || particle[tid].k >= p-4 ) {
         particle[tid].status = false;
       }
 
       particle[tid].phi_old = particle[tid].phi;
 
       // Copy best model
-      if ( !(phi0 <= particle[tid].phi) ) {
+      if ( phi0 > particle[tid].phi ) {
         phi0 = particle[tid].phi;
         memcpy(I0, particle[tid].I, sizeof(bool) * p);
       }
@@ -176,9 +182,8 @@ Particle::Particle() {
 
   Idx_lf   = new int[n];
   Idx_fl   = new int[p];
-  I        = new bool[p];
-
   Idx_temp = new int[p];
+  I        = new bool[p];
 
   iseed    = rand();
 }
@@ -198,9 +203,15 @@ Particle::~Particle() {
 
   delete[] Idx_lf;
   delete[] Idx_fl;
-  delete[] I;
-
   delete[] Idx_temp;
+  delete[] I;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Initialize the model of Particle randomly                                  //
+////////////////////////////////////////////////////////////////////////////////
+void Particle::InitializeModel() {
+  InitializeModel(rand_r(&iseed) % p);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -228,7 +239,7 @@ void Particle::InitializeModel( const int idx ) {
   scopy(n, Y0, 1, Y, 1);
 
   // M := 1 / (X' * X)
-  M[0] = 1.0f / sdot(n, X, 1, X, 1);
+  M[0] = 1.0f;
 
   // Theta := X' * Y
   Theta[0] = sdot(n, X, 1, Y, 1);
@@ -277,7 +288,7 @@ void Particle::UpdateModel( const int idx ) {
     ssymv("U", km, 1.0f, M, n, B, 1, 0.0f, D, 1);
 
     // a := 1 / (Xnew' * Xnew - B' * D)
-    auto a = 1.0f / (sdot(n, Xnew, 1, Xnew, 1) - sdot(km, B, 1, D, 1));
+    auto a = 1.0f / (1.0f - sdot(km, B, 1, D, 1));
 
     // insert D by -1.0
     D[km] = -1.0f;
@@ -331,8 +342,7 @@ void Particle::UpdateModel( const int idx ) {
       scopy(j, M+k*n, 1, M+j*n, 1);
       scopy(k-j-1, M+k*n+j+1, 1, M+j*n+n+j, n);
       M[j*n+j] = M[k*n+k];
-    }
-    else {
+    } else {
       a = M[k*n+k];
       b = Beta[k];
       scopy(k, M+k*n, 1, D, 1);
@@ -374,8 +384,7 @@ void Particle::SelectIndex( int& idx ) {
         if ( I0[i] ) {
           Idx_temp[itemp] = i;
           itemp++;
-        }
-        else {
+        } else {
           j--;
           Idx_temp[j] = i;
         }
@@ -387,8 +396,7 @@ void Particle::SelectIndex( int& idx ) {
       choose = (frand < parameter.prob_forward_global)
              + (frand < parameter.prob_forward_global+
                         parameter.prob_forward_local);
-    }
-    else {
+    } else {
       choose = frand < parameter.prob_forward_local
                      / (parameter.prob_forward_local+
                         parameter.prob_forward_random);
@@ -400,14 +408,14 @@ void Particle::SelectIndex( int& idx ) {
         break;
       }
       case 1: {  // Local best
-        auto phi_temp = 0.0f/0.0f;
+        auto phi_temp = -INFINITY;
         for ( auto i = 0; i < p; ++i ) {
           if ( !I[i] ) {
             // ftemp := abs( X0[i col]' * R )
             auto ftemp = fabs(sdot(n, X0+i*n, 1, R, 1));
 
             // Check if this value is maximum
-            if ( !(ftemp <= phi_temp) ) {
+            if ( phi_temp < ftemp ) {
               phi_temp = ftemp;
               idx = i;
             }
@@ -422,7 +430,7 @@ void Particle::SelectIndex( int& idx ) {
     }
   } else {  // backward step
     if ( frand < parameter.prob_backward_local ) {  // Local best
-      auto phi_temp = 0.0f/0.0f;
+      auto phi_temp = INFINITY;
       for ( auto i = 0; i < k; ++i ) {
         // B := R + Beta[i] * X[i col]
         szaxpy(n, Beta[i], X+i*n, 1, R, 1, B, 1);
@@ -431,7 +439,7 @@ void Particle::SelectIndex( int& idx ) {
         auto ftemp = snorm2(n, B, 1);
 
         // Check if this value is minimal
-        if ( !(ftemp >= phi_temp) ) {
+        if ( phi_temp > ftemp ) {
           phi_temp = ftemp;
           idx = Idx_lf[i];
         }
