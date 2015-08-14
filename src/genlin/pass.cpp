@@ -45,15 +45,15 @@ static inline lbinom( const int n, const int k ) {
 // The namespace pass                                                         //
 ////////////////////////////////////////////////////////////////////////////////
 namespace pass {
-
-// Global variables
-int n;               // scalar, the number of statistical units
-int p;               // scalar, the number of total effects
-float* X0;           // matrix, n by p, the regressors
-float* Y0;           // vector, n by 1, the regressand
-bool* I0;            // vector, 1 by p, the chosen indices
-float phi0;          // scalar, the value given by criterion
-Parameter parameter; // the parameters
+int n;                // scalar, the number of statistical units
+int p;                // scalar, the number of total effects
+float* X0;            // matrix, n by p, the regressors
+float* Y0;            // vector, n by 1, the regressand
+bool* I0;             // vector, 1 by p, the chosen indices
+float phi0;           // scalar, the value given by criterion
+Parameter parameter;  // the parameters
+int world_size;       // the size of MPI communicator
+int world_rank;       // the rank of MPI process
 
 ////////////////////////////////////////////////////////////////////////////////
 // The PaSS algorithm for Linear Regression                                   //

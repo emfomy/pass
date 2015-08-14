@@ -24,6 +24,8 @@ extern float* Y0;                  // vector, n by 1, the regressand
 extern bool* I0;                   // vector, 1 by p, the chosen indices
 extern float phi0;                 // scalar, the value given by criterion
 extern struct Parameter parameter; // the parameters
+extern int world_size;             // the size of MPI communicator
+extern int world_rank;             // the rank of MPI process
 
 ////////////////////////////////////////////////////////////////////////////////
 // The PaSS algorithm for Linear Regression                                   //

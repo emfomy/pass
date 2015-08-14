@@ -16,20 +16,22 @@
 #include <cstring>
 #include <ctime>
 #include <cmath>
+#include <unistd.h>
 #include <cblas.h>
 #include <lapacke.h>
 
 // Global variables
-int n;           // scalar, the number of statistical units
-int p;           // scalar, the number of total effects
-int r;           // scalar, the number of given effects
-int type;        // scalar, the type of covariance structures, 1~3
-float *X;        // matrix, n by p, the regressors
-float *Y;        // vector, n by 1, the regressand
-float *Beta;     // vector, r by 1, the effects
-float rho;       // scaler, the covariance parameter
-bool *J;         // vector, 1 by p, the chosen indices
-char *dataname;  // string, the name of data
+int n;                 // scalar, the number of statistical units
+int p;                 // scalar, the number of total effects
+int r;                 // scalar, the number of given effects
+int type;              // scalar, the type of covariance structures, 1~3
+float *X;              // matrix, n by p, the regressors
+float *Y;              // vector, n by 1, the regressand
+float *Beta;           // vector, r by 1, the effects
+float rho;             // scaler, the covariance parameter
+bool *J;               // vector, 1 by p, the chosen indices
+const char *dataname;  // string, the name of data
+const char *suffix;    // string, the suffix of the name of data
 
 // Functions
 void ChenChenConfig( const char* fileroot );
@@ -55,12 +57,42 @@ int main( int argc, char **argv ) {
   type = 3;
   rho = 0.2;
 
-  auto cfgroot  = (argc > 1) ? argv[1] : "genlin_chenchen.cfg";
-  auto dataroot = (argc > 2) ? argv[2] : "genlin.dat";
+  // Initialize arguments
+  auto cfgroot  = "genlin_chenchen.cfg";
+  auto dataroot = "genlin.dat";
+  dataname      = "GenLin_ChenChen";
 
-  auto strtemp = "GenLin_ChenChen";
-  dataname = new char[strlen(strtemp)+3];
-  strcpy(dataname, strtemp);
+  // Load arguments
+  char c;
+  bool input_error = false;
+  opterr = false;
+  while ( (c = getopt(argc, argv, "c:d:h")) != static_cast<char>(EOF) ) {
+    switch ( c ) {
+      case 'c': {
+        cfgroot = optarg;
+        break;
+      }
+      case 'd': {
+        dataroot = optarg;
+        break;
+      }
+      case 'h': {
+        input_error = true;
+        break;
+      }
+      default: {
+        printf("invalid option -- '%c'\n", optopt);
+        input_error = true;
+        break;
+      }
+    }
+  }
+  if ( input_error ) {
+    printf("Usage: %s [options] ...\n", argv[0]);
+    printf("-c <file>                       Read config from <file>.\n");
+    printf("-d <file>                       Save data into <file>.\n");
+    return 0;
+  }
 
   ////////////////////////////////////////////////////////////////////////////
   // Load parameters                                                        //
@@ -113,14 +145,14 @@ int main( int argc, char **argv ) {
           L[i+j*p] = rho;
         }
       }
-      strcat(dataname, "_1");
+      suffix = "_1";
       break;
     }
     case 2: {
       for ( auto i = 1; i < p; ++i ) {
         L[i+(i-1)*p] = rho;
       }
-      strcat(dataname, "_2");
+      suffix = "_2";
       break;
     }
     case 3: {
@@ -129,7 +161,7 @@ int main( int argc, char **argv ) {
           L[i+j*p] = pow(rho, i-j);
         }
       }
-      strcat(dataname, "_3");
+      suffix = "_3";
       break;
     }
   }
@@ -260,9 +292,11 @@ void ChenChenConfig( const char* fileroot ) {
 ////////////////////////////////////////////////////////////////////////////////
 void ChenChenSave( const char* fileroot ) {
   FILE *file;
-  int size = strlen(dataname)+1;
+  int size0 = strlen(dataname);
+  int size1 = strlen(suffix)+1;
+  int size = size0+size1;
 
-  printf("Saving model into '%s'... ", fileroot);
+  printf("Saving data into '%s'... ", fileroot);
 
   // Open file
   file = fopen(fileroot, "wb");
@@ -273,7 +307,8 @@ void ChenChenSave( const char* fileroot ) {
 
   // Write data
   fwrite(&size, sizeof(int), 1, file);
-  fwrite(dataname, sizeof(char), size, file);
+  fwrite(dataname, sizeof(char), size0, file);
+  fwrite(suffix, sizeof(char), size1, file);
   fwrite(&n, sizeof(int), 1, file);
   fwrite(&p, sizeof(int), 1, file);
   fwrite(X, sizeof(float), n * p, file);

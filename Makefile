@@ -11,7 +11,7 @@ RUNDIR = run
 
 TGTS = $(notdir $(basename $(wildcard $(TGTDIR)/*.mk)))
 
-MODEL = hung_1_1
+MODEL = inglai
 
 MAIN = sh/genlin.sh
 

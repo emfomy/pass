@@ -13,20 +13,22 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <unistd.h>
 #include <cblas.h>
 #include <lapacke.h>
 
 // Global variables
-int n;           // scalar, the number of statistical units
-int p;           // scalar, the number of total effects
-int r;           // scalar, the number of given effects
-float *X;        // matrix, n by p, the regressors
-float *Y;        // vector, n by 1, the regressand
-float *Beta;     // vector, r by 1, the effects
-bool *J;         // vector, 1 by p, the chosen indices
-char *dataname;  // string, the name of data
+int n;                 // scalar, the number of statistical units
+int p;                 // scalar, the number of total effects
+int r;                 // scalar, the number of given effects
+float *X;              // matrix, n by p, the regressors
+float *Y;              // vector, n by 1, the regressand
+float *Beta;           // vector, r by 1, the effects
+bool *J;               // vector, 1 by p, the chosen indices
+const char *dataname;  // string, the name of data
 
 // Functions
 void IngLaiConfig( const char* fileroot );
@@ -50,12 +52,42 @@ int main( int argc, char **argv ) {
   p = 4000;
   r = 10;
 
-  auto cfgroot  = (argc > 1) ? argv[1] : "genlin_inglai.cfg";
-  auto dataroot = (argc > 2) ? argv[2] : "genlin.dat";
+  // Initialize arguments
+  auto cfgroot  = "genlin_inglai.cfg";
+  auto dataroot = "genlin.dat";
+  dataname      = "GenLin_IngLai";
 
-  auto strtemp = "GenLin_IngLai";
-  dataname = new char[strlen(strtemp)+1];
-  strcpy(dataname, strtemp);
+  // Load arguments
+  char c;
+  bool input_error = false;
+  opterr = false;
+  while ( (c = getopt(argc, argv, "c:d:h")) != static_cast<char>(EOF) ) {
+    switch ( c ) {
+      case 'c': {
+        cfgroot = optarg;
+        break;
+      }
+      case 'd': {
+        dataroot = optarg;
+        break;
+      }
+      case 'h': {
+        input_error = true;
+        break;
+      }
+      default: {
+        printf("invalid option -- '%c'\n", optopt);
+        input_error = true;
+        break;
+      }
+    }
+  }
+  if ( input_error ) {
+    printf("Usage: %s [options] ...\n", argv[0]);
+    printf("-c <file>                       Read config from <file>.\n");
+    printf("-d <file>                       Save data into <file>.\n");
+    return 0;
+  }
 
   ////////////////////////////////////////////////////////////////////////////
   // Load parameters                                                        //
@@ -206,7 +238,7 @@ void IngLaiSave( const char* fileroot ) {
   FILE *file;
   int size = strlen(dataname)+1;
 
-  printf("Saving model into '%s'... ", fileroot);
+  printf("Saving data into '%s'... ", fileroot);
 
   // Open file
   file = fopen(fileroot, "wb");

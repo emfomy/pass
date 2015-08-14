@@ -12,6 +12,7 @@
 #include <cstring>
 #include <ctime>
 #include <cmath>
+#include <unistd.h>
 #include <essl.h>
 #include <mpi.h>
 #include <omp.h>
@@ -23,8 +24,6 @@ using namespace pass;
 bool *J0;        // vector, 1 by p, the chosen indices (solution)
 int num_test;    // scalar, the number of tests
 char *dataname;  // string, the name of data
-int world_size;  // the size of MPI communicator
-int world_rank;  // the rank of MPI process
 
 // Functions
 void PassConfig( const char* fileroot );
@@ -43,9 +42,41 @@ int main( int argc, char **argv ) {
   srand(time(NULL) ^ world_rank);
   srand(rand());
 
+  // Initialize arguments
+  auto cfgroot  = "genlin.cfg";
+  auto dataroot = "genlin.dat";
+
   // Load arguments
-  auto cfgroot  = (argc > 1) ? argv[1] : "genlin.cfg";
-  auto dataroot = (argc > 2) ? argv[2] : "genlin.dat";
+  char c;
+  bool input_error = false;
+  opterr = false;
+  while ( (c = getopt(argc, argv, "c:d:h")) != static_cast<char>(EOF) ) {
+    switch ( c ) {
+      case 'c': {
+        cfgroot = optarg;
+        break;
+      }
+      case 'd': {
+        dataroot = optarg;
+        break;
+      }
+      case 'h': {
+        input_error = true;
+        break;
+      }
+      default: {
+        printf("invalid option -- '%c'\n", optopt);
+        input_error = true;
+        break;
+      }
+    }
+  }
+  if ( input_error ) {
+    printf("Usage: %s [options] ...\n", argv[0]);
+    printf("-c <file>                       Read config from <file>.\n");
+    printf("-d <file>                       Read data from <file>.\n");
+    return 0;
+  }
 
   ////////////////////////////////////////////////////////////////////////////
   // Load parameters and data                                               //
@@ -266,7 +297,7 @@ int main( int argc, char **argv ) {
     printf("#Node      = %d\n", world_size);
     printf("#Thread    = %d\n", num_thread);
     printf("#Particle  = %d\n", num_thread * world_size);
-    printf("#iteration = %d\n", parameter.num_iteration);
+    printf("#Iteration = %d\n", parameter.num_iteration);
     printf("pfg        = %.2f\n", parameter.prob_forward_global);
     printf("pfl        = %.2f\n", parameter.prob_forward_local);
     printf("pfr        = %.2f\n", parameter.prob_forward_random);
@@ -344,33 +375,26 @@ void PassConfig( const char* fileroot ) {
     sscanf(line, "%*s %s", cristr);
     if ( !strcmp(cristr, "AIC") ) {
       parameter.criterion = AIC;
-    }
-    else if ( !strcmp(cristr, "BIC") ) {
+    } else if ( !strcmp(cristr, "BIC") ) {
       parameter.criterion = BIC;
-    }
-    else if ( !strcmp(cristr, "EBIC") ) {
+    } else if ( !strcmp(cristr, "EBIC") ) {
       parameter.criterion = EBIC;
       parameter.ebic_gamma = 1.0f;
-    }
-    else if ( cristr[0] == 'E' && cristr[1] == 'B' &&
+    } else if ( cristr[0] == 'E' && cristr[1] == 'B' &&
              cristr[2] == 'I' && cristr[3] == 'C' ) {
       parameter.criterion = EBIC;
       parameter.ebic_gamma = atof(cristr+4);
-    }
-    else if ( !strcmp(cristr, "HDBIC") ) {
+    } else if ( !strcmp(cristr, "HDBIC") ) {
       parameter.criterion = HDBIC;
-    }
-    else if ( !strcmp(cristr, "HQC") ) {
+    } else if ( !strcmp(cristr, "HQC") ) {
       parameter.criterion = HQC;
-    }
-    else if ( !strcmp(cristr, "HDHQC") ) {
+    } else if ( !strcmp(cristr, "HDHQC") ) {
       parameter.criterion = HDHQC;
-    }
-    else {
+    } else {
       if ( world_rank == 0 ) {
         printf("Failed!\nThere is no criterion named '%s'!\n", cristr);
       }
-      exit(1);
+      MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
     fgets(line, kBufferSize, file);
@@ -389,7 +413,7 @@ void PassConfig( const char* fileroot ) {
     file = fopen( fileroot, "w" );
     if ( !file ) {
         printf("Failed!\n");
-      exit(1);
+      MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
     // Write data
@@ -460,7 +484,7 @@ void PassLoad( const char* fileroot ) {
     if ( world_rank == 0 ) {
       printf("Failed!\n");
     }
-    exit(1);
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
   // Read data
