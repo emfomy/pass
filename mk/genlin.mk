@@ -5,12 +5,11 @@ MAKEINC = Makefile.inc
 
 include $(MAKEINC)
 
-INCS = \
-	-I$(ESSLINC)
+INCS = -I$(ESSLINC)
 
-LIBS = \
-	-L$(ESSLLIB) -lesslbg \
-	-L$(XLFLIB) -lxlopt -lxlf90_r -lxlfmath -lxl
+LIBS = -L$(ESSLLIB) -L$(XLFLIB)
+
+LNKS = -lesslbg -lxlopt -lxlf90_r -lxlfmath -lxl
 
 TGTDIR = genlin
 
@@ -38,16 +37,16 @@ all: $(BINS)
 dep: $(DEPS)
 	@ echo > /dev/null
 
-$(BINS): $(OBJS) $(MAKEINC) | $(BINDIR)
-	$(BGCXX) $(BGCXXFLAGS) $(OBJS) -o $@ $(LIBS)
+$(BINS): $(OBJS) $(MAKEINC) | $(PWD)/$(BINDIR)
+	$(BGCXX) $(BGCXXFLAGS) $(OBJS) -o $@ $(LIBS) $(LNKS)
 
-$(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(MAKEINC) | $(OBJDIR)
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(MAKEINC) | $(PWD)/$(OBJDIR)
 	$(BGCXX) $(BGCXXFLAGS) -c $< -o $@ $(INCS)
 
-$(DEPDIR)/%.d: $(SRCDIR)/%.cpp $(MAKEINC) | $(DEPDIR)
+$(DEPDIR)/%.d: $(SRCDIR)/%.cpp $(MAKEINC) | $(PWD)/$(DEPDIR)
 	$(CXX) -E -MM $< -MF $@ -MT '$(OBJDIR)/$*.o' $(INCS)
 
-$(BINDIR) $(OBJDIR) $(DEPDIR):
+$(PWD)/$(BINDIR) $(PWD)/$(OBJDIR) $(PWD)/$(DEPDIR):
 	@ mkdir -p $@
 
 clean:

@@ -9,30 +9,30 @@ TGTDIR = mk
 
 RUNDIR = run
 
-TGTS = $(notdir $(basename $(wildcard $(TGTDIR)/*.mk)))
+MKS = $(notdir $(basename $(wildcard $(TGTDIR)/*.mk)))
 
 MODEL = inglai
 
-MAIN = sh/genlin.sh
+DEMO = sh/genlin.sh
 
-.PHONY: all $(TGTS) demo clean cancel
+.PHONY: all $(MKS) run clean cancel
 
-all: $(TGTS)
+all: $(MKS)
 	@ echo > /dev/null
 
-$(TGTS):
-	@ ( $(MAKE) -f $(TGTDIR)/$@.mk dep all )
+$(MKS):
+	@ $(MAKE) -f $(TGTDIR)/$@.mk all
 
-demo: $(MAIN) .$(MODEL) | $(RUNDIR)
+run: $(DEMO) .$(MODEL) | $(PWD)/$(RUNDIR)
 	( cd $(RUNDIR) ; ../$< )
 
-.%: bin/genlin_% | $(RUNDIR)
+.%: bin/genlin_% | $(PWD)/$(RUNDIR)
 	( cd $(RUNDIR) ; ../$< )
 
-.%: data/genlin_%.dat | $(RUNDIR)
+.%: data/genlin_%.dat | $(PWD)/$(RUNDIR)
 	cp $< $(RUNDIR)/genlin.dat
 
-$(RUNDIR):
+$(PWD)/$(RUNDIR):
 	@ mkdir -p $@
 
 clean:

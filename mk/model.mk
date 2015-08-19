@@ -7,7 +7,9 @@ include $(MAKEINC)
 
 INCS =
 
-LIBS = -llapacke -llapack -lcblas -lblas -ltmglib -lgfortran
+LIBS =
+
+LNKS = -llapacke -llapack -lcblas -lblas -ltmglib -lgfortran
 
 TGTDIR = model
 
@@ -31,13 +33,13 @@ all: $(BINS)
 dep: $(DEPS)
 	@ echo > /dev/null
 
-$(BINDIR)/%: $(SRCDIR)/%.cpp $(MAKEINC) | $(BINDIR)
-	$(CXX) $(CXXFLAGS) $< -o $@ $(INCS) $(LIBS)
+$(BINDIR)/%: $(SRCDIR)/%.cpp $(MAKEINC) | $(PWD)/$(BINDIR)
+	$(CXX) $(CXXFLAGS) $< -o $@ $(INCS) $(LIBS) $(LNKS)
 
-$(DEPDIR)/%.d: $(SRCDIR)/%.cpp $(MAKEINC) | $(DEPDIR)
+$(DEPDIR)/%.d: $(SRCDIR)/%.cpp $(MAKEINC) | $(PWD)/$(DEPDIR)
 	$(CXX) -E -MM $< -MF $@ -MT '$(BINDIR)/$*' $(INCS)
 
-$(BINDIR) $(DEPDIR):
+$(PWD)/$(BINDIR) $(PWD)/$(DEPDIR):
 	@ mkdir -p $@
 
 clean:
