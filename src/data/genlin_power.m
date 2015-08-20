@@ -31,7 +31,7 @@ function genlin_power( srcroot, dstroot )
   J = false(1, p);
 
   % Save data
-  file = fopen(dstroot, 'wb', 'ieee-be');
+  file = fopen(dstroot, 'wb');
   fwrite(file, dstlen, 'integer*4');
   fwrite(file, dstname, 'char*1');
   fwrite(file, n, 'integer*4');

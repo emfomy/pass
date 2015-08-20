@@ -9,11 +9,11 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <ctime>
 #include <cmath>
+#include <numeric>
 #include <unistd.h>
-#include <essl.h>
+#include <mkl.h>
 #include <mpi.h>
 #include <omp.h>
 #include "pass.hpp"
@@ -105,14 +105,14 @@ int main( int argc, char **argv ) {
   // Display parameters
   if ( world_rank == 0 ) {
     if ( parameter.criterion == EBIC ) {
-      printf("%s: n=%d, p=%d, numNode=%d, numThread=%d, "
-             "numParticle=%d, numIteration=%d, numTest=%d, criterion=%s%.1f\n",
+      printf("%s: n=%d, p=%d, #Node=%d, #Thread=%d, "
+             "#Particle=%d, #Iteration=%d, #Test=%d, criterion=%s%.1f\n",
              dataname, n, p, world_size, num_thread,
              world_size*num_thread, parameter.num_iteration, num_test,
              Criterion2String(parameter.criterion), parameter.ebic_gamma);
     } else {
-      printf("%s: n=%d, p=%d, numNode=%d, numThread=%d, "
-             "numParticle=%d, numIteration=%d, numTest=%d, criterion=%s\n",
+      printf("%s: n=%d, p=%d, #Node=%d, #Thread=%d, "
+             "#Particle=%d, #Iteration=%d, #Test=%d, criterion=%s\n",
              dataname, n, p, world_size, num_thread,
              world_size*num_thread, parameter.num_iteration, num_test,
              Criterion2String(parameter.criterion));
@@ -128,19 +128,25 @@ int main( int argc, char **argv ) {
   }
 
   // Centralize and normalize X0
-  for ( auto i = 0; i < p; ++i ) {
-    float stemp = 1.0f;
-    stemp = sdot(n, X0+i*n, 1, &stemp, 0) / n;
-    sves(n, X0+i*n, 1, &stemp, 0, X0+i*n, 1);
-    sscal(n, (1.0f/snorm2(n, X0+i*n, 1)), X0+i*n, 1);
+  for ( auto j = 0; j < p; ++j ) {
+    float stemp = 0.0f;
+    for ( auto i = 0; i < n; ++i ) {
+      stemp += X0[i+j*n];
+    }
+    stemp /= n;
+    vsLinearFrac(n, X0+j*n, X0+j*n, 1.0f, -stemp, 0.0f, 1.0f, X0+j*n);
+    cblas_sscal(n, (1.0f/cblas_snrm2(n, X0+j*n, 1)), X0+j*n, 1);
   }
 
   // Centralize and normalize Y0
   {
-    float stemp = 1.0f;
-    stemp = sdot(n, Y0, 1, &stemp, 0) / n;
-    sves(n, Y0, 1, &stemp, 0, Y0, 1);
-    sscal(n, (1.0f/snorm2(n, Y0, 1)), Y0, 1);
+    float stemp = 0.0f;
+    for ( auto i = 0; i < n; ++i ) {
+      stemp += Y0[i];
+    }
+    stemp /= n;
+    vsLinearFrac(n, Y0, Y0, 1.0f, -stemp, 0.0f, 1.0f, Y0);
+    cblas_sscal(n, (1.0f/cblas_snrm2(n, Y0, 1)), Y0, 1);
   }
 
   parameter.is_normalized = true;
@@ -270,27 +276,30 @@ int main( int argc, char **argv ) {
     printf("================================================================\n");
 
     // Compute means and standard deviations
-    float stemp = 1.0f;
     auto rate_positive_selection_mean =
-        sdot(num_test, rate_positive_selection, 1, &stemp, 0)
-        / num_test;
+        std::accumulate(rate_positive_selection,
+                        rate_positive_selection+num_test,
+                        0.0f) / num_test;
     auto rate_positive_selection_meansq =
         rate_positive_selection_mean * rate_positive_selection_mean;
     auto rate_positive_selection_sqmean =
-        sdot(num_test, rate_positive_selection, 1, rate_positive_selection, 1)
-        / num_test;
+        cblas_sdot(num_test, rate_positive_selection, 1,
+                             rate_positive_selection, 1) / num_test;
     auto rate_positive_selection_sd =
-        sqrt(rate_positive_selection_sqmean - rate_positive_selection_meansq);
+        std::sqrt(rate_positive_selection_sqmean -
+                  rate_positive_selection_meansq);
     auto rate_false_discovery_mean =
-        sdot(num_test, rate_false_discovery, 1, &stemp, 0)
-        / num_test;
+        std::accumulate(rate_false_discovery,
+                        rate_false_discovery+num_test,
+                        0.0f) / num_test;
     auto rate_false_discovery_meansq =
         rate_false_discovery_mean * rate_false_discovery_mean;
     auto rate_false_discovery_sqmean =
-        sdot(num_test, rate_false_discovery, 1, rate_false_discovery, 1)
-        / num_test;
+        cblas_sdot(num_test, rate_false_discovery, 1,
+                             rate_false_discovery, 1) / num_test;
     auto rate_false_discovery_sd =
-        sqrt(rate_false_discovery_sqmean - rate_false_discovery_meansq);
+        std::sqrt(rate_false_discovery_sqmean -
+                  rate_false_discovery_meansq);
 
     // Display statistic report
     printf("%s\n", dataname);
@@ -412,7 +421,7 @@ void PassConfig( const char* fileroot ) {
     // Open file
     file = fopen( fileroot, "w" );
     if ( !file ) {
-        printf("Failed!\n");
+      printf("Failed!\n");
       MPI_Abort(MPI_COMM_WORLD, 1);
     }
 

@@ -5,24 +5,17 @@ MAKEINC = Makefile.inc
 
 include $(MAKEINC)
 
-INCS =
+INCS = $(MKLINC)
+LIBS = $(MKLLIB)
+LNKS = $(MKLLNK)
 
-LIBS =
-
-LNKS = -llapacke -llapack -lcblas -lblas -ltmglib -lgfortran
-
-TGTDIR = model
-
+NAME = model
 BINDIR = bin
-
-SRCDIR = src/$(TGTDIR)
-
-DEPDIR = dep/$(TGTDIR)
+SRCDIR = src/$(NAME)
+DEPDIR = dep/$(NAME)
 
 SRCS = $(wildcard $(SRCDIR)/*.cpp)
-
 BINS = $(SRCS:$(SRCDIR)/%.cpp=$(BINDIR)/%)
-
 DEPS = $(BINS:$(BINDIR)/%=$(DEPDIR)/%.d)
 
 .PHONY: all dep run clean
@@ -33,11 +26,11 @@ all: $(BINS)
 dep: $(DEPS)
 	@ echo > /dev/null
 
-$(BINDIR)/%: $(SRCDIR)/%.cpp $(MAKEINC) | $(PWD)/$(BINDIR)
+$(BINDIR)/%: $(SRCDIR)/%.cpp | $(PWD)/$(BINDIR) $(MAKEINC)
 	$(CXX) $(CXXFLAGS) $< -o $@ $(INCS) $(LIBS) $(LNKS)
 
-$(DEPDIR)/%.d: $(SRCDIR)/%.cpp $(MAKEINC) | $(PWD)/$(DEPDIR)
-	$(CXX) -E -MM $< -MF $@ -MT '$(BINDIR)/$*' $(INCS)
+$(DEPDIR)/%.d: $(SRCDIR)/%.cpp | $(PWD)/$(DEPDIR) $(MAKEINC)
+	@ $(CXX) $(CXXFLAGS) -E -MM $< -MF $@ -MT '$(BINDIR)/$*' $(INCS)
 
 $(PWD)/$(BINDIR) $(PWD)/$(DEPDIR):
 	@ mkdir -p $@

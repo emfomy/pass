@@ -73,7 +73,7 @@ function genlin_hung( srcname, srcroot, dstroot )
   J(Idx) = true;
 
   % Save data
-  file = fopen(dstroot, 'wb', 'ieee-be');
+  file = fopen(dstroot, 'wb');
   fwrite(file, dstlen, 'integer*4');
   fwrite(file, dstname, 'char*1');
   fwrite(file, n, 'integer*4');

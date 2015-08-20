@@ -57,5 +57,8 @@ The shell scripts.
 ### `/run`
 The working directory.
 
-### `/data`
+### `/log`
+The log files.
+
+### `/dat`
 The data files.

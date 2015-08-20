@@ -5,28 +5,19 @@ MAKEINC = Makefile.inc
 
 include $(MAKEINC)
 
-INCS = -I$(ESSLINC)
+INCS = $(MKLINC) $(MPIINC)
+LIBS = $(MKLLIB) $(MPILIB)
+LNKS = $(MKLLNK) $(MPILNK) $(OMPLNK)
 
-LIBS = -L$(ESSLLIB) -L$(XLFLIB)
-
-LNKS = -lesslbg -lxlopt -lxlf90_r -lxlfmath -lxl
-
-TGTDIR = genlin
-
+NAME = genlin
 BINDIR = bin
+SRCDIR = src/$(NAME)
+OBJDIR = obj/$(NAME)
+DEPDIR = dep/$(NAME)
 
-SRCDIR = src/$(TGTDIR)
-
-OBJDIR = obj/$(TGTDIR)
-
-DEPDIR = dep/$(TGTDIR)
-
-BINS = $(BINDIR)/$(TGTDIR)
-
+BINS = $(BINDIR)/$(NAME)
 SRCS = $(wildcard $(SRCDIR)/*.cpp)
-
 OBJS = $(SRCS:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
-
 DEPS = $(OBJS:$(OBJDIR)/%.o=$(DEPDIR)/%.d)
 
 .PHONY: all dep run clean
@@ -37,14 +28,14 @@ all: $(BINS)
 dep: $(DEPS)
 	@ echo > /dev/null
 
-$(BINS): $(OBJS) $(MAKEINC) | $(PWD)/$(BINDIR)
-	$(BGCXX) $(BGCXXFLAGS) $(OBJS) -o $@ $(LIBS) $(LNKS)
+$(BINS): $(OBJS) | $(PWD)/$(BINDIR) $(MAKEINC)
+	$(CXX) $(CXXFLAGS) $(OBJS) -o $@ $(LIBS) $(LNKS)
 
-$(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(MAKEINC) | $(PWD)/$(OBJDIR)
-	$(BGCXX) $(BGCXXFLAGS) -c $< -o $@ $(INCS)
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp | $(PWD)/$(OBJDIR) $(MAKEINC)
+	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCS)
 
-$(DEPDIR)/%.d: $(SRCDIR)/%.cpp $(MAKEINC) | $(PWD)/$(DEPDIR)
-	$(CXX) -E -MM $< -MF $@ -MT '$(OBJDIR)/$*.o' $(INCS)
+$(DEPDIR)/%.d: $(SRCDIR)/%.cpp | $(PWD)/$(DEPDIR) $(MAKEINC)
+	@ $(CXX) $(CXXFLAGS) -E -MM $< -MF $@ -MT '$(OBJDIR)/$*.o' $(INCS)
 
 $(PWD)/$(BINDIR) $(PWD)/$(OBJDIR) $(PWD)/$(DEPDIR):
 	@ mkdir -p $@

@@ -109,7 +109,7 @@ struct Parameter {
     prob_forward_random = 0.1;
     prob_backward_local = 0.9;
     prob_backward_random = 0.1;
-    criterion = EBIC;
+    criterion = HDBIC;
     ebic_gamma = 1.0;
     is_normalized = false;
   }

@@ -5,15 +5,21 @@ MAKEINC = Makefile.inc
 
 include $(MAKEINC)
 
-TGTDIR = mk
+PROJ  = pass
+NAME  = genlin
+MODEL = hung_1_1
 
+SRCDIR = src
+BINDIR = bin
+OBJDIR = obj
+DEPDIR = dep
 RUNDIR = run
+LOGDIR = log
+DATDIR = dat
+MKDIR  = mk
+SHDIR  = sh
 
-MKS = $(notdir $(basename $(wildcard $(TGTDIR)/*.mk)))
-
-MODEL = inglai
-
-DEMO = sh/genlin.sh
+MKS = $(notdir $(basename $(wildcard $(MKDIR)/*.mk)))
 
 .PHONY: all $(MKS) run clean cancel
 
@@ -21,22 +27,25 @@ all: $(MKS)
 	@ echo > /dev/null
 
 $(MKS):
-	@ $(MAKE) -f $(TGTDIR)/$@.mk all
+	@ $(MAKE) -f $(MKDIR)/$@.mk all
 
-run: $(DEMO) .$(MODEL) | $(PWD)/$(RUNDIR)
+run: .$(NAME)
+	@ echo > /dev/null
+
+.%: $(SHDIR)/%.sh .$(MODEL) | $(PWD)/$(RUNDIR)
+	( cd $(RUNDIR) ; ../$< $(PROJ) $(NAME) )
+
+.%: $(BINDIR)/$(NAME)_% | $(PWD)/$(RUNDIR)
 	( cd $(RUNDIR) ; ../$< )
 
-.%: bin/genlin_% | $(PWD)/$(RUNDIR)
-	( cd $(RUNDIR) ; ../$< )
-
-.%: data/genlin_%.dat | $(PWD)/$(RUNDIR)
-	cp $< $(RUNDIR)/genlin.dat
+.%: $(DATDIR)/$(NAME)_%.dat | $(PWD)/$(RUNDIR)
+	cp $< $(RUNDIR)/$(NAME).dat
 
 $(PWD)/$(RUNDIR):
 	@ mkdir -p $@
 
 clean:
-	$(RM) bin obj dep run
+	$(RM) $(BINDIR) $(OBJDIR) $(DEPDIR) $(RUNDIR) $(LOGDIR)
 
-cancel:
-	scancel -A $(USER)
+kill killf del:
+	- jbadmin -$@ -proj $(PROJ) all

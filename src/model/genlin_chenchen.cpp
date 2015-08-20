@@ -17,8 +17,7 @@
 #include <ctime>
 #include <cmath>
 #include <unistd.h>
-#include <cblas.h>
-#include <lapacke.h>
+#include <mkl.h>
 
 // Global variables
 int n;                 // scalar, the number of statistical units

@@ -32,11 +32,13 @@
 
 #include "pass.hpp"
 #include <cstdlib>
-#include <essl.h>
+#include <cstring>
+#include <cmath>
+#include <mkl.h>
 #include <omp.h>
 
 // The log-binomial function
-static inline lbinom( const int n, const int k ) {
+static inline float lbinom( const int n, const int k ) {
   int i;
   return (lgammaf_r(n+1, &i) - lgammaf_r(n-k+1, &i) - lgammaf_r(k+1, &i));
 }
@@ -82,19 +84,27 @@ void GenLin() {
 
   if ( !parameter.is_normalized ) {
     // Centralize and normalize X0
-    for ( auto i = 0; i < p; ++i ) {
+    for ( auto j = 0; j < p; ++j ) {
       float stemp = 1.0f;
-      stemp = sdot(n, X0+i*n, 1, &stemp, 0) / n;
-      sves(n, X0+i*n, 1, &stemp, 0, X0+i*n, 1);
-      sscal(n, (1.0f/snorm2(n, X0+i*n, 1)), X0+i*n, 1);
+      #pragma omp simd
+      for ( auto i = 0; i < n; ++i ) {
+        stemp += X0[i+j*n];
+      }
+      stemp /= n;
+      vsLinearFrac(n, X0+j*n, X0+j*n, 1.0f, -stemp, 0.0f, 1.0f, X0+j*n);
+      cblas_sscal(n, (1.0f/cblas_snrm2(n, X0+j*n, 1)), X0+j*n, 1);
     }
 
     // Centralize and normalize Y0
     {
       float stemp = 1.0f;
-      stemp = sdot(n, Y0, 1, &stemp, 0) / n;
-      sves(n, Y0, 1, &stemp, 0, Y0, 1);
-      sscal(n, (1.0f/snorm2(n, Y0, 1)), Y0, 1);
+      #pragma omp simd
+      for ( auto i = 0; i < n; ++i ) {
+        stemp += Y0[i];
+      }
+      stemp /= n;
+      vsLinearFrac(n, Y0, Y0, 1.0f, -stemp, 0.0f, 1.0f, Y0);
+      cblas_sscal(n, (1.0f/cblas_snrm2(n, Y0, 1)), Y0, 1);
     }
   }
 
@@ -233,22 +243,23 @@ void Particle::InitializeModel( const int idx ) {
   Idx_fl[idx] = 0;
 
   // X := X0[idx col]
-  scopy(n, X0+idx*n, 1, X, 1);
+  cblas_scopy(n, X0+idx*n, 1, X, 1);
 
   // Y := Y0
-  scopy(n, Y0, 1, Y, 1);
+  cblas_scopy(n, Y0, 1, Y, 1);
 
   // M := 1 / (X' * X)
   M[0] = 1.0f;
 
   // Theta := X' * Y
-  Theta[0] = sdot(n, X, 1, Y, 1);
+  Theta[0] = cblas_sdot(n, X, 1, Y, 1);
 
   // Beta := M * Theta
   Beta[0] = M[0] * Theta[0];
 
   // R = Y - X * Beta
-  szaxpy(n, -Beta[0], X, 1, Y, 1, R, 1);
+  cblas_scopy(n, Y, 1, R, 1);
+  cblas_saxpy(n, -Beta[0], X, 1, R, 1);
 
   // Set status
   status = true;
@@ -275,20 +286,22 @@ void Particle::UpdateModel( const int idx ) {
     auto Xnew = X+km*n;
 
     // Insert new row of X
-    scopy(n, X0+idx*n, 1, Xnew, 1);
+    cblas_scopy(n, X0+idx*n, 1, Xnew, 1);
 
     ////////////////////////////////////////////////////////////////////////
     // Solve Y = X * Beta for Beta                                        //
     ////////////////////////////////////////////////////////////////////////
 
     // B := X' * Xnew
-    sgemv("T", n, km, 1, X, n, Xnew, 1, 0.0f, B, 1);
+    cblas_sgemv(CblasColMajor, CblasTrans,
+                n, km, 1, X, n, Xnew, 1, 0.0f, B, 1);
 
     // D := M * B
-    ssymv("U", km, 1.0f, M, n, B, 1, 0.0f, D, 1);
+    cblas_ssymv(CblasColMajor, CblasUpper,
+                km, 1.0f, M, n, B, 1, 0.0f, D, 1);
 
     // a := 1 / (Xnew' * Xnew - B' * D)
-    auto a = 1.0f / (1.0f - sdot(km, B, 1, D, 1));
+    auto a = 1.0f / (1.0f - cblas_sdot(km, B, 1, D, 1));
 
     // insert D by -1.0
     D[km] = -1.0f;
@@ -299,16 +312,17 @@ void Particle::UpdateModel( const int idx ) {
     }
 
     // M += a * D * D'
-    ssyr("U", k, a, D, 1, M, n);
+    cblas_ssyr(CblasColMajor, CblasUpper,
+               k, a, D, 1, M, n);
 
     // insert Theta by Xnew' * Y
-    Theta[km] = sdot(n, Xnew, 1, Y, 1);
+    Theta[km] = cblas_sdot(n, Xnew, 1, Y, 1);
 
     // insert Beta by zero
     Beta[km] = 0.0f;
 
     // Beta += a * (D' * Theta) * D
-    saxpy(k, a*sdot(k, D, 1, Theta, 1), D, 1, Beta, 1);
+    cblas_saxpy(k, a*cblas_sdot(k, D, 1, Theta, 1), D, 1, Beta, 1);
 
     ////////////////////////////////////////////////////////////////////////
 
@@ -329,23 +343,23 @@ void Particle::UpdateModel( const int idx ) {
       a = M[j*n+j];
       b = Beta[j];
 
-      scopy(n, X+k*n, 1, X+j*n, 1);
+      cblas_scopy(n, X+k*n, 1, X+j*n, 1);
       Beta[j] = Beta[k];
       Theta[j] = Theta[k];
       Idx_lf[j] = Idx_lf[k];
       Idx_fl[Idx_lf[j]] = j;
 
-      scopy(j, M+j*n, 1, D, 1);
-      scopy(k-j-1, M+j*n+n+j, n, D+j+1, 1);
+      cblas_scopy(j, M+j*n, 1, D, 1);
+      cblas_scopy(k-j-1, M+j*n+n+j, n, D+j+1, 1);
       D[j] = M[k*n+j];
 
-      scopy(j, M+k*n, 1, M+j*n, 1);
-      scopy(k-j-1, M+k*n+j+1, 1, M+j*n+n+j, n);
+      cblas_scopy(j, M+k*n, 1, M+j*n, 1);
+      cblas_scopy(k-j-1, M+k*n+j+1, 1, M+j*n+n+j, n);
       M[j*n+j] = M[k*n+k];
     } else {
       a = M[k*n+k];
       b = Beta[k];
-      scopy(k, M+k*n, 1, D, 1);
+      cblas_scopy(k, M+k*n, 1, D, 1);
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -353,17 +367,19 @@ void Particle::UpdateModel( const int idx ) {
     ////////////////////////////////////////////////////////////////////////
 
     // M -= 1/a * D * D'
-    ssyr("U", k, -1.0f/a, D, 1, M, n);
+    cblas_ssyr(CblasColMajor, CblasUpper,
+               k, -1.0f/a, D, 1, M, n);
 
     // Beta -= b/a * D
-    saxpy(k, -b/a, D, 1, Beta, 1);
+    cblas_saxpy(k, -b/a, D, 1, Beta, 1);
 
     ////////////////////////////////////////////////////////////////////////
   }
   
   // R = Y - X * Beta
-  scopy(n, Y, 1, R, 1);
-  sgemv("N", n, k, -1.0f, X, n, Beta, 1, 1.0f, R, 1);
+  cblas_scopy(n, Y, 1, R, 1);
+  cblas_sgemv(CblasColMajor, CblasNoTrans,
+              n, k, -1.0f, X, n, Beta, 1, 1.0f, R, 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -412,7 +428,7 @@ void Particle::SelectIndex( int& idx ) {
         for ( auto i = 0; i < p; ++i ) {
           if ( !I[i] ) {
             // ftemp := abs( X0[i col]' * R )
-            auto ftemp = fabs(sdot(n, X0+i*n, 1, R, 1));
+            auto ftemp = fabs(cblas_sdot(n, X0+i*n, 1, R, 1));
 
             // Check if this value is maximum
             if ( phi_temp < ftemp ) {
@@ -433,10 +449,11 @@ void Particle::SelectIndex( int& idx ) {
       auto phi_temp = INFINITY;
       for ( auto i = 0; i < k; ++i ) {
         // B := R + Beta[i] * X[i col]
-        szaxpy(n, Beta[i], X+i*n, 1, R, 1, B, 1);
+        cblas_scopy(n, R, 1, B, 1);
+        cblas_saxpy(n, Beta[i], X+i*n, 1, B, 1);
 
         // ftemp = norm(B)
-        auto ftemp = snorm2(n, B, 1);
+        auto ftemp = cblas_snrm2(n, B, 1);
 
         // Check if this value is minimal
         if ( phi_temp > ftemp ) {
@@ -455,7 +472,7 @@ void Particle::SelectIndex( int& idx ) {
 ////////////////////////////////////////////////////////////////////////////////
 void Particle::ComputeCriterion() {
   // e := norm(R)
-  e = snorm2(n, R, 1);
+  e = cblas_snrm2(n, R, 1);
 
   // Compute criterion
   switch(parameter.criterion) {

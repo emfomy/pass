@@ -13,12 +13,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <cmath>
 #include <unistd.h>
-#include <cblas.h>
-#include <lapacke.h>
+#include <mkl.h>
 
 // Global variables
 int n;                 // scalar, the number of statistical units
@@ -116,24 +115,23 @@ int main( int argc, char **argv ) {
   X = new float[n*p];
   Y = new float[n];
   J = new bool[p]();
-  auto S = new float[n];
+  auto S = new float[n]();
   float stemp;
 
   // Generate X & Y using normal random
   LAPACKE_slarnv(3, iseed, n*p, X);
   LAPACKE_slarnv(3, iseed, n, Y);
 
-  // S[i] := sum( X[i, 0~r] )
-  stemp = 1.0f;
+  // S := sum( X[0~r cols] )
   for ( auto i = 0; i < r; ++i ) {
-    S[i] = cblas_sdot(r, X+i*n, n, &stemp, 0);
+    cblas_saxpy(n, 1.0f, X+i*n, 1, S, 1);
   }
 
   // X[i col] := sqrt(.75/r) * S + .5 * X[i col], i >= r
-  stemp = sqrt(0.75f/r);
+  cblas_sscal(n, sqrt(0.75f/r), S, 1);
+  cblas_sscal(n*(p-r), 0.5f, X+r*n, 1);
   for ( auto i = r; i < p; ++i ) {
-    cblas_sscal(n, 0.5f, X+i*n, 1);
-    cblas_saxpy(n, stemp, S, 1, X+i*n, 1);
+    cblas_saxpy(n, 1.0f, S, 1, X+i*n, 1);
   }
 
   // Y += X[0~r cols] * Beta
@@ -155,7 +153,6 @@ int main( int argc, char **argv ) {
   delete[] Y;
   delete[] Beta;
   delete[] J;
-  delete[] S;
 
   printf("================================================================\n");
 

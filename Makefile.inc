@@ -4,10 +4,12 @@
 MAKEFLAGS += --no-print-directory
 
 CXX        = g++
-CXXFLAGS   = -O3 -std=c++0x
-BGCXX      = mpixlcxx_r
-BGCXXFLAGS = -O3 -qlanglvl=extended0x -qsmp=omp -qstrict
+CXXFLAGS   = -O3 -std=c++11
 
 RM      = rm -rf
 RANLIB  = ranlib
 ARCHIVE = ar rv
+
+MPILNK = -lmpi_cxx -lmpi
+MKLLNK = -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
+OMPLNK = -fopenmp
