@@ -24,6 +24,8 @@ using namespace pass;
 bool *J0;        // vector, 1 by p, the chosen indices (solution)
 int num_test;    // scalar, the number of tests
 char *dataname;  // string, the name of data
+int mpi_size;    // the size of MPI communicator
+int mpi_rank;    // the rank of MPI processes
 
 // Functions
 void PassConfig( const char* fileroot );
@@ -35,11 +37,11 @@ void PassLoad( const char* fileroot );
 int main( int argc, char **argv ) {
   // Initialize MPI
   MPI_Init(&argc, &argv);
-  MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+  MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
   // Initialize random seed
-  srand(time(NULL) ^ world_rank);
+  srand(time(NULL) ^ mpi_rank);
   srand(rand());
 
   // Initialize arguments
@@ -65,24 +67,26 @@ int main( int argc, char **argv ) {
         break;
       }
       default: {
-        printf("invalid option -- '%c'\n", optopt);
-        input_error = true;
+        if ( mpi_rank == 0 ) {
+          printf("invalid option -- '%c'\n", optopt);
+          input_error = true;
+        }
         break;
       }
     }
   }
-  if ( input_error ) {
+  if ( mpi_rank == 0 && input_error ) {
     printf("Usage: %s [options] ...\n", argv[0]);
     printf("-c <file>                       Read config from <file>.\n");
     printf("-d <file>                       Read data from <file>.\n");
-    return 0;
+    MPI_Abort(MPI_COMM_WORLD, 0);
   }
 
   ////////////////////////////////////////////////////////////////////////////
   // Load parameters and data                                               //
   ////////////////////////////////////////////////////////////////////////////
 
-  if ( world_rank == 0 ) {
+  if ( mpi_rank == 0 ) {
     printf("================================================================\n");
   }
 
@@ -97,24 +101,25 @@ int main( int argc, char **argv ) {
     omp_set_num_threads(num_proc);
     num_thread = num_proc;
   }
+  auto num_particle = mpi_size * num_thread * parameter.num_particle_thread;
 
   // Load data and allocate memory
   PassLoad(dataroot);
   I0 = new bool[p];
 
   // Display parameters
-  if ( world_rank == 0 ) {
+  if ( mpi_rank == 0 ) {
     if ( parameter.criterion == EBIC ) {
       printf("%s: n=%d, p=%d, #Node=%d, #Thread=%d, "
              "#Particle=%d, #Iteration=%d, #Test=%d, criterion=%s%.1f\n",
-             dataname, n, p, world_size, num_thread,
-             world_size*num_thread, parameter.num_iteration, num_test,
+             dataname, n, p, mpi_size, num_thread,
+             num_particle, parameter.num_iteration, num_test,
              Criterion2String(parameter.criterion), parameter.ebic_gamma);
     } else {
       printf("%s: n=%d, p=%d, #Node=%d, #Thread=%d, "
              "#Particle=%d, #Iteration=%d, #Test=%d, criterion=%s\n",
-             dataname, n, p, world_size, num_thread,
-             world_size*num_thread, parameter.num_iteration, num_test,
+             dataname, n, p, mpi_size, num_thread,
+             num_particle, parameter.num_iteration, num_test,
              Criterion2String(parameter.criterion));
     }
   }
@@ -123,7 +128,7 @@ int main( int argc, char **argv ) {
   // Centralize and normalize the original data                             //
   ////////////////////////////////////////////////////////////////////////////
 
-  if ( world_rank == 0 ) {
+  if ( mpi_rank == 0 ) {
     printf("Normalizing data... ");
   }
 
@@ -151,7 +156,7 @@ int main( int argc, char **argv ) {
 
   parameter.is_normalized = true;
 
-  if ( world_rank == 0 ) {
+  if ( mpi_rank == 0 ) {
     printf("Done.\n");
   }
 
@@ -164,7 +169,7 @@ int main( int argc, char **argv ) {
   double start_time, total_time = 0.0;
   float *rate_positive_selection, *rate_false_discovery;
 
-  if ( world_rank == 0 ) {
+  if ( mpi_rank == 0 ) {
     printf("================================================================\n");
 
     // Initialize statistic data
@@ -189,7 +194,7 @@ int main( int argc, char **argv ) {
     // Display solution model
     num_true_selection = 0;
     auto isize = static_cast<int>(log10(p))+1;
-    printf("True(%02d):\t%12.6f; ", world_rank, solution.phi);
+    printf("True(%02d):\t%12.6f; ", mpi_rank, solution.phi);
     for ( auto i = 0; i < p; i++ ) {
       if ( J0[i] ) {
         printf("%-*d ", isize, i);
@@ -209,7 +214,7 @@ int main( int argc, char **argv ) {
   for ( auto t = 0; t < num_test; ++t ) {
     // Record beginning time
     MPI_Barrier(MPI_COMM_WORLD);
-    if ( world_rank == 0 ) {
+    if ( mpi_rank == 0 ) {
       start_time = omp_get_wtime();
     }
 
@@ -219,22 +224,22 @@ int main( int argc, char **argv ) {
     // Find best model
     struct { float value; int rank; } send, recv;
     send.value = phi0;
-    send.rank = world_rank;
+    send.rank = mpi_rank;
     MPI_Allreduce(&send, &recv, 1, MPI_FLOAT_INT, MPI_MINLOC, MPI_COMM_WORLD);
 
     // Record ending time
     MPI_Barrier(MPI_COMM_WORLD);
-    if ( world_rank == 0 ) {
+    if ( mpi_rank == 0 ) {
       total_time += omp_get_wtime() - start_time;
     }
 
-    if ( world_rank == recv.rank ) {
+    if ( mpi_rank == recv.rank ) {
       // Display model
       num_correct = 0;
       num_incorrect = 0;
       num_test_selection = 0;
       auto isize = static_cast<int>(log10(p))+1;
-      printf("%4d(%02d):\t%12.6f; ", t, world_rank, phi0);
+      printf("%4d(%02d):\t%12.6f; ", t, mpi_rank, phi0);
       for ( auto i = 0; i < p; i++ ) {
         if ( I0[i] ) {
           printf("%-*d ", isize, i);
@@ -249,7 +254,7 @@ int main( int argc, char **argv ) {
       printf("\n");
 
       // Compute accuracy rate
-      if ( world_rank == 0 ) {
+      if ( mpi_rank == 0 ) {
         rate_positive_selection[t] =
             static_cast<float>(num_correct) / num_true_selection;
         rate_false_discovery[t] =
@@ -260,7 +265,7 @@ int main( int argc, char **argv ) {
         rate_temp[1] = static_cast<float>(num_incorrect) / num_test_selection;
         MPI_Send(rate_temp, 2, MPI_FLOAT, 0, t, MPI_COMM_WORLD);
       }
-    } else if ( world_rank == 0 ) {
+    } else if ( mpi_rank == 0 ) {
       float rate_temp[2];
       MPI_Recv(rate_temp, 2, MPI_FLOAT, recv.rank, t,
                MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -272,7 +277,7 @@ int main( int argc, char **argv ) {
   ////////////////////////////////////////////////////////////////////////////
   // Display statistic report                                               //
   ////////////////////////////////////////////////////////////////////////////
-  if ( world_rank == 0 ) {
+  if ( mpi_rank == 0 ) {
     printf("================================================================\n");
 
     // Compute means and standard deviations
@@ -303,9 +308,9 @@ int main( int argc, char **argv ) {
 
     // Display statistic report
     printf("%s\n", dataname);
-    printf("#Node      = %d\n", world_size);
+    printf("#Node      = %d\n", mpi_size);
     printf("#Thread    = %d\n", num_thread);
-    printf("#Particle  = %d\n", num_thread * world_size);
+    printf("#Particle  = %d\n", num_particle);
     printf("#Iteration = %d\n", parameter.num_iteration);
     printf("pfg        = %.2f\n", parameter.prob_forward_global);
     printf("pfl        = %.2f\n", parameter.prob_forward_local);
@@ -357,7 +362,7 @@ int main( int argc, char **argv ) {
 void PassConfig( const char* fileroot ) {
   const int kBufferSize = 1024;
 
-  if ( world_rank == 0 ) {
+  if ( mpi_rank == 0 ) {
     printf("Loading config from '%s'... ", fileroot);
   }
 
@@ -369,8 +374,11 @@ void PassConfig( const char* fileroot ) {
     // Read data
     char line[kBufferSize];
     fgets(line, kBufferSize, file);
-    sscanf(line, "%*s %d",
+    sscanf(line, "%*s %u",
            &parameter.num_iteration);
+    fgets(line, kBufferSize, file);
+    sscanf(line, "%*s %u",
+           &parameter.num_particle_thread);
     fgets(line, kBufferSize, file);
     sscanf(line, "%*s %f %f %f %f %f",
            &parameter.prob_forward_global,
@@ -400,10 +408,10 @@ void PassConfig( const char* fileroot ) {
     } else if ( !strcmp(cristr, "HDHQC") ) {
       parameter.criterion = HDHQC;
     } else {
-      if ( world_rank == 0 ) {
+      if ( mpi_rank == 0 ) {
         printf("Failed!\nThere is no criterion named '%s'!\n", cristr);
+        MPI_Abort(MPI_COMM_WORLD, 1);
       }
-      MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
     fgets(line, kBufferSize, file);
@@ -412,10 +420,10 @@ void PassConfig( const char* fileroot ) {
     // Close file
     fclose(file);
 
-    if ( world_rank == 0 ) {
+    if ( mpi_rank == 0 ) {
       printf("Done.\n");
     }
-  } else if ( world_rank == 0 ) {
+  } else if ( mpi_rank == 0 ) {
     printf("Failed!\nCreating config file '%s'... ", fileroot);
 
     // Open file
@@ -426,48 +434,51 @@ void PassConfig( const char* fileroot ) {
     }
 
     // Write data
-    fprintf(file, "nI    %d\n",
+    fprintf(file, "nI      %d\n",
             parameter.num_iteration);
-    fprintf(file, "prob  %.1f %.1f %.1f %.1f %.1f\n",
+    fprintf(file, "nPt     %d\n",
+            parameter.num_particle_thread);
+    fprintf(file, "prob    %.1f %.1f %.1f %.1f %.1f\n",
             parameter.prob_forward_global,
             parameter.prob_forward_local,
             parameter.prob_forward_random,
             parameter.prob_backward_local,
             parameter.prob_backward_random);
     if ( parameter.criterion == EBIC && parameter.ebic_gamma != 1.0f ) {
-      fprintf(file, "cri   %s%.1f\n",
+      fprintf(file, "cri     %s%.1f\n",
               Criterion2String(parameter.criterion),
               parameter.ebic_gamma);
     } else {
-      fprintf(file, "cri   %s\n",
+      fprintf(file, "cri     %s\n",
               Criterion2String(parameter.criterion));
     }
-    fprintf(file, "nTest %d\n", num_test);
+    fprintf(file, "nTest   %d\n", num_test);
 
     fprintf(file, "\n\nNote:\n");
-    fprintf(file, "<nI>:   the number of iterations.\n");
-    fprintf(file, "<prob>: <pfg> <pfl> <pfr> <pbl> <pbr>\n");
-    fprintf(file, "<pfg>:  the probability of forward step: global\n");
-    fprintf(file, "<pfl>:  the probability of forward step: local\n");
-    fprintf(file, "<pfr>:  the probability of forward step: random\n");
-    fprintf(file, "<pbl>:  the probability of backward step: local\n");
-    fprintf(file, "<pbr>:  the probability of backward step: random\n");
-    fprintf(file, "<cri>:  the criterion.\n");
-    fprintf(file, "        AIC:         "
+    fprintf(file, "<nI>:     the number of iterations.\n");
+    fprintf(file, "<nPt>:    the number of particles per thread.\n");
+    fprintf(file, "<prob>:   <pfg> <pfl> <pfr> <pbl> <pbr>\n");
+    fprintf(file, "<pfg>:    the probability of forward step: global\n");
+    fprintf(file, "<pfl>:    the probability of forward step: local\n");
+    fprintf(file, "<pfr>:    the probability of forward step: random\n");
+    fprintf(file, "<pbl>:    the probability of backward step: local\n");
+    fprintf(file, "<pbr>:    the probability of backward step: random\n");
+    fprintf(file, "<cri>:    the criterion.\n");
+    fprintf(file, "          AIC:         "
                   "Akaike information criterion.\n");
-    fprintf(file, "        BIC:         "
+    fprintf(file, "          BIC:         "
                   "Bayesian information criterion.\n");
-    fprintf(file, "        EBIC:        "
+    fprintf(file, "          EBIC:        "
                   "Extended Bayesian information criterion.\n");
-    fprintf(file, "        EBIC<gamma>: "
+    fprintf(file, "          EBIC<gamma>: "
                   "EBIC with parameter gamma.\n");
-    fprintf(file, "        HDBIC:       "
+    fprintf(file, "          HDBIC:       "
                   "High-dimensional Bayesian information criterion.\n");
-    fprintf(file, "        HQC:         "
+    fprintf(file, "          HQC:         "
                   "Hannan-Quinn information criterion.\n");
-    fprintf(file, "        HDHQC:       "
+    fprintf(file, "          HDHQC:       "
                   "High-dimensional Hannan-Quinn information criterion.\n");
-    fprintf(file, "<nTest> the number of tests.\n");
+    fprintf(file, "<nTest>   the number of tests.\n");
 
     // Close file
     fclose(file);
@@ -483,14 +494,14 @@ void PassConfig( const char* fileroot ) {
 // fileroot: the root of data file                                            //
 ////////////////////////////////////////////////////////////////////////////////
 void PassLoad( const char* fileroot ) {
-  if ( world_rank == 0 ) {
+  if ( mpi_rank == 0 ) {
     printf("Loading model from '%s'... ", fileroot);
   }
 
   // Open file
   auto file = fopen(fileroot, "rb");
   if ( !file ) {
-    if ( world_rank == 0 ) {
+    if ( mpi_rank == 0 ) {
       printf("Failed!\n");
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
@@ -513,7 +524,7 @@ void PassLoad( const char* fileroot ) {
   // Close file
   fclose(file);
 
-  if ( world_rank == 0 ) {
+  if ( mpi_rank == 0 ) {
     printf("Done.\n");
   }
 }

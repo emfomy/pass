@@ -10,8 +10,8 @@ name=$2
 
 mpirun="/hlt/exec/mpiwrap.sh -per-node 1"
 
-bindir=$(dirname ${PWD})/bin
-logdir=$(dirname ${PWD})/log
+bindir=$(readlink -f ../bin)
+logdir=$(readlink -f ../log)
 
 mkdir -p ${logdir}
 
@@ -21,4 +21,4 @@ err=${logdir}/%J.err
 
 opt="-pjobs 16 -cores ${cores} -out ${out} -err ${err}"
 
-${jbsub} -queue ${queue} -proj ${proj} -name ${name} ${opt} ${mpirun} ${bin} ${size}
+${jbsub} -queue ${queue} -proj ${proj} -name ${name} ${opt} ${mpirun} ${bin}

@@ -26,10 +26,10 @@ all: $(BINS)
 dep: $(DEPS)
 	@ echo > /dev/null
 
-$(BINDIR)/%: $(SRCDIR)/%.cpp | $(PWD)/$(BINDIR) $(MAKEINC)
+$(BINDIR)/%: $(SRCDIR)/%.cpp $(MAKEINC) | $(PWD)/$(BINDIR)
 	$(CXX) $(CXXFLAGS) $< -o $@ $(INCS) $(LIBS) $(LNKS)
 
-$(DEPDIR)/%.d: $(SRCDIR)/%.cpp | $(PWD)/$(DEPDIR) $(MAKEINC)
+$(DEPDIR)/%.d: $(SRCDIR)/%.cpp $(MAKEINC) | $(PWD)/$(DEPDIR)
 	@ $(CXX) $(CXXFLAGS) -E -MM $< -MF $@ -MT '$(BINDIR)/$*' $(INCS)
 
 $(PWD)/$(BINDIR) $(PWD)/$(DEPDIR):

@@ -19,6 +19,8 @@ DATDIR = dat
 MKDIR  = mk
 SHDIR  = sh
 
+SH = $(SHDIR)/pass.sh
+
 MKS = $(notdir $(basename $(wildcard $(MKDIR)/*.mk)))
 
 .PHONY: all $(MKS) run clean cancel
@@ -32,8 +34,8 @@ $(MKS):
 run: .$(NAME)
 	@ echo > /dev/null
 
-.%: $(SHDIR)/%.sh .$(MODEL) | $(PWD)/$(RUNDIR)
-	( cd $(RUNDIR) ; ../$< $(PROJ) $(NAME) )
+.%: $(SH) $(BINDIR)/% .$(MODEL) | $(PWD)/$(RUNDIR)
+	( cd $(RUNDIR) ; ../$< $(PROJ) $* )
 
 .%: $(BINDIR)/$(NAME)_% | $(PWD)/$(RUNDIR)
 	( cd $(RUNDIR) ; ../$< )

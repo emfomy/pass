@@ -28,13 +28,13 @@ all: $(BINS)
 dep: $(DEPS)
 	@ echo > /dev/null
 
-$(BINS): $(OBJS) | $(PWD)/$(BINDIR) $(MAKEINC)
+$(BINS): $(OBJS) $(MAKEINC) | $(PWD)/$(BINDIR)
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $@ $(LIBS) $(LNKS)
 
-$(OBJDIR)/%.o: $(SRCDIR)/%.cpp | $(PWD)/$(OBJDIR) $(MAKEINC)
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(MAKEINC) | $(PWD)/$(OBJDIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCS)
 
-$(DEPDIR)/%.d: $(SRCDIR)/%.cpp | $(PWD)/$(DEPDIR) $(MAKEINC)
+$(DEPDIR)/%.d: $(SRCDIR)/%.cpp $(MAKEINC) | $(PWD)/$(DEPDIR)
 	@ $(CXX) $(CXXFLAGS) -E -MM $< -MF $@ -MT '$(OBJDIR)/$*.o' $(INCS)
 
 $(PWD)/$(BINDIR) $(PWD)/$(OBJDIR) $(PWD)/$(DEPDIR):

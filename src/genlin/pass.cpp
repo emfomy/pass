@@ -53,19 +53,17 @@ float* X0;            // matrix, n by p, the regressors
 float* Y0;            // vector, n by 1, the regressand
 bool* I0;             // vector, 1 by p, the chosen indices
 float phi0;           // scalar, the value given by criterion
-Parameter parameter;  // the parameters
-int world_size;       // the size of MPI communicator
-int world_rank;       // the rank of MPI process
+Parameter parameter;  // the PaSS parameters
 
 ////////////////////////////////////////////////////////////////////////////////
 // The PaSS algorithm for Linear Regression                                   //
 //                                                                            //
-// Input Parameters:                                                          //
+// Input Global Parameters:                                                   //
 // n:         scalar, the number of statistical units                         //
 // p:         scalar, the number of total effects                             //
 // X0:        matrix, n by p, the regressors                                  //
 // Y0:        vector, n by 1, the regressand                                  //
-// parameter: the parameters                                                  //
+// parameter: the PaSS parameters                                             //
 //                                                                            //
 // Output Global Variables:                                                   //
 // I0:        vector, 1 by p, the chosen indices                              //
@@ -75,8 +73,10 @@ int world_rank;       // the rank of MPI process
 // Please call srand before using this routine.                               //
 ////////////////////////////////////////////////////////////////////////////////
 void GenLin() {
+
   // Check parameters
   auto num_thread = omp_get_max_threads();
+  auto num_particle = num_thread*parameter.num_particle_thread;
 
   ////////////////////////////////////////////////////////////////////////////
   // Centralize and normalize the original data                             //
@@ -113,7 +113,7 @@ void GenLin() {
   ////////////////////////////////////////////////////////////////////////////
 
   // Allocate particles
-  auto particle = new Particle[num_thread];
+  auto particle = new Particle[num_particle];
   phi0 = INFINITY;
 
   // Use openMP parallel
@@ -121,59 +121,61 @@ void GenLin() {
   {
     auto tid = omp_get_thread_num();
 
-    // Initialize particles
-    particle[tid].InitializeModel();
-    particle[tid].ComputeCriterion();
-    particle[tid].phi_old = particle[tid].phi;
+    for ( auto j = tid; j < num_particle; j+=num_thread ) {
+      // Initialize particles
+      particle[j].InitializeModel();
+      particle[j].ComputeCriterion();
+      particle[j].phi_old = particle[j].phi;
 
-    // Copy best model
-    if ( phi0 > particle[tid].phi ) {
-      phi0 = particle[tid].phi;
-      memcpy(I0, particle[tid].I, sizeof(bool) * p);
+      // Copy best model
+      if ( phi0 > particle[j].phi ) {
+        phi0 = particle[j].phi;
+        memcpy(I0, particle[j].I, sizeof(bool) * p);
+      }
     }
 
     #pragma omp barrier
 
     // Find best model
     for ( auto i = 1; i < parameter.num_iteration; ++i ) {
-      // Update model
-      int idx;
-      particle[tid].SelectIndex(idx);
-      particle[tid].UpdateModel(idx);
-      particle[tid].ComputeCriterion();
+      for ( auto j = tid; j < num_particle; j+=num_thread ) {
+        // Update model
+        int idx;
+        particle[j].SelectIndex(idx);
+        particle[j].UpdateModel(idx);
+        particle[j].ComputeCriterion();
 
-      // Check singularity
-      if ( isnan(particle[tid].phi) ) {
-        particle[tid].InitializeModel();
-        particle[tid].ComputeCriterion();
-      }
+        // Check singularity
+        if ( isnan(particle[j].phi) ) {
+          particle[j].InitializeModel();
+          particle[j].ComputeCriterion();
+        }
 
-      // Change status
-      if ( particle[tid].phi > particle[tid].phi_old ) {
-        particle[tid].status = !particle[tid].status;
-      }
-      if ( particle[tid].k <= 1 ) {
-        particle[tid].status = true;
-      }
-      if ( particle[tid].k >= n || particle[tid].k >= p-4 ) {
-        particle[tid].status = false;
-      }
+        // Change status
+        if ( particle[j].phi > particle[j].phi_old ) {
+          particle[j].status = !particle[j].status;
+        }
+        if ( particle[j].k <= 1 ) {
+          particle[j].status = true;
+        }
+        if ( particle[j].k >= n || particle[j].k >= p-4 ) {
+          particle[j].status = false;
+        }
 
-      particle[tid].phi_old = particle[tid].phi;
+        particle[j].phi_old = particle[j].phi;
 
-      // Copy best model
-      if ( phi0 > particle[tid].phi ) {
-        phi0 = particle[tid].phi;
-        memcpy(I0, particle[tid].I, sizeof(bool) * p);
+        // Copy best model
+        if ( phi0 > particle[j].phi ) {
+          phi0 = particle[j].phi;
+          memcpy(I0, particle[j].I, sizeof(bool) * p);
+        }
       }
     }
   }
 
-  // Copy best model
-  memcpy(I0, I0, sizeof(bool) * p);
-
   ////////////////////////////////////////////////////////////////////////////
 
+  // Delete memory
   delete[] particle;
 }
 
@@ -194,6 +196,7 @@ Particle::Particle() {
   Idx_fl   = new int[p];
   Idx_temp = new int[p];
   I        = new bool[p];
+  I_best   = new bool[p];
 
   iseed    = rand();
 }
@@ -215,6 +218,7 @@ Particle::~Particle() {
   delete[] Idx_fl;
   delete[] Idx_temp;
   delete[] I;
+  delete[] I_best;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

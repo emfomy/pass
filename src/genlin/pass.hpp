@@ -23,23 +23,24 @@ extern float* X0;                  // matrix, n by p, the regressors
 extern float* Y0;                  // vector, n by 1, the regressand
 extern bool* I0;                   // vector, 1 by p, the chosen indices
 extern float phi0;                 // scalar, the value given by criterion
-extern struct Parameter parameter; // the parameters
-extern int world_size;             // the size of MPI communicator
-extern int world_rank;             // the rank of MPI process
+extern struct Parameter parameter; //  the PaSS parameters
 
 ////////////////////////////////////////////////////////////////////////////////
 // The PaSS algorithm for Linear Regression                                   //
 //                                                                            //
-// Input Parameters:                                                          //
+// Input Global Parameters:                                                   //
 // n:         scalar, the number of statistical units                         //
 // p:         scalar, the number of total effects                             //
 // X0:        matrix, n by p, the regressors                                  //
 // Y0:        vector, n by 1, the regressand                                  //
-// parameter: the parameters                                                  //
+// parameter: the PaSS parameters                                             //
 //                                                                            //
 // Output Global Variables:                                                   //
 // I0:        vector, 1 by p, the chosen indices                              //
 // phi0:      scalar, the value given by criterion                            //
+//                                                                            //
+// Note:                                                                      //
+// Please call srand before using this routine.                               //
 ////////////////////////////////////////////////////////////////////////////////
 void GenLin();
 
@@ -91,19 +92,21 @@ static const char* Criterion2String( const Criterion criterion ) {
 // The parameters of the PaSS algorithm                                       //
 ////////////////////////////////////////////////////////////////////////////////
 struct Parameter {
-  int num_iteration;           // the number of iterations
-  float prob_forward_global;   // the probability of forward step: global
-  float prob_forward_local;    // the probability of forward step: local
-  float prob_forward_random;   // the probability of forward step: random
-  float prob_backward_local;   // the probability of backward step: local
-  float prob_backward_random;  // the probability of backward step: random
-  Criterion criterion;         // the criterion
-  float ebic_gamma;            // the penalty parameter for EBIC
-  bool is_normalized;          // the data is normalized of not
+  unsigned int num_iteration;        // the number of iterations
+  unsigned int num_particle_thread;  // the number of particles per thread
+  float prob_forward_global;         // the probability of forward step: global
+  float prob_forward_local;          // the probability of forward step: local
+  float prob_forward_random;         // the probability of forward step: random
+  float prob_backward_local;         // the probability of backward step: local
+  float prob_backward_random;        // the probability of backward step: random
+  Criterion criterion;               // the criterion
+  float ebic_gamma;                  // the penalty parameter for EBIC
+  bool is_normalized;                // the data is normalized of not
 
   // Constructor
   Parameter() {
     num_iteration = 1024;
+    num_particle_thread = 16;
     prob_forward_global = 0.1;
     prob_forward_local = 0.8;
     prob_forward_random = 0.1;
@@ -130,11 +133,13 @@ struct Particle {
   float e;            // scalar, the norm of R
   float phi;          // scalar, the value given by criterion
   float phi_old;      // scalar, the value given by criterion, past iteration
+  float phi_best;     // scalar, the value given by criterion, best explored
 
   int *Idx_lf;        // vector, 1 by k, map local effects to full effects
   int *Idx_fl;        // vector, 1 by p, map full effects to local effects
   int *Idx_temp;      // vector, 1 by p, workspace
   bool *I;            // vector, 1 by p, the chosen indices
+  bool *I_best;       // vector, 1 by p, the chosen indices, best explored
   int k;              // scalar, the number of chosen effects
   int l;              // scalar, the number of chosen indices
 
