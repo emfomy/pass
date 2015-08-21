@@ -16,8 +16,15 @@
 #include <cstring>
 #include <ctime>
 #include <cmath>
-#include <unistd.h>
+#include <getopt.h>
 #include <mkl.h>
+
+// Default arguments
+const int kN          = 400;
+const int kP          = 4000;
+const int kR          = 10;
+const char *kDataRoot = "genlin.dat";
+const char *kDataName = "GenLin_IngLai";
 
 // Global variables
 int n;                 // scalar, the number of statistical units
@@ -27,11 +34,36 @@ float *X;              // matrix, n by p, the regressors
 float *Y;              // vector, n by 1, the regressand
 float *Beta;           // vector, r by 1, the effects
 bool *J;               // vector, 1 by p, the chosen indices
-const char *dataname;  // string, the name of data
+const char *dataroot;  // string, the root of the data file
+const char *dataname;  // string, the name of the data
 
 // Functions
-void IngLaiConfig( const char* fileroot );
-void IngLaiSave( const char* fileroot );
+void IngLaiHelp();
+void IngLaiSave( const char *fileroot );
+
+////////////////////////////////////////////////////////////////////////////////
+// Display help messages                                                      //
+////////////////////////////////////////////////////////////////////////////////
+void IngLaiHelp( const char *cmd ) {
+  printf("Usage: %s [options] ...\n", cmd);
+  printf("Options:\n");
+  printf("%-32s%-40sDefault as '%s'\n",
+         "-f <file>, --file <file>", "save data into <file>", kDataRoot);
+  printf("%-32s%-40sDefault as '%s'\n",
+         "-m <name>, --name <name>", "set the data name as <name>", kDataName);
+  printf("%-32s%-40s\n",
+         "-b <beta>, --beta <beta>", "set the effects as <beta>s");
+  printf("%-32s%-40sDefault as %d\n",
+         "-n ###", "the number of statistical units" , kN);
+  printf("%-32s%-40sDefault as %d\n",
+         "-p ###", "the number of total effects" , kP);
+  printf("%-32s%-40sDefault as %d\n",
+         "-r ###", "the number of given effects", kR);
+  printf("%-32s%-40s\n",
+         "", "ignored if '-b' is set");
+  printf("\n%-32s%-40s\n",
+         "-h, --help", "display help messages");
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Main function                                                              //
@@ -39,68 +71,108 @@ void IngLaiSave( const char* fileroot );
 int main( int argc, char **argv ) {
 
   ////////////////////////////////////////////////////////////////////////////
-  // Initialize variables                                                   //
+  // Initialize arguments                                                   //
   ////////////////////////////////////////////////////////////////////////////
 
   // Initialize random generator
   srand(time(NULL));
   int iseed[4] = {rand()%4096, rand()%4096, rand()%4096, (rand()%2048)*2+1};
 
-  // Initialize variables
-  n = 400;
-  p = 4000;
-  r = 10;
-
   // Initialize arguments
-  auto cfgroot  = "genlin_inglai.cfg";
-  auto dataroot = "genlin.dat";
-  dataname      = "GenLin_IngLai";
+  n        = kN;
+  p        = kP;
+  r        = kR;
+  dataroot = kDataRoot;
+  dataname = kDataName;
 
   // Load arguments
-  char c;
-  bool input_error = false;
-  opterr = false;
-  while ( (c = getopt(argc, argv, "c:d:h")) != static_cast<char>(EOF) ) {
+  int optidx = 0;
+  bool bflag = false;
+  char opts[] = "f:m:n:p:r:bh", c;
+  option long_opts[] = {
+    {"file", required_argument, nullptr, 'f'},
+    {"name", required_argument, nullptr, 'm'},
+    {"beta", no_argument,       nullptr, 'b'},
+    {"help", no_argument,       nullptr, 'h'}
+  };
+  while ( (c = getopt_long(argc, argv, opts, long_opts, &optidx)) != -1 ) {
     switch ( c ) {
-      case 'c': {
-        cfgroot = optarg;
+      case 0: {
         break;
       }
-      case 'd': {
+      case 'f': {
         dataroot = optarg;
         break;
       }
-      case 'h': {
-        input_error = true;
+      case 'm': {
+        dataname = optarg;
         break;
       }
-      default: {
-        printf("invalid option -- '%c'\n", optopt);
-        input_error = true;
+      case 'n': {
+        n = atoi(optarg);
+        if ( n <= 0 ) {
+          fprintf(stderr, "%s: invalid option -- "
+                  "<n> must be a positive integer!\n", argv[0]);
+          IngLaiHelp(argv[0]);
+          exit(1);
+        }
         break;
+      }
+      case 'p': {
+        p = atoi(optarg);
+        if ( p <= 0 ) {
+          fprintf(stderr, "%s: invalid option -- "
+                  "<p> must be a positive integer!\n", argv[0]);
+          IngLaiHelp(argv[0]);
+          exit(1);
+        }
+        break;
+      }
+      case 'r': {
+        r = atoi(optarg);
+        if ( r < 0 ) {
+          fprintf(stderr, "%s: invalid option -- "
+                  "<r> must be a non-negative integer!\n", argv[0]);
+          IngLaiHelp(argv[0]);
+          exit(1);
+        }
+        break;
+      }
+      case 'b': {
+        bflag = true;
+        break;
+      }
+      case 'h': {
+        IngLaiHelp(argv[0]);
+        exit(0);
+      }
+      default: {
+        IngLaiHelp(argv[0]);
+        exit(1);
       }
     }
   }
-  if ( input_error ) {
-    printf("Usage: %s [options] ...\n", argv[0]);
-    printf("-c <file>                       Read config from <file>.\n");
-    printf("-d <file>                       Save data into <file>.\n");
-    return 0;
+
+  // Create Beta
+  if ( bflag ) {
+    r = argc - optind;
+    Beta = new float[r];
+    for ( auto i = 0; i < r; ++i ) {
+      Beta[i] = atof(argv[i+optind]);
+    }
+  } else {
+    Beta = new float[r];
+    for ( auto i = 0; i < r; ++i ) {
+      Beta[i] = 3.0f + .75f*i;
+    }
   }
 
-  ////////////////////////////////////////////////////////////////////////////
-  // Load parameters                                                        //
-  ////////////////////////////////////////////////////////////////////////////
-
-  printf("================================================================\n");
-
-  // Load parameters
-  IngLaiConfig(cfgroot);
-
-  // Display parameters
-  printf("\nn = %d, p = %d, r = %d\n", n, p, r);
+  // Display arguments
+  printf("================================================================"
+         "================================================================\n");
+  printf("n = %d, p = %d, r = %d\n", n, p, r);
   printf("Beta: ");
-  for ( auto i = 0; i < r; i++ ) {
+  for ( auto i = 0; i < r; ++i ) {
     printf("%8.3f", Beta[i]);
   }
   printf("\n\n");
@@ -154,75 +226,10 @@ int main( int argc, char **argv ) {
   delete[] Beta;
   delete[] J;
 
-  printf("================================================================\n");
+  printf("================================================================"
+         "================================================================\n");
 
   return 0;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Load parameters from config file                                           //
-//                                                                            //
-// Parameters:                                                                //
-// fileroot: the root of config file                                          //
-////////////////////////////////////////////////////////////////////////////////
-void IngLaiConfig( const char* fileroot ) {
-  const int kBufferSize = 1024;
-
-  printf("Loading config from '%s'... ", fileroot);
-
-  // Open file
-  auto file = fopen(fileroot, "r");
-
-  // Check if file exists
-  if ( file ) {
-    int offset;
-    char line[kBufferSize], *linetemp;
-
-    // Read data
-    fgets(line, kBufferSize, file);
-    sscanf(line, "%*s %d %d %d", &n, &p, &r);
-    Beta = new float[r];
-    fgets(line, kBufferSize, file);
-    sscanf(line, "%*s %n", &offset);
-    linetemp = line;
-    for ( auto i = 0; i < r; i++ ) {
-      linetemp += offset;
-      sscanf(linetemp, "%f %n", &Beta[i], &offset);
-    }
-
-    // Close file
-    fclose(file);
-
-    printf("Done.\n");
-  } else {
-    printf("Failed!\nCreating config file '%s'... ", fileroot);
-
-    // Open file
-    file = fopen(fileroot, "w");
-    if ( !file ) {
-      printf("Failed!\n");
-      exit(1);
-    }
-  
-    // Generate Beta
-    Beta = new float[r];
-    for ( auto i = 0; i < r; i++ ) {
-      Beta[i] = 3.0f + .75f*i;
-    }
-
-    // Write data
-    fprintf(file, "n/p/r %d %d %d\n", n, p, r);
-    fprintf(file, "Beta ");
-    for ( auto i = 0; i < r; i++ ) {
-      fprintf(file, " %.3f", Beta[i]);
-    }
-    fprintf(file, "\n");
-
-    // Close file
-    fclose(file);
-
-    printf("Done.\nUses default config.\n");
-  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -231,7 +238,7 @@ void IngLaiConfig( const char* fileroot ) {
 // Parameters:                                                                //
 // fileroot: the root of data file                                            //
 ////////////////////////////////////////////////////////////////////////////////
-void IngLaiSave( const char* fileroot ) {
+void IngLaiSave( const char *fileroot ) {
   FILE *file;
   int size = strlen(dataname)+1;
 
@@ -241,7 +248,7 @@ void IngLaiSave( const char* fileroot ) {
   file = fopen(fileroot, "wb");
   if ( !file ) {
     printf("Failed!\n");
-    exit(1);
+    abort();
   }
 
   // Write data

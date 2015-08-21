@@ -5,9 +5,10 @@ MAKEINC = Makefile.inc
 
 include $(MAKEINC)
 
-PROJ  = pass
-NAME  = genlin
-MODEL = hung_1_1
+PROJ      = pass
+PASS      = genlin
+MODEL     = power
+MODELOPTS =
 
 SRCDIR = src
 BINDIR = bin
@@ -31,17 +32,17 @@ all: $(MKS)
 $(MKS):
 	@ $(MAKE) -f $(MKDIR)/$@.mk all
 
-run: .$(NAME)
+run: .$(PASS)
 	@ echo > /dev/null
 
 .%: $(SH) $(BINDIR)/% .$(MODEL) | $(PWD)/$(RUNDIR)
-	( cd $(RUNDIR) ; ../$< $(PROJ) $* )
+	( cd $(RUNDIR) ; ../$< $(PROJ) $(PASS) $(MODEL) )
 
-.%: $(BINDIR)/$(NAME)_% | $(PWD)/$(RUNDIR)
-	( cd $(RUNDIR) ; ../$< )
+.%: $(BINDIR)/$(PASS)_% | $(PWD)/$(RUNDIR)
+	( cd $(RUNDIR) ; ../$< $(MODELOPTS) )
 
-.%: $(DATDIR)/$(NAME)_%.dat | $(PWD)/$(RUNDIR)
-	cp $< $(RUNDIR)/$(NAME).dat
+.%: $(DATDIR)/$(PASS)_%.dat | $(PWD)/$(RUNDIR)
+	cp $< $(RUNDIR)/$(PASS).dat
 
 $(PWD)/$(RUNDIR):
 	@ mkdir -p $@

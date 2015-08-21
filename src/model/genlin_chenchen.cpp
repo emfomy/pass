@@ -16,25 +16,64 @@
 #include <cstring>
 #include <ctime>
 #include <cmath>
-#include <unistd.h>
+#include <getopt.h>
 #include <mkl.h>
+
+// Default arguments
+const int kN          = 200;
+const int kP          = 50;
+const int kR          = 8;
+const int kType       = 3;
+const float kRho      = 0.2f;
+const char *kDataRoot = "genlin.dat";
+const char *kDataName = "GenLin_ChenChen";
 
 // Global variables
 int n;                 // scalar, the number of statistical units
 int p;                 // scalar, the number of total effects
 int r;                 // scalar, the number of given effects
-int type;              // scalar, the type of covariance structures, 1~3
+int type;              // scalar, the type of covariance structure, 1~3
 float *X;              // matrix, n by p, the regressors
 float *Y;              // vector, n by 1, the regressand
 float *Beta;           // vector, r by 1, the effects
 float rho;             // scaler, the covariance parameter
 bool *J;               // vector, 1 by p, the chosen indices
+const char *dataroot;  // string, the root of the data file
 const char *dataname;  // string, the name of data
 const char *suffix;    // string, the suffix of the name of data
 
 // Functions
-void ChenChenConfig( const char* fileroot );
-void ChenChenSave( const char* fileroot );
+void ChenChenHelp( const char *cmd );
+void ChenChenSave( const char *fileroot );
+
+////////////////////////////////////////////////////////////////////////////////
+// Display help messages                                                      //
+////////////////////////////////////////////////////////////////////////////////
+void IngLaiHelp( const char *cmd ) {
+  printf("Usage: %s [options] ...\n", cmd);
+  printf("Options:\n");
+  printf("%-32s%-40sDefault as '%s'\n",
+         "-f <file>, --file <file>", "save data into <file>", kDataRoot);
+  printf("%-32s%-40sDefault as '%s'\n",
+         "-m <name>, --name <name>", "set the data name as <name>", kDataName);
+  printf("%-32s%-40s\n",
+         "-b [beta], --beta [beta]", "set the effects as [beta]s");
+  printf("%-32s%-40sDefault as %d\n",
+         "-n ###", "the number of statistical units" , kN);
+  printf("%-32s%-40sDefault as %d\n",
+         "-p ###", "the number of total effects" , kP);
+  printf("%-32s%-40sDefault as %d\n",
+         "-r ###", "the number of given effects", kR);
+  printf("%-32s%-40s\n",
+         "", "ignored if '-b' is set");
+  printf("%-32s%-40sDefault as %d\n",
+         "-t ###, --type ###",
+         "the type of covariance structure (1~3)", kType);
+  printf("%-32s%-40sDefault as %.2f\n",
+         "-c ###, --cov ###", "the covariance parameter", kRho);
+  printf("\n%-32s%-40s\n",
+         "-h, --help", "display help messages");
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Main function                                                              //
@@ -49,68 +88,124 @@ int main( int argc, char **argv ) {
   srand(time(NULL));
   int iseed[4] = {rand()%4096, rand()%4096, rand()%4096, (rand()%2048)*2+1};
 
-  // Initialize variables
-  n = 200;
-  p = 50;
-  r = 8;
-  type = 3;
-  rho = 0.2;
-
   // Initialize arguments
-  auto cfgroot  = "genlin_chenchen.cfg";
-  auto dataroot = "genlin.dat";
-  dataname      = "GenLin_ChenChen";
+  n        = kN;
+  p        = kP;
+  r        = kR;
+  type     = kType;
+  rho      = kRho;
+  dataroot = kDataRoot;
+  dataname = kDataName;
 
   // Load arguments
-  char c;
-  bool input_error = false;
-  opterr = false;
-  while ( (c = getopt(argc, argv, "c:d:h")) != static_cast<char>(EOF) ) {
+  int optidx = 0;
+  bool bflag = false;
+  char opts[] = "f:m:n:p:r:t:o:bh", c;
+  option long_opts[] = {
+    {"file", required_argument, nullptr, 'f'},
+    {"name", required_argument, nullptr, 'm'},
+    {"type", required_argument, nullptr, 't'},
+    {"cov",  required_argument, nullptr, 'c'},
+    {"beta", no_argument,       nullptr, 'b'},
+    {"help", no_argument,       nullptr, 'h'}
+  };
+  while ( (c = getopt_long(argc, argv, opts, long_opts, &optidx)) != -1 ) {
     switch ( c ) {
-      case 'c': {
-        cfgroot = optarg;
+      case 0: {
         break;
       }
-      case 'd': {
+      case 'f': {
         dataroot = optarg;
         break;
       }
-      case 'h': {
-        input_error = true;
+      case 'm': {
+        dataname = optarg;
         break;
       }
-      default: {
-        printf("invalid option -- '%c'\n", optopt);
-        input_error = true;
+      case 'n': {
+        n = atoi(optarg);
+        if ( n <= 0 ) {
+          fprintf(stderr, "%s: invalid option -- "
+                 "<n> must be a positive integer!\n", argv[0]);
+          IngLaiHelp(argv[0]);
+          exit(1);
+        }
         break;
+      }
+      case 'p': {
+        p = atoi(optarg);
+        if ( p <= 0 ) {
+          fprintf(stderr, "%s: invalid option -- "
+                 "<p> must be a positive integer!\n", argv[0]);
+          IngLaiHelp(argv[0]);
+          exit(1);
+        }
+        break;
+      }
+      case 'r': {
+        r = atoi(optarg);
+        if ( r < 0 ) {
+          fprintf(stderr, "%s: invalid option -- "
+                 "<r> must be a non-negative integer!\n", argv[0]);
+          IngLaiHelp(argv[0]);
+          exit(1);
+        }
+        break;
+      }
+      case 't': {
+        type = atoi(optarg);
+        if ( type < 1 || type > 3 ) {
+          fprintf(stderr, "%s: invalid option -- "
+                 "<type> must be 1, 2, or 3!\n", argv[0]);
+          IngLaiHelp(argv[0]);
+          exit(1);
+        }
+        break;
+      }
+      case 'c': {
+        rho = atof(optarg);
+        if ( rho < 0 || rho > 1 ) {
+          fprintf(stderr, "%s: invalid option -- "
+                 "<rho> must be in range [0, 1]!\n", argv[0]);
+          IngLaiHelp(argv[0]);
+          exit(1);
+        }
+        break;
+      }
+      case 'b': {
+        bflag = true;
+        break;
+      }
+      case 'h': {
+        IngLaiHelp(argv[0]);
+        exit(0);
+      }
+      default: {
+        IngLaiHelp(argv[0]);
+        exit(1);
       }
     }
   }
-  if ( input_error ) {
-    printf("Usage: %s [options] ...\n", argv[0]);
-    printf("-c <file>                       Read config from <file>.\n");
-    printf("-d <file>                       Save data into <file>.\n");
-    return 0;
+
+  // Create Beta
+  if ( bflag ) {
+    r = argc - optind;
+    Beta = new float[r];
+    for ( auto i = 0; i < r; ++i ) {
+      Beta[i] = atof(argv[i+optind]);
+    }
+  } else {
+    Beta = new float[r];
+    float Beta_temp[8] = {0.7f, 0.9f, 0.4f, 0.3f, 1.0f, 0.2f, 0.2f, 0.1f};
+    for ( auto i = 0; i < r; i++ ) {
+      Beta[i] = Beta_temp[i%8];
+    }
   }
 
-  ////////////////////////////////////////////////////////////////////////////
-  // Load parameters                                                        //
-  ////////////////////////////////////////////////////////////////////////////
-
-  printf("================================================================\n");
-
-  // Load parameters
-  ChenChenConfig(cfgroot);
-
-  // Check parameters
-  if ( type > 3 || type < 1 ) {
-    printf("There is no type %d!\n", type);
-    exit(1);
-  }
-
-  // Display parameters
-  printf("\nn = %d, p = %d, r = %d, type = %d, rho = %.3f\n",
-         n, p, r, type, rho);
+  // Display arguments
+  printf("================================================================"
+         "================================================================\n");
+  printf("n = %d, p = %d, r = %d, type = %d, rho = %.3f\n", n, p, r, type, rho);
   printf("Beta: ");
   for ( auto i = 0; i < r; i++ ) {
     printf("%8.3f", Beta[i]);
@@ -169,7 +264,7 @@ int main( int argc, char **argv ) {
   auto info = LAPACKE_spotrf(LAPACK_COL_MAJOR, 'L', p, L, p);
   if ( info ) {
     printf("Failed.\nThe covariance matrix is illegal.\n");
-    exit(1);
+    abort();
   }
 
   // X := X * L'
@@ -205,7 +300,8 @@ int main( int argc, char **argv ) {
   delete[] J;
   delete[] L;
 
-  printf("================================================================\n");
+  printf("================================================================"
+         "================================================================\n");
 
   return 0;
 }
@@ -216,7 +312,7 @@ int main( int argc, char **argv ) {
 // Parameters:                                                                //
 // fileroot: the root of config file                                          //
 ////////////////////////////////////////////////////////////////////////////////
-void ChenChenConfig( const char* fileroot ) {
+void ChenChenConfig( const char *fileroot ) {
   const int kBufferSize = 1024;
 
   printf("Loading config from '%s'... ", fileroot);
@@ -256,7 +352,7 @@ void ChenChenConfig( const char* fileroot ) {
     file = fopen(fileroot, "w");
     if ( !file ) {
       printf("Failed!\n");
-      exit(1);
+      abort();
     }
   
     // Generate Beta
@@ -289,7 +385,7 @@ void ChenChenConfig( const char* fileroot ) {
 // Parameters:                                                                //
 // fileroot: the root of data file                                            //
 ////////////////////////////////////////////////////////////////////////////////
-void ChenChenSave( const char* fileroot ) {
+void ChenChenSave( const char *fileroot ) {
   FILE *file;
   int size0 = strlen(dataname);
   int size1 = strlen(suffix)+1;
@@ -301,7 +397,7 @@ void ChenChenSave( const char* fileroot ) {
   file = fopen(fileroot, "wb");
   if ( !file ) {
     printf("Failed!\n");
-    exit(1);
+    abort();
   }
 
   // Write data

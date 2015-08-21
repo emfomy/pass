@@ -12,7 +12,7 @@
 #include <ctime>
 #include <cmath>
 #include <numeric>
-#include <unistd.h>
+#include <getopt.h>
 #include <mkl.h>
 #include <mpi.h>
 #include <omp.h>
@@ -20,16 +20,94 @@
 
 using namespace pass;
 
+// Default arguments
+const unsigned int kTest = 100;
+const char *kDataRoot    = "genlin.dat";
+
 // Global variables
 bool *J0;        // vector, 1 by p, the chosen indices (solution)
-int num_test;    // scalar, the number of tests
 char *dataname;  // string, the name of data
 int mpi_size;    // the size of MPI communicator
 int mpi_rank;    // the rank of MPI processes
 
 // Functions
-void PassConfig( const char* fileroot );
-void PassLoad( const char* fileroot );
+void PassHelp( const char *cmd );
+void PassLoad( const char *fileroot );
+
+////////////////////////////////////////////////////////////////////////////////
+// Display help messages                                                      //
+////////////////////////////////////////////////////////////////////////////////
+void PassHelp( const char *cmd ) {
+  Parameter temp;
+  printf("Usage: %s [options] ...\n", cmd);
+  printf("\n%-48s%-48s%s\n", "Option", "Detail", "Defalut Value");
+  printf("\nMain Options:\n");
+  printf("  %-46s%-48s%s\n",
+         "-f <file>, --file <file>",
+         "load data from <file>",
+         kDataRoot);
+  printf("  %-46s%-48s%d\n",
+         "-i ###, --iteration ###",
+         "the number of iterations",
+         temp.num_iteration);
+  printf("  %-46s%-48s%d\n",
+         "-p ###, --particle ###",
+         "the number of particles per thread",
+         temp.num_particle_thread);
+  printf("  %-46s%-48s%d\n",
+         "-t ###, --test ###",
+         "the number of tests",
+         kTest);
+  printf("  %-46s%-40s\n",
+         "-h, --help", "display help messages");
+
+  printf("\nProbability Options:\n");
+  printf("  --prob <pfg> <pfl> <pfr> <pbl> <pbr>\n");
+  printf("    %-44s%-48s%.2f\n",
+         "<pfg>",
+         "forward step: global",
+         temp.prob_forward_global);
+  printf("    %-44s%-48s%.2f\n",
+         "<pfl>",
+         "forward step: local",
+         temp.prob_forward_local);
+  printf("    %-44s%-48s%.2f\n",
+         "<pfr>",
+         "forward step: random",
+         temp.prob_forward_random);
+  printf("    %-44s%-48s%.2f\n",
+         "<pbl>",
+         "backward step: local",
+         temp.prob_backward_local);
+  printf("    %-44s%-48s%.2f\n",
+         "<pbr>",
+         "backward step: random",
+         temp.prob_backward_random);
+
+  printf("\nCriterion Options:\n");
+  printf("  %-46s%-48s\n",
+         "--AIC",
+         "Akaike information criterion");
+  printf("  %-46s%-48s\n",
+         "--BIC",
+         "Bayesian information criterion");
+  printf("  %-46s%-48s\n",
+         "--EBIC=<gamma>",
+         "Extended Bayesian information criterion");
+  printf("    %-44s%-48s%.2f\n",
+         "<gamma> (optional)",
+         "the parameter of EBIC",
+         temp.ebic_gamma);
+  printf("  %-46s%-48s\n",
+         "--HDBIC (default)",
+         "High-dimensional Bayesian information criterion");
+  printf("  %-46s%-48s\n",
+         "--HQC",
+         "Hannan-Quinn information criterion");
+  printf("  %-46s%-48s\n",
+         "--HDHQC",
+         "High-dimensional Hannan-Quinn information criterion");
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Main function                                                              //
@@ -45,54 +123,140 @@ int main( int argc, char **argv ) {
   srand(rand());
 
   // Initialize arguments
-  auto cfgroot  = "genlin.cfg";
-  auto dataroot = "genlin.dat";
+  auto num_test = kTest;
+  auto dataroot = kDataRoot;
 
   // Load arguments
-  char c;
-  bool input_error = false;
-  opterr = false;
-  while ( (c = getopt(argc, argv, "c:d:h")) != static_cast<char>(EOF) ) {
+  int optidx = 0;
+  bool bflag = false;
+  char opts[] = "f:i:p:t:\1\2\3\4::\5\6\7h", c;
+  opterr = (mpi_rank == 0);
+  option long_opts[] = {
+    {"file",      required_argument, nullptr, 'f'},
+    {"iteration", required_argument, nullptr, 'm'},
+    {"particle",  required_argument, nullptr, 't'},
+    {"test",      required_argument, nullptr, 'o'},
+    {"prob",      no_argument,       nullptr, '\1'},
+    {"AIC",       no_argument,       nullptr, '\2'},
+    {"BIC",       no_argument,       nullptr, '\3'},
+    {"EBIC",      optional_argument, nullptr, '\4'},
+    {"HDBIC",     no_argument,       nullptr, '\5'},
+    {"HQC",       no_argument,       nullptr, '\6'},
+    {"HDHQC",     no_argument,       nullptr, '\7'},
+    {"help",      no_argument,       nullptr, 'h'}
+  };
+  while ( (c = getopt_long(argc, argv, opts, long_opts, &optidx)) != -1 ) {
     switch ( c ) {
-      case 'c': {
-        cfgroot = optarg;
-        break;
-      }
-      case 'd': {
+      case 'f': {
         dataroot = optarg;
         break;
       }
-      case 'h': {
-        input_error = true;
+      case 'i': {
+        parameter.num_iteration = atoi(optarg);
         break;
       }
-      default: {
-        if ( mpi_rank == 0 ) {
-          printf("invalid option -- '%c'\n", optopt);
-          input_error = true;
+      case 'p': {
+        parameter.num_particle_thread = atoi(optarg);
+        break;
+      }
+      case 't': {
+        num_test = atoi(optarg);
+        break;
+      }
+      case '\1': {
+        bflag = true;
+        if ( argv[optind] == nullptr ) {
+          if ( mpi_rank == 0 ) {
+            fprintf(stderr, "%s: option '--%s' requires requires 5 arguments\n",
+                   argv[0], long_opts[optidx].name);
+            PassHelp(argv[0]);
+          }
+          MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+        parameter.prob_forward_global = atof(argv[optind]);
+        optind++;
+        if ( argv[optind] == nullptr ) {
+          if ( mpi_rank == 0 ) {
+            fprintf(stderr, "%s: option '--%s' requires requires 5 arguments\n",
+                   argv[0], long_opts[optidx].name);
+            PassHelp(argv[0]);
+          }
+          MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+        parameter.prob_forward_local = atof(argv[optind]);
+        optind++;
+        if ( argv[optind] == nullptr ) {
+          if ( mpi_rank == 0 ) {
+            fprintf(stderr, "%s: option '--%s' requires requires 5 arguments\n",
+                   argv[0], long_opts[optidx].name);
+            PassHelp(argv[0]);
+          }
+          MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+        parameter.prob_forward_random = atof(argv[optind]);
+        optind++;
+        if ( argv[optind] == nullptr ) {
+          if ( mpi_rank == 0 ) {
+            fprintf(stderr, "%s: option '--%s' requires requires 5 arguments\n",
+                   argv[0], long_opts[optidx].name);
+            PassHelp(argv[0]);
+          }
+          MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+        parameter.prob_backward_local = atof(argv[optind]);
+        optind++;
+        if ( argv[optind] == nullptr ) {
+          if ( mpi_rank == 0 ) {
+            fprintf(stderr, "%s: option '--%s' requires requires 5 arguments\n",
+                   argv[0], long_opts[optidx].name);
+            PassHelp(argv[0]);
+          }
+          MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+        parameter.prob_backward_random = atof(argv[optind]);
+        break;
+      }
+      case '\2': {
+        parameter.criterion = AIC;
+        break;
+      }
+      case '\3': {
+        parameter.criterion = BIC;
+        break;
+      }
+      case '\4': {
+        parameter.criterion = EBIC;
+        if ( optarg ) {
+          parameter.ebic_gamma = atof(optarg);
         }
         break;
       }
+      case '\5': {
+        parameter.criterion = HDBIC;
+        break;
+      }
+      case '\6': {
+        parameter.criterion = HQC;
+        break;
+      }
+      case '\7': {
+        parameter.criterion = HDHQC;
+        break;
+      }
+      case 'h': {
+        if ( mpi_rank == 0 ) {
+          PassHelp(argv[0]);
+        }
+        MPI_Abort(MPI_COMM_WORLD, 0);
+      }
+      default: {
+        if ( mpi_rank == 0 ) {
+          PassHelp(argv[0]);
+        }
+        MPI_Abort(MPI_COMM_WORLD, 1);
+      }
     }
   }
-  if ( mpi_rank == 0 && input_error ) {
-    printf("Usage: %s [options] ...\n", argv[0]);
-    printf("-c <file>                       Read config from <file>.\n");
-    printf("-d <file>                       Read data from <file>.\n");
-    MPI_Abort(MPI_COMM_WORLD, 0);
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
-  // Load parameters and data                                               //
-  ////////////////////////////////////////////////////////////////////////////
-
-  if ( mpi_rank == 0 ) {
-    printf("================================================================\n");
-  }
-
-  // Load parameters
-  num_test = 10;
-  PassConfig(cfgroot);
 
   // Check parameters
   auto num_thread = omp_get_max_threads();
@@ -102,6 +266,15 @@ int main( int argc, char **argv ) {
     num_thread = num_proc;
   }
   auto num_particle = mpi_size * num_thread * parameter.num_particle_thread;
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Load data                                                              //
+  ////////////////////////////////////////////////////////////////////////////
+
+  if ( mpi_rank == 0 ) {
+    printf("================================================================"
+        "================================================================\n");
+  }
 
   // Load data and allocate memory
   PassLoad(dataroot);
@@ -170,7 +343,8 @@ int main( int argc, char **argv ) {
   float *rate_positive_selection, *rate_false_discovery;
 
   if ( mpi_rank == 0 ) {
-    printf("================================================================\n");
+    printf("================================================================"
+        "================================================================\n");
 
     // Initialize statistic data
     rate_positive_selection = new float[num_test];
@@ -278,7 +452,8 @@ int main( int argc, char **argv ) {
   // Display statistic report                                               //
   ////////////////////////////////////////////////////////////////////////////
   if ( mpi_rank == 0 ) {
-    printf("================================================================\n");
+    printf("================================================================"
+        "================================================================\n");
 
     // Compute means and standard deviations
     auto rate_positive_selection_mean =
@@ -331,7 +506,8 @@ int main( int argc, char **argv ) {
     printf("PSR(sd)    = %.6f\n", rate_positive_selection_sd);
     printf("FDR(sd)    = %.6f\n", rate_false_discovery_sd);
     printf("Time       = %.6lf sec\n", total_time / num_test);
-    printf("================================================================\n");
+    printf("================================================================"
+        "================================================================\n");
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -348,152 +524,12 @@ int main( int argc, char **argv ) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Load parameters from config file                                           //
-//                                                                            //
-// Input Parameters:                                                          //
-// fileroot:  the root of config file                                         //
-// parameter: the default parameters of the PaSS algorithm                    //
-// num_test:  the default number of tests                                     //
-//                                                                            //
-// Output Parameters:                                                         //
-// parameter: the parameters of the PaSS algorithm                            //
-// num_test:  the number of tests                                             //
-////////////////////////////////////////////////////////////////////////////////
-void PassConfig( const char* fileroot ) {
-  const int kBufferSize = 1024;
-
-  if ( mpi_rank == 0 ) {
-    printf("Loading config from '%s'... ", fileroot);
-  }
-
-  // Open file
-  auto file = fopen(fileroot, "r");
-
-  // Check if file exists
-  if ( file ) {
-    // Read data
-    char line[kBufferSize];
-    fgets(line, kBufferSize, file);
-    sscanf(line, "%*s %u",
-           &parameter.num_iteration);
-    fgets(line, kBufferSize, file);
-    sscanf(line, "%*s %u",
-           &parameter.num_particle_thread);
-    fgets(line, kBufferSize, file);
-    sscanf(line, "%*s %f %f %f %f %f",
-           &parameter.prob_forward_global,
-           &parameter.prob_forward_local,
-           &parameter.prob_forward_random,
-           &parameter.prob_backward_local,
-           &parameter.prob_backward_random);
-
-    char cristr[kBufferSize];
-    fgets(line, kBufferSize, file);
-    sscanf(line, "%*s %s", cristr);
-    if ( !strcmp(cristr, "AIC") ) {
-      parameter.criterion = AIC;
-    } else if ( !strcmp(cristr, "BIC") ) {
-      parameter.criterion = BIC;
-    } else if ( !strcmp(cristr, "EBIC") ) {
-      parameter.criterion = EBIC;
-      parameter.ebic_gamma = 1.0f;
-    } else if ( cristr[0] == 'E' && cristr[1] == 'B' &&
-             cristr[2] == 'I' && cristr[3] == 'C' ) {
-      parameter.criterion = EBIC;
-      parameter.ebic_gamma = atof(cristr+4);
-    } else if ( !strcmp(cristr, "HDBIC") ) {
-      parameter.criterion = HDBIC;
-    } else if ( !strcmp(cristr, "HQC") ) {
-      parameter.criterion = HQC;
-    } else if ( !strcmp(cristr, "HDHQC") ) {
-      parameter.criterion = HDHQC;
-    } else {
-      if ( mpi_rank == 0 ) {
-        printf("Failed!\nThere is no criterion named '%s'!\n", cristr);
-        MPI_Abort(MPI_COMM_WORLD, 1);
-      }
-    }
-
-    fgets(line, kBufferSize, file);
-    sscanf(line, "%*s %d", &num_test);
-
-    // Close file
-    fclose(file);
-
-    if ( mpi_rank == 0 ) {
-      printf("Done.\n");
-    }
-  } else if ( mpi_rank == 0 ) {
-    printf("Failed!\nCreating config file '%s'... ", fileroot);
-
-    // Open file
-    file = fopen( fileroot, "w" );
-    if ( !file ) {
-      printf("Failed!\n");
-      MPI_Abort(MPI_COMM_WORLD, 1);
-    }
-
-    // Write data
-    fprintf(file, "nI      %d\n",
-            parameter.num_iteration);
-    fprintf(file, "nPt     %d\n",
-            parameter.num_particle_thread);
-    fprintf(file, "prob    %.1f %.1f %.1f %.1f %.1f\n",
-            parameter.prob_forward_global,
-            parameter.prob_forward_local,
-            parameter.prob_forward_random,
-            parameter.prob_backward_local,
-            parameter.prob_backward_random);
-    if ( parameter.criterion == EBIC && parameter.ebic_gamma != 1.0f ) {
-      fprintf(file, "cri     %s%.1f\n",
-              Criterion2String(parameter.criterion),
-              parameter.ebic_gamma);
-    } else {
-      fprintf(file, "cri     %s\n",
-              Criterion2String(parameter.criterion));
-    }
-    fprintf(file, "nTest   %d\n", num_test);
-
-    fprintf(file, "\n\nNote:\n");
-    fprintf(file, "<nI>:     the number of iterations.\n");
-    fprintf(file, "<nPt>:    the number of particles per thread.\n");
-    fprintf(file, "<prob>:   <pfg> <pfl> <pfr> <pbl> <pbr>\n");
-    fprintf(file, "<pfg>:    the probability of forward step: global\n");
-    fprintf(file, "<pfl>:    the probability of forward step: local\n");
-    fprintf(file, "<pfr>:    the probability of forward step: random\n");
-    fprintf(file, "<pbl>:    the probability of backward step: local\n");
-    fprintf(file, "<pbr>:    the probability of backward step: random\n");
-    fprintf(file, "<cri>:    the criterion.\n");
-    fprintf(file, "          AIC:         "
-                  "Akaike information criterion.\n");
-    fprintf(file, "          BIC:         "
-                  "Bayesian information criterion.\n");
-    fprintf(file, "          EBIC:        "
-                  "Extended Bayesian information criterion.\n");
-    fprintf(file, "          EBIC<gamma>: "
-                  "EBIC with parameter gamma.\n");
-    fprintf(file, "          HDBIC:       "
-                  "High-dimensional Bayesian information criterion.\n");
-    fprintf(file, "          HQC:         "
-                  "Hannan-Quinn information criterion.\n");
-    fprintf(file, "          HDHQC:       "
-                  "High-dimensional Hannan-Quinn information criterion.\n");
-    fprintf(file, "<nTest>   the number of tests.\n");
-
-    // Close file
-    fclose(file);
-
-    printf("Done.\nUses default config.\n");
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Load data from file                                                        //
 //                                                                            //
 // Parameters:                                                                //
 // fileroot: the root of data file                                            //
 ////////////////////////////////////////////////////////////////////////////////
-void PassLoad( const char* fileroot ) {
+void PassLoad( const char *fileroot ) {
   if ( mpi_rank == 0 ) {
     printf("Loading model from '%s'... ", fileroot);
   }
