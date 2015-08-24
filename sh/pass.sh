@@ -1,10 +1,11 @@
 #!/bin/bash
 
-cores=8xA
-
-binopt=
+nodes=4
+threads=16
+cores=${nodes}x${threads/16/A}
 
 jbsub="jbsub"
+# jusub+=" -interactive"
 queue="x86_excl"
 
 proj=$1
@@ -20,11 +21,9 @@ bin=${bindir}/${pass}
 
 mkdir -p ${logdir}
 
-out=${logdir}/%J.out
+ut=${logdir}/%J.out
 err=${logdir}/%J.err
 
-jbopt="-pjobs 16 -cores ${cores} -out ${out} -err ${err}"
-
 ${jbsub} -queue ${queue} -proj ${proj} -name ${pass}:${model} \
-	-pjobs 16 -cores ${cores} -out ${out} -err ${err} ${jbopt} \
-	${mpirun} ${bin} ${binopt}
+	-pjobs 16 -cores ${cores} -out ${out} -err ${err} \
+	OMP_NUM_THREADS=${threads} ${mpirun} ${bin} ${binopt}

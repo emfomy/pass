@@ -1,13 +1,12 @@
 # Particle Swarm Stepwise (PaSS) Algorithm
 # The Makafile for 'genlin'
 
-MAKEINC = Makefile.inc
+include Makefile.inc
 
-include $(MAKEINC)
-
+CXXFLAGS += $(OMPFLAGS)
 INCS = $(MKLINC) $(MPIINC)
 LIBS = $(MKLLIB) $(MPILIB)
-LNKS = $(MKLLNK) $(MPILNK) $(OMPLNK)
+LNKS = $(MKLLNK) $(MPILNK)
 
 NAME = genlin
 BINDIR = bin
@@ -28,13 +27,13 @@ all: $(BINS)
 dep: $(DEPS)
 	@ echo > /dev/null
 
-$(BINS): $(OBJS) $(MAKEINC) | $(PWD)/$(BINDIR)
+$(BINS): $(OBJS) | $(PWD)/$(BINDIR)
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $@ $(LIBS) $(LNKS)
 
-$(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(MAKEINC) | $(PWD)/$(OBJDIR)
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp | $(PWD)/$(OBJDIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCS)
 
-$(DEPDIR)/%.d: $(SRCDIR)/%.cpp $(MAKEINC) | $(PWD)/$(DEPDIR)
+$(DEPDIR)/%.d: $(SRCDIR)/%.cpp | $(PWD)/$(DEPDIR)
 	@ $(CXX) $(CXXFLAGS) -E -MM $< -MF $@ -MT '$(OBJDIR)/$*.o' $(INCS)
 
 $(PWD)/$(BINDIR) $(PWD)/$(OBJDIR) $(PWD)/$(DEPDIR):

@@ -1,9 +1,7 @@
 # Particle Swarm Stepwise (PaSS) Algorithm
 # The Makafile for 'data'
 
-MAKEINC = Makefile.inc
-
-include $(MAKEINC)
+include Makefile.inc
 
 BINDIR = bin
 DATDIR = dat
@@ -16,7 +14,7 @@ BINS = $(DATS:$(DATDIR)/%.dat=$(BINDIR)/%)
 all: $(BINS)
 	@ echo > /dev/null
 
-$(BINDIR)/%: $(DATDIR)/%.dat $(MAKEINC) | $(PWD)/$(BINDIR)
+$(BINDIR)/%: $(DATDIR)/%.dat | $(PWD)/$(BINDIR)
 	echo -e "#!/bin/bash\n\ncp $(PWD)/$< $(PASS).dat\n" > $@
 	chmod +x $@
 

@@ -133,13 +133,11 @@ struct Particle {
   float e;            // scalar, the norm of R
   float phi;          // scalar, the value given by criterion
   float phi_old;      // scalar, the value given by criterion, past iteration
-  float phi_best;     // scalar, the value given by criterion, best explored
 
   int *Idx_lf;        // vector, 1 by k, map local effects to full effects
   int *Idx_fl;        // vector, 1 by p, map full effects to local effects
   int *Idx_temp;      // vector, 1 by p, workspace
   bool *I;            // vector, 1 by p, the chosen indices
-  bool *I_best;       // vector, 1 by p, the chosen indices, best explored
   int k;              // scalar, the number of chosen effects
   int l;              // scalar, the number of chosen indices
 

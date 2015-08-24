@@ -196,7 +196,6 @@ Particle::Particle() {
   Idx_fl   = new int[p];
   Idx_temp = new int[p];
   I        = new bool[p];
-  I_best   = new bool[p];
 
   iseed    = rand();
 }
@@ -218,7 +217,6 @@ Particle::~Particle() {
   delete[] Idx_fl;
   delete[] Idx_temp;
   delete[] I;
-  delete[] I_best;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
