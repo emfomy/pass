@@ -20,7 +20,7 @@ SRCS = $(wildcard $(SRCDIR)/*.cpp)
 OBJS = $(SRCS:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 DEPS = $(OBJS:$(OBJDIR)/%.o=$(DEPDIR)/%.d)
 
-.PHONY: all dep run clean
+.PHONY: all dep clean
 
 all: $(BINS)
 	@ echo > /dev/null

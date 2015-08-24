@@ -18,7 +18,7 @@ SRCS = $(wildcard $(SRCDIR)/*.cpp)
 BINS = $(SRCS:$(SRCDIR)/%.cpp=$(BINDIR)/%)
 DEPS = $(BINS:$(BINDIR)/%=$(DEPDIR)/%.d)
 
-.PHONY: all dep run clean
+.PHONY: all dep clean
 
 all: $(BINS)
 	@ echo > /dev/null

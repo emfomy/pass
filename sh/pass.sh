@@ -2,6 +2,8 @@
 
 cores=8xA
 
+binopt=
+
 jbsub="jbsub"
 queue="x86_excl"
 
@@ -14,19 +16,15 @@ mpirun="/hlt/exec/mpiwrap.sh -per-node 1"
 bindir=$(readlink -f ../bin)
 logdir=$(readlink -f ../log)
 
-mkdir -p ${logdir}
-
 bin=${bindir}/${pass}
 
-for cri in AIC BIC EBIC=0.5 EBIC HDBIC HQC HDHQC ; do
-	binopt="-p32 --${cri}"
+mkdir -p ${logdir}
 
-	out=${logdir}/${model}_${cri}.out
-	err=${logdir}/${model}_${cri}.err
+out=${logdir}/%J.out
+err=${logdir}/%J.err
 
-	jbopt="-pjobs 16 -cores ${cores} -out ${out} -err ${err}"
+jbopt="-pjobs 16 -cores ${cores} -out ${out} -err ${err}"
 
-	${jbsub} -queue ${queue} -proj ${proj} -name ${pass}:${model}:${cri} \
+${jbsub} -queue ${queue} -proj ${proj} -name ${pass}:${model} \
 	-pjobs 16 -cores ${cores} -out ${out} -err ${err} ${jbopt} \
 	${mpirun} ${bin} ${binopt}
-done

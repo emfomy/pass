@@ -284,13 +284,13 @@ int main( int argc, char **argv ) {
   if ( mpi_rank == 0 ) {
     if ( parameter.criterion == EBIC ) {
       printf("%s: n=%d, p=%d, #Node=%d, #Thread=%d, "
-             "#Particle=%d, #Iteration=%d, #Test=%d, criterion=%s%.1f\n",
+             "#Particle=%d, #Iteration=%d, #Test=%d, Criterion=%s%.1f\n",
              dataname, n, p, mpi_size, num_thread,
              num_particle, parameter.num_iteration, num_test,
              Criterion2String(parameter.criterion), parameter.ebic_gamma);
     } else {
       printf("%s: n=%d, p=%d, #Node=%d, #Thread=%d, "
-             "#Particle=%d, #Iteration=%d, #Test=%d, criterion=%s\n",
+             "#Particle=%d, #Iteration=%d, #Test=%d, Criterion=%s\n",
              dataname, n, p, mpi_size, num_thread,
              num_particle, parameter.num_iteration, num_test,
              Criterion2String(parameter.criterion));
@@ -493,11 +493,11 @@ int main( int argc, char **argv ) {
     printf("pbl        = %.2f\n", parameter.prob_backward_local);
     printf("pbr        = %.2f\n", parameter.prob_backward_random);
     if ( parameter.criterion == EBIC ) {
-      printf("cri        = %s%.1f\n",
+      printf("Criterion  = %s%.1f\n",
              Criterion2String(parameter.criterion),
              parameter.ebic_gamma);
     } else {
-      printf("cri        = %s\n",
+      printf("Criterion  = %s\n",
              Criterion2String(parameter.criterion));
     }
     printf("#Test      = %d\n", num_test);
