@@ -19,7 +19,7 @@ SH = $(SHDIR)/pass.sh
 
 MKS = $(notdir $(basename $(wildcard $(MKDIR)/*.mk)))
 
-.PHONY: all $(MKS) .$(PASS) .$(MODEL) run clean cancel
+.PHONY: all $(MKS) .$(PASS) .$(MODEL) run clean kill killf del
 
 all: $(MKS)
 	@ echo > /dev/null

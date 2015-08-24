@@ -2,7 +2,7 @@
 // Particle Swarm Stepwise (PaSS) Algorithm                                   //
 //                                                                            //
 // genlin_chenchen.cpp                                                        //
-// Create a linear data using Chen and Chen's method                          //
+// Create a general linear regression data using Chen and Chen's method       //
 //                                                                            //
 // Author: emfo<emfomy@gmail.com>                                             //
 //                                                                            //
@@ -51,27 +51,27 @@ void ChenChenSave( const char *fileroot );
 ////////////////////////////////////////////////////////////////////////////////
 void IngLaiHelp( const char *cmd ) {
   printf("Usage: %s [options] ...\n", cmd);
-  printf("Options:\n");
-  printf("%-32s%-40sDefault as '%s'\n",
+  printf("\n%-32s%-40s%s\n\n", "Option", "Detail", "Defalut Value");
+  printf("%-32s%-40s%s\n",
          "-f <file>, --file <file>", "save data into <file>", kDataRoot);
-  printf("%-32s%-40sDefault as '%s'\n",
+  printf("%-32s%-40s%s\n",
          "-m <name>, --name <name>", "set the data name as <name>", kDataName);
   printf("%-32s%-40s\n",
          "-b [beta], --beta [beta]", "set the effects as [beta]s");
-  printf("%-32s%-40sDefault as %d\n",
+  printf("%-32s%-40s%d\n",
          "-n ###", "the number of statistical units" , kN);
-  printf("%-32s%-40sDefault as %d\n",
+  printf("%-32s%-40s%d\n",
          "-p ###", "the number of total effects" , kP);
-  printf("%-32s%-40sDefault as %d\n",
+  printf("%-32s%-40s%d\n",
          "-r ###", "the number of given effects", kR);
   printf("%-32s%-40s\n",
          "", "ignored if '-b' is set");
-  printf("%-32s%-40sDefault as %d\n",
+  printf("%-32s%-40s%d\n",
          "-t ###, --type ###",
          "the type of covariance structure (1~3)", kType);
-  printf("%-32s%-40sDefault as %.2f\n",
+  printf("%-32s%-40s%.2f\n",
          "-c ###, --cov ###", "the covariance parameter", kRho);
-  printf("\n%-32s%-40s\n",
+  printf("%-32s%-40s\n",
          "-h, --help", "display help messages");
 }
 

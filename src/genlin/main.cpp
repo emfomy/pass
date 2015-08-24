@@ -65,23 +65,23 @@ void PassHelp( const char *cmd ) {
   printf("  --prob <pfg> <pfl> <pfr> <pbl> <pbr>\n");
   printf("    %-44s%-48s%.2f\n",
          "<pfg>",
-         "forward step: global",
+         "the probabilities of forward step: global",
          temp.prob_forward_global);
   printf("    %-44s%-48s%.2f\n",
          "<pfl>",
-         "forward step: local",
+         "the probabilities of forward step: local",
          temp.prob_forward_local);
   printf("    %-44s%-48s%.2f\n",
          "<pfr>",
-         "forward step: random",
+         "the probabilities of forward step: random",
          temp.prob_forward_random);
   printf("    %-44s%-48s%.2f\n",
          "<pbl>",
-         "backward step: local",
+         "the probabilities of backward step: local",
          temp.prob_backward_local);
   printf("    %-44s%-48s%.2f\n",
          "<pbr>",
-         "backward step: random",
+         "the probabilities of backward step: random",
          temp.prob_backward_random);
 
   printf("\nCriterion Options:\n");
@@ -128,7 +128,6 @@ int main( int argc, char **argv ) {
 
   // Load arguments
   int optidx = 0;
-  bool bflag = false;
   char opts[] = "f:i:p:t:\1\2\3\4::\5\6\7h", c;
   opterr = (mpi_rank == 0);
   option long_opts[] = {
@@ -164,7 +163,6 @@ int main( int argc, char **argv ) {
         break;
       }
       case '\1': {
-        bflag = true;
         if ( argv[optind] == nullptr ) {
           if ( mpi_rank == 0 ) {
             fprintf(stderr, "%s: option '--%s' requires requires 5 arguments\n",
@@ -339,8 +337,8 @@ int main( int argc, char **argv ) {
 
   // Declare variables
   int num_correct, num_incorrect, num_true_selection, num_test_selection;
-  double start_time, total_time = 0.0;
-  float *rate_positive_selection, *rate_false_discovery;
+  double start_time = 0.0, total_time = 0.0;
+  float *rate_positive_selection = nullptr, *rate_false_discovery = nullptr;
 
   if ( mpi_rank == 0 ) {
     printf("================================================================"
@@ -385,7 +383,7 @@ int main( int argc, char **argv ) {
     }
   }
 
-  for ( auto t = 0; t < num_test; ++t ) {
+  for ( auto t = 0u; t < num_test; ++t ) {
     // Record beginning time
     MPI_Barrier(MPI_COMM_WORLD);
     if ( mpi_rank == 0 ) {

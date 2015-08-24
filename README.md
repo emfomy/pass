@@ -8,57 +8,131 @@ Particle Swarm Stepwise (PaSS) Algorithm
 * Uses [git-flow](http://nvie.com/posts/a-successful-git-branching-model/) to control branches.
 
 ### Cluster
-* [IBM Blue Gene/Q](http://www-03.ibm.com/systems/technicalcomputing/solutions/bluegene/) in [IBM Thomas J. Watson Research Center](http://www.research.ibm.com/labs/watson/) ([bgqfen2.watson.ibm.com]()).
+* [IBM The Deep Computing Cluster (DCC)](http://dcc.pok.ibm.com/index.html).
 
 ### Compiler
-* [IBM XL C/C++ for Blue Gene, V12.1](http://www-03.ibm.com/software/products/en/xlcc+forbluegene)
+* [GCC 5.2](https://gcc.gnu.org/gcc-5/)
 * [MATLAB R2014b](http://www.mathworks.com/products/matlab/)
 
 ### Library
-* [MPICH2 Version 1.5](https://www.mpich.org/)
-* [IBM ESSL Version 5.1](http://www-03.ibm.com/systems/power/software/essl/)
-* [BLAS Version 3.5.0](http://www.netlib.org/blas/)
-* [LAPACK Version 3.5.0](http://www.netlib.org/lapack/)
+* [Open MPI v1.8.2](http://www.open-mpi.org/)
+* [Intel® Math Kernel Library 11.0 Update 4](https://software.intel.com/en-us/intel-mkl)
 
-### Path
-* `ESSLROOT`: root of IBM ESSL
-* `XLFROOT`: root of IBM XL Fortran
-* `XLSMPROOT`: root of IBM XL SMP
+## Directory Structure
 
-## Directory
+| Name          | Detail                                           |
+|---------------|--------------------------------------------------|
+| `/src`        | The source files                                 |
+| `/src/genlin` | The PaSS algorithm for general linear regression |
+| `/src/model`  | The model generators                             |
+| `/src/data`   | The data loaders                                 |
+| `/bin`        | The binary files                                 |
+| `/obj`        | The object files                                 |
+| `/dep`        | The dependency files                             |
+| `/mk`         | The Makefiles                                    |
+| `/sh`         | The shell scripts                                |
+| `/dat`        | The data files                                   |
+| `/run`        | The working directory                            |
+| `/log`        | The log files                                    |
 
-### `/src`
-The source files.
+## Compiling
 
-#### `/src/genlin`
-The PaSS algorithm for general linear model.
+* Modify `Makefile.inc` to change main program and model.
+* Modify `sh/pass.sh` for job submission.
 
-#### `/src/model`
-The model generators.
+### Environment Variables
 
-#### `/src/data`
-The data loader.
+The following environment variables should be set before compiling.
 
-### `/obj`
-The object files.
+| Name      | Detail                                                                        |
+|-----------|-------------------------------------------------------------------------------|
+| `MKLROOT` | the root of Intel MKL                                                         |
+| `MKLINC`  | the include directories of MKL, usually defined as `-I$(MKLROOT)/include`     |
+| `MKLLIB`  | the library directories of MKL, usually defined as `-L$(MKLROOT)/lib/intel64` |
+| `MPIROOT` | the root of Open MPI                                                          |
+| `MPIINC`  | the include directories of MPI, usually defined as `-I$(MPIROOT)/include`     |
+| `MPILIB`  | the library directories of MPI, usually defined as `-L$(MPIROOT)/lib`         |
 
-### `/dep`
-The dependency files.
+### Makefile
 
-### `/bin`
-The binary files.
+| Command      | Detail               |
+|--------------|----------------------|
+| `make all`   | compile all binaries |
+| `make run`   | run demo code        |
+| `make clean` | clean the directory  |
+| `make kill`  | kill all jobs        |
+| `make killf` | force kill all jobs  |
+| `make del`   | delete all jobs      |
 
-### `/mk`
-The Makefiles.
+## Usage
 
-### `/sh`
-The shell scripts.
+### The PaSS Algorithm for General Linear Regression
 
-### `/run`
-The working directory.
+`./bin/genlin [options] ...`
 
-### `/log`
-The log files.
+| Option                                 | Detail                                              | Defalut Value |
+|----------------------------------------|-----------------------------------------------------|---------------|
+| `-f <file>, --file <file>`             | load data from `<file>`                             | `genlin.dat`  |
+| `-i ###, --iteration ###`              | the number of iterations                            | `1024`        |
+| `-p ###, --particle ###`               | the number of particles per thread                  | `16`          |
+| `-t ###, --test ###`                   | the number of tests                                 | `100`         |
+| `-h, --help`                           | display help messages                               |               |
+|                                        |                                                     |               |
+| `--prob <pfg> <pfl> <pfr> <pbl> <pbr>` | the probabilities                                   |               |
+| `<pfg>`                                | the probabilities of forward step: global           | `0.1`         |
+| `<pfl>`                                | the probabilities of forward step: local            | `0.8`         |
+| `<pfr>`                                | the probabilities of forward step: random           | `0.1`         |
+| `<pbl>`                                | the probabilities of backward step: local           | `0.9`         |
+| `<pbr>`                                | the probabilities of backward step: random          | `0.1`         |
+|                                        |                                                     |               |
+| `--AIC`                                | Akaike information criterion                        |               |
+| `--BIC`                                | Bayesian information criterion                      |               |
+| `--EBIC=<gamma>`                       | Extended Bayesian information criterion             |               |
+| `<gamma>` (optional)                   | the parameter of EBIC                               | `1.0`         |
+| `--HDBIC` (default)                    | High-dimensional Bayesian information criterion     |               |
+| `--HQC`                                | Hannan-Quinn information criterion                  |               |
+| `--HDHQC`                              | High-dimensional Hannan-Quinn information criterion |               |
 
-### `/dat`
-The data files.
+### Create a General Linear Regression Data Using Ing and Lai's Method
+
+`./bin/genlin_inglai [options] ...`
+
+| Option                     | Detail                                              | Defalut Value   |
+|----------------------------|-----------------------------------------------------|-----------------|
+| `-f <file>, --file <file>` | save data into `<file>`                             | `genlin.dat`    |
+| `-m <name>, --name <name>` | set the data name as `<name>`                       | `GenLin_IngLai` |
+| `-b <beta>, --beta <beta>` | set the effects as `<beta>`s                        |                 |
+| `-n ###`                   | the number of statistical units                     | `400`           |
+| `-p ###`                   | the number of total effects                         | `4000`          |
+| `-r ###`                   | the number of given effects, ignored if `-b` is set | `10`            |
+| `-h, --help`               | display help messages                               |                 |
+
+### Create a General Linear Regression Data Using Chen and Chen's Method
+
+`./bin/genlin_chenchen [options] ...`
+
+| Option                     | Detail                                               | Defalut Value     |
+|----------------------------|------------------------------------------------------|-------------------|
+| `-f <file>, --file <file>` | save data into `<file>`                              | `genlin.dat`      |
+| `-m <name>, --name <name>` | set the data name as `<name>`                        | `GenLin_ChenChen` |
+| `-b <beta>, --beta <beta>` | set the effects as `<beta>`s                         |                   |
+| `-n ###`                   | the number of statistical units                      | `200`             |
+| `-p ###`                   | the number of total effects                          | `50`              |
+| `-r ###`                   | the number of given effects, ignored if `-b` is set  | `8`               |
+| `-t ###, --type ###`       | the type of covariance structure (1~3)               | `3`               |
+| `-c ###, --cov ###`        | the covariance parameter                             | `0.2`             |
+| `-h, --help`               | display help messages                                |                   |
+
+## Data Structure
+
+### .dat files
+
+| Name   | Size       | Type                  | Detail                          |
+|--------|------------|-----------------------|---------------------------------|
+| `size` | `1`        | 4 byte integer        | The length of `name`            |
+| `name` | `size`     | 1 byte character      | The name of the data            |
+| `n`    | `1`        | 4 byte integer        | The number of statistical units |
+| `p`    | `1`        | 4 byte integer        | The number of total effects     |
+| `X`    | `n` by `p` | 4 byte floating point | The regressors                  |
+| `Y`    | `n` by `1` | 4 byte floating point | The regressand                  |
+| `J`    | `1` by `p` | 1 byte boolean        | The chosen indices              |

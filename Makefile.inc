@@ -3,13 +3,13 @@
 
 MAKEFLAGS += --no-print-directory
 
-PROJ      = pass
-PASS      = genlin
-MODEL     = inglai
-MODELOPTS =
+PROJ      =  pass
+PASS      ?= genlin
+MODEL     ?= inglai
+MODELOPTS ?=
 
 CXX      = g++
-CXXFLAGS = -O3 -std=c++11
+CXXFLAGS = -O3 -std=c++11 -Wall
 
 RM      = rm -rf
 RANLIB  = ranlib

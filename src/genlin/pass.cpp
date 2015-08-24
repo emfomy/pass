@@ -2,7 +2,7 @@
 // Particle Swarm Stepwise (PaSS) Algorithm                                   //
 //                                                                            //
 // pass.cpp                                                                   //
-// The PaSS algorithm for Linear Regression                                   //
+// The PaSS algorithm for general linear regression                           //
 //                                                                            //
 // Author: emfo<emfomy@gmail.com>                                             //
 ////////////////////////////////////////////////////////////////////////////////
@@ -119,7 +119,7 @@ void GenLin() {
   // Use openMP parallel
   #pragma omp parallel
   {
-    auto tid = omp_get_thread_num();
+    unsigned int tid = omp_get_thread_num();
 
     for ( auto j = tid; j < num_particle; j+=num_thread ) {
       // Initialize particles
@@ -137,7 +137,7 @@ void GenLin() {
     #pragma omp barrier
 
     // Find best model
-    for ( auto i = 1; i < parameter.num_iteration; ++i ) {
+    for ( auto i = 1u; i < parameter.num_iteration; ++i ) {
       for ( auto j = tid; j < num_particle; j+=num_thread ) {
         // Update model
         int idx;
@@ -501,6 +501,38 @@ void Particle::ComputeCriterion() {
     case HDHQC: {  // phi := n*log(e^2/n) + 2k*log(log(n))*log(p)
       phi = n*logf(e*e/n) + 2.0f*k*logf(logf(n))*logf(p);
       break;
+    }
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Change criterion to string                                                 //
+//                                                                            //
+// Parameters:                                                                //
+// criterion:  the criterion                                                  //
+////////////////////////////////////////////////////////////////////////////////
+const char* Criterion2String( const Criterion criterion ) {
+  switch(criterion) {
+    case AIC: {
+      return "AIC";
+    }
+    case BIC: {
+      return "BIC";
+    }
+    case EBIC: {
+      return "EBIC";
+    }
+    case HDBIC: {
+      return "HDBIC";
+    }
+    case HQC: {
+      return "HQC";
+    }
+    case HDHQC: {
+      return "HDHQC";
+    }
+    default: {
+      return "";
     }
   }
 }

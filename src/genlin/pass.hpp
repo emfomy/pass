@@ -2,7 +2,7 @@
 // Particle Swarm Stepwise (PaSS) Algorithm                                   //
 //                                                                            //
 // genlin.hpp                                                                 //
-// The header of the PaSS algorithm for General Linear Model                  //
+// The header of the PaSS algorithm for general linear regression             //
 //                                                                            //
 // Author: emfo<emfomy@gmail.com>                                             //
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,7 +23,7 @@ extern float* X0;                  // matrix, n by p, the regressors
 extern float* Y0;                  // vector, n by 1, the regressand
 extern bool* I0;                   // vector, 1 by p, the chosen indices
 extern float phi0;                 // scalar, the value given by criterion
-extern struct Parameter parameter; //  the PaSS parameters
+extern struct Parameter parameter; // the PaSS parameters
 
 ////////////////////////////////////////////////////////////////////////////////
 // The PaSS algorithm for Linear Regression                                   //
@@ -62,31 +62,7 @@ enum Criterion {
 // Parameters:                                                                //
 // criterion:  the criterion                                                  //
 ////////////////////////////////////////////////////////////////////////////////
-static const char* Criterion2String( const Criterion criterion ) {
-  switch(criterion) {
-    case AIC: {
-      return "AIC";
-    }
-    case BIC: {
-      return "BIC";
-    }
-    case EBIC: {
-      return "EBIC";
-    }
-    case HDBIC: {
-      return "HDBIC";
-    }
-    case HQC: {
-      return "HQC";
-    }
-    case HDHQC: {
-      return "HDHQC";
-    }
-    default: {
-      return "";
-    }
-  }
-}
+const char* Criterion2String( const Criterion criterion );
 
 ////////////////////////////////////////////////////////////////////////////////
 // The parameters of the PaSS algorithm                                       //
