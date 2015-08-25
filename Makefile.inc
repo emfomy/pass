@@ -3,9 +3,9 @@
 
 MAKEFLAGS += --no-print-directory
 
-PROJ      =  pass
+PROJ      ?= pass
 PASS      ?= genlin
-MODEL     ?= inglai
+MODEL     ?= power
 MODELOPTS ?=
 
 CXX      = g++

@@ -336,7 +336,7 @@ int main( int argc, char **argv ) {
   ////////////////////////////////////////////////////////////////////////////
 
   // Declare variables
-  int num_correct, num_incorrect, num_true_selection, num_test_selection;
+  int num_true_selection = 0;
   double start_time = 0.0, total_time = 0.0;
   float *rate_positive_selection = nullptr, *rate_false_discovery = nullptr;
 
@@ -364,7 +364,6 @@ int main( int argc, char **argv ) {
     solution.ComputeCriterion();
 
     // Display solution model
-    num_true_selection = 0;
     auto isize = static_cast<int>(log10(p))+1;
     printf("True(%02d):\t%12.6f; ", mpi_rank, solution.phi);
     for ( auto i = 0; i < p; i++ ) {
@@ -374,13 +373,6 @@ int main( int argc, char **argv ) {
       }
     }
     printf("\n\n");
-  } else {
-    num_true_selection = 0;
-    for ( auto i = 0; i < p; i++ ) {
-      if ( J0[i] ) {
-        num_true_selection++;
-      }
-    }
   }
 
   for ( auto t = 0u; t < num_test; ++t ) {
@@ -405,13 +397,26 @@ int main( int argc, char **argv ) {
       total_time += omp_get_wtime() - start_time;
     }
 
-    if ( mpi_rank == recv.rank ) {
+    // Transfer best model
+    if ( recv.rank != 0 ) {
+      if ( mpi_rank == recv.rank ) {
+        MPI_Send(&phi0, 1, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
+        MPI_Send(I0, p, MPI_BYTE, 0, 1, MPI_COMM_WORLD);
+      } else if ( mpi_rank == 0 ) {
+        MPI_Recv(&phi0, 1, MPI_FLOAT, recv.rank, 0,
+                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(I0, p, MPI_BYTE, recv.rank, 1,
+                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      }
+    }
+
+    if ( mpi_rank == 0 ) {
       // Display model
-      num_correct = 0;
-      num_incorrect = 0;
-      num_test_selection = 0;
+      auto num_correct = 0;
+      auto num_incorrect = 0;
+      auto num_test_selection = 0;
       auto isize = static_cast<int>(log10(p))+1;
-      printf("%4d(%02d):\t%12.6f; ", t, mpi_rank, phi0);
+      printf("%4d(%02d):\t%12.6f; ", t, recv.rank, phi0);
       for ( auto i = 0; i < p; i++ ) {
         if ( I0[i] ) {
           printf("%-*d ", isize, i);
@@ -426,23 +431,10 @@ int main( int argc, char **argv ) {
       printf("\n");
 
       // Compute accuracy rate
-      if ( mpi_rank == 0 ) {
-        rate_positive_selection[t] =
-            static_cast<float>(num_correct) / num_true_selection;
-        rate_false_discovery[t] =
-            static_cast<float>(num_incorrect) / num_test_selection;
-      } else {
-        float rate_temp[2];
-        rate_temp[0] = static_cast<float>(num_correct) / num_true_selection;
-        rate_temp[1] = static_cast<float>(num_incorrect) / num_test_selection;
-        MPI_Send(rate_temp, 2, MPI_FLOAT, 0, t, MPI_COMM_WORLD);
-      }
-    } else if ( mpi_rank == 0 ) {
-      float rate_temp[2];
-      MPI_Recv(rate_temp, 2, MPI_FLOAT, recv.rank, t,
-               MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      rate_positive_selection[t] = rate_temp[0];
-      rate_false_discovery[t] = rate_temp[1];
+      rate_positive_selection[t] =
+          static_cast<float>(num_correct) / num_true_selection;
+      rate_false_discovery[t] =
+          static_cast<float>(num_incorrect) / num_test_selection;
     }
   }
 
