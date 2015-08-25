@@ -19,10 +19,15 @@ function genlin_power( srcroot, dstroot )
   dstname = ['GenLin_Power', 0];
   dstlen = length(dstname);
 
-  % load data
+  % Load data
   data = getfield(load(srcroot, srcname), srcname);
-  X = normr(data.x);
+  X = data.x;
   Y = data.y;
+  
+  % Normalize data
+  S = sqrt(sum(X.^2, 2));
+  X = normr(X);
+  Y = Y ./ S;
 
   % Get size
   [n, p] = size(X);
