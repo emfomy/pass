@@ -122,11 +122,15 @@ int main( int argc, char **argv ) {
   srand(time(NULL) ^ mpi_rank);
   srand(rand());
 
+  ////////////////////////////////////////////////////////////////////////////
+  //  Load arguments                                                        //
+  ////////////////////////////////////////////////////////////////////////////
+
   // Initialize arguments
   auto num_test = kTest;
   auto dataroot = kDataRoot;
 
-  // Load arguments
+  // Set arguments
   int optidx = 0;
   char opts[] = "f:i:p:t:\1\2\3\4::\5\6\7h", c;
   opterr = (mpi_rank == 0);
@@ -144,6 +148,8 @@ int main( int argc, char **argv ) {
     {"HDHQC",     no_argument,       nullptr, '\7'},
     {"help",      no_argument,       nullptr, 'h'}
   };
+
+  // Load arguments
   while ( (c = getopt_long(argc, argv, opts, long_opts, &optidx)) != -1 ) {
     switch ( c ) {
       case 'f': {
@@ -256,7 +262,7 @@ int main( int argc, char **argv ) {
     }
   }
 
-  // Check parameters
+  // Check arguments
   auto num_thread = omp_get_max_threads();
   auto num_proc = omp_get_num_procs();
   if ( num_thread > num_proc ) {
@@ -339,6 +345,7 @@ int main( int argc, char **argv ) {
   int num_true_selection = 0;
   double start_time = 0.0, total_time = 0.0;
   float *rate_positive_selection = nullptr, *rate_false_discovery = nullptr;
+  Particle particle;
 
   if ( mpi_rank == 0 ) {
     printf("================================================================"
@@ -348,24 +355,27 @@ int main( int argc, char **argv ) {
     rate_positive_selection = new float[num_test];
     rate_false_discovery    = new float[num_test];
 
-    // Create solution model
-    Particle solution;
+    // Build solution model
     bool btemp = true;
     for ( auto i = 0; i < p; i++ ) {
       if ( J0[i] ) {
         if ( btemp ) {
-          solution.InitializeModel(i);
+          particle.InitializeModel(i);
           btemp = false;
         } else {
-          solution.UpdateModel(i);
+          particle.UpdateModel(i);
         }
       }
     }
-    solution.ComputeCriterion();
+    if ( btemp ) {
+      particle.k = 0;
+      cblas_scopy(n, Y0, 1, particle.R, 1);
+    }
+    particle.ComputeCriterion();
 
     // Display solution model
     auto isize = static_cast<int>(log10(p))+1;
-    printf("True(%02d):\t%12.6f; ", mpi_rank, solution.phi);
+    printf("True:\t%12.6f; ", particle.phi);
     for ( auto i = 0; i < p; i++ ) {
       if ( J0[i] ) {
         printf("%-*d ", isize, i);
@@ -411,12 +421,30 @@ int main( int argc, char **argv ) {
     }
 
     if ( mpi_rank == 0 ) {
-      // Display model
+      // Build best model
+      bool btemp = true;
+      for ( auto i = 0; i < p; i++ ) {
+        if ( I0[i] ) {
+          if ( btemp ) {
+            particle.InitializeModel(i);
+            btemp = false;
+          } else {
+            particle.UpdateModel(i);
+          }
+        }
+      }
+      if ( btemp ) {
+        particle.k = 0;
+        cblas_scopy(n, Y0, 1, particle.R, 1);
+      }
+      particle.ComputeCriterion();
+
+      // Display best model
       auto num_correct = 0;
       auto num_incorrect = 0;
       auto num_test_selection = 0;
       auto isize = static_cast<int>(log10(p))+1;
-      printf("%4d(%02d):\t%12.6f; ", t, recv.rank, phi0);
+      printf("%4d(%02d):\t%12.6f; ", t, recv.rank, particle.phi);
       for ( auto i = 0; i < p; i++ ) {
         if ( I0[i] ) {
           printf("%-*d ", isize, i);
