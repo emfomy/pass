@@ -58,6 +58,12 @@ void PassHelp( const char *cmd ) {
          "-t ###, --test ###",
          "the number of tests",
          kTest);
+  printf("  %-46s%-48s\n",
+         "--brief",
+         "switch to brief mode (default)");
+  printf("  %-46s%-48s\n",
+         "--verbose",
+         "switch to verbose mode");
   printf("  %-46s%-40s\n",
          "-h, --help", "display help messages");
 
@@ -129,6 +135,7 @@ int main( int argc, char **argv ) {
   // Initialize arguments
   auto num_test = kTest;
   auto dataroot = kDataRoot;
+  int verbose   = 0;
 
   // Set arguments
   int optidx = 0;
@@ -139,19 +146,24 @@ int main( int argc, char **argv ) {
     {"iteration", required_argument, nullptr, 'm'},
     {"particle",  required_argument, nullptr, 't'},
     {"test",      required_argument, nullptr, 'o'},
+    {"brief",     no_argument,       &verbose, 0},
+    {"verbose",   no_argument,       &verbose, 1},
+    {"help",      no_argument,       nullptr, 'h'},
     {"prob",      no_argument,       nullptr, '\1'},
     {"AIC",       no_argument,       nullptr, '\2'},
     {"BIC",       no_argument,       nullptr, '\3'},
     {"EBIC",      optional_argument, nullptr, '\4'},
     {"HDBIC",     no_argument,       nullptr, '\5'},
     {"HQC",       no_argument,       nullptr, '\6'},
-    {"HDHQC",     no_argument,       nullptr, '\7'},
-    {"help",      no_argument,       nullptr, 'h'}
+    {"HDHQC",     no_argument,       nullptr, '\7'}
   };
 
   // Load arguments
   while ( (c = getopt_long(argc, argv, opts, long_opts, &optidx)) != -1 ) {
     switch ( c ) {
+      case 0: {
+        break;
+      }
       case 'f': {
         dataroot = optarg;
         break;
@@ -375,11 +387,13 @@ int main( int argc, char **argv ) {
 
     // Display solution model
     auto isize = static_cast<int>(log10(p))+1;
-    printf("True:\t%12.6f; ", particle.phi);
+    printf("True(**):\t%12.6f; ", particle.phi);
     for ( auto i = 0; i < p; i++ ) {
       if ( J0[i] ) {
         printf("%-*d ", isize, i);
         num_true_selection++;
+      } else if (verbose) {
+        printf("%*s ", isize, "");
       }
     }
     printf("\n\n");
@@ -454,6 +468,8 @@ int main( int argc, char **argv ) {
           } else {
             num_incorrect++;
           }
+        } else if (verbose) {
+          printf("%*s ", isize, "");
         }
       }
       printf("\n");

@@ -76,6 +76,8 @@ The following environment variables should be set before compiling.
 | `-i ###, --iteration ###`              | the number of iterations                            | `1024`        |
 | `-p ###, --particle ###`               | the number of particles per thread                  | `16`          |
 | `-t ###, --test ###`                   | the number of tests                                 | `100`         |
+| `--brief` (default)                    | switch to brief mode                                |               |
+| `--verbose`                            | switch to verbose mode                              |               |
 | `-h, --help`                           | display help messages                               |               |
 |                                        |                                                     |               |
 | `--prob <pfg> <pfl> <pfr> <pbl> <pbr>` | the probabilities                                   |               |
