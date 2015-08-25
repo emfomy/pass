@@ -23,7 +23,7 @@ function genlin_hung( srcname, srcroot, dstroot )
   if nargin < 3
     dstroot = 'genlin.dat';
   end
-  dstname = ['GenLin_Hung_', srcname, 0];
+  dstname = ['Genear_Linear_Hung_', srcname, 0];
   dstlen = length(dstname);
 
   % load data

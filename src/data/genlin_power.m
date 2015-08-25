@@ -16,7 +16,7 @@ function genlin_power( srcroot, dstroot )
     dstroot = 'genlin.dat';
   end
   srcname = 'p7';
-  dstname = ['GenLin_Power', 0];
+  dstname = ['Genear_Linear_Power', 0];
   dstlen = length(dstname);
 
   % Load data

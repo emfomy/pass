@@ -4,7 +4,7 @@ Particle Swarm Stepwise (PaSS) Algorithm
 ## Programming
 
 ### Git
-* Uses [BitBucket](https://bitbucket.org/emfomy/ibm-pass/) to host.
+* Uses [BitBucket](https://bitbucket.org/emfomy/pass/) to host.
 * Uses [git-flow](http://nvie.com/posts/a-successful-git-branching-model/) to control branches.
 
 ### Cluster
@@ -44,14 +44,14 @@ Particle Swarm Stepwise (PaSS) Algorithm
 
 The following environment variables should be set before compiling.
 
-| Name      | Detail                                                                        |
-|-----------|-------------------------------------------------------------------------------|
-| `MKLROOT` | the root of Intel MKL                                                         |
-| `MKLINC`  | the include directories of MKL, usually defined as `-I$(MKLROOT)/include`     |
-| `MKLLIB`  | the library directories of MKL, usually defined as `-L$(MKLROOT)/lib/intel64` |
-| `MPIROOT` | the root of Open MPI                                                          |
-| `MPIINC`  | the include directories of MPI, usually defined as `-I$(MPIROOT)/include`     |
-| `MPILIB`  | the library directories of MPI, usually defined as `-L$(MPIROOT)/lib`         |
+| Name      | Detail                         | Defalut Value              |
+|-----------|--------------------------------|----------------------------|
+| `MKLROOT` | the root of Intel MKL          |                            |
+| `MKLINC`  | the include directories of MKL | `-I$(MKLROOT)/include`     |
+| `MKLLIB`  | the library directories of MKL | `-L$(MKLROOT)/lib/intel64` |
+| `MPIROOT` | the root of Open MPI           |                            |
+| `MPIINC`  | the include directories of MPI | `-I$(MPIROOT)/include`     |
+| `MPILIB`  | the library directories of MPI | `-L$(MPIROOT)/lib`         |
 
 ### Makefile
 
@@ -138,3 +138,9 @@ The following environment variables should be set before compiling.
 | `X`    | `n` by `p` | 4 byte floating point | The regressors                  |
 | `Y`    | `n` by `1` | 4 byte floating point | The regressand                  |
 | `J`    | `1` by `p` | 1 byte boolean        | The chosen indices              |
+
+## Reference
+* [Chen, R.-B., Huang, C.-C., & Wang, W. (2013). Particle Swarm Stepwise (PaSS) Algorithm for Variable Selection.]()
+* [Ing, C.-K., & Lai, T. L. (2011). A stepwise regression method and consistent model selection for high-dimensional sparse linear models.](http://doi.org/10.5705/ss.2010.081)
+* [Chen, J., & Chen, Z. (2008). Extended Bayesian information criteria for model selection with large model spaces. Biometrika, 95(3), 759–771.](http://www.stat.ubc.ca/~jhchen/paper/Bio08.pdf)
+* [Hung, H., Chen, P.-W., Wang, C.-C., Huang, S.-Y., & Tzeng, J.-Y. (2013). Detection of Gene-Gene Interactions using Multistage Sparse and Low-Rank Regression.](http://arxiv.org/abs/1304.3769)

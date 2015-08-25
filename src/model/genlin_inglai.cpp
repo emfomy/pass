@@ -7,7 +7,7 @@
 // Author: emfo<emfomy@gmail.com>                                             //
 //                                                                            //
 // Reference:                                                                 //
-// Ing, C.-K., & Lai, T. L. (2011, October). A stepwise regression method and //
+// Ing, C.-K., & Lai, T. L. (2011). A stepwise regression method and          //
 //   consistent model selection for high-dimensional sparse linear models.    //
 //   http://doi.org/10.5705/ss.2010.081                                       //
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,7 +24,7 @@ const int kN          = 400;
 const int kP          = 4000;
 const int kR          = 10;
 const char *kDataRoot = "genlin.dat";
-const char *kDataName = "GenLin_IngLai";
+const char *kDataName = "General_Linear_IngLai";
 
 // Global variables
 int n;                 // scalar, the number of statistical units

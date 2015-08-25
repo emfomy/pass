@@ -15,8 +15,7 @@ all: $(BINS)
 	@ echo > /dev/null
 
 $(BINDIR)/%: $(DATDIR)/%.dat | $(PWD)/$(BINDIR)
-	echo -e "#!/bin/bash\n\ncp $(PWD)/$< $(PASS).dat\n" > $@
-	chmod +x $@
+	echo -e "#!/bin/bash\n\ncp $(PWD)/$< $(PASS).dat\n" > $@ ; chmod +x $@
 
 $(PWD)/$(BINDIR):
 	@ mkdir -p $@

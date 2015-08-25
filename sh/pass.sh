@@ -11,7 +11,7 @@ proj=$1
 pass=$2
 model=$3
 
-binopt="-p32 --HDBIC --prob .1 .5 .4 .5 .5"
+binopt="-p32 -i1024 --HDBIC --prob .1 .5 .4 .5 .5"
 
 mpirun="/hlt/exec/mpiwrap.sh -per-node 1"
 
