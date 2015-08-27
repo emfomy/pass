@@ -23,7 +23,7 @@ function genlin_hung( srcname, srcroot, dstroot )
   if nargin < 3
     dstroot = 'genlin.dat';
   end
-  dstname = ['Genear_Linear_Hung_', srcname];
+  dstname = ['General_Linear_Hung_', srcname];
 
   % load data
   data = getfield(load(srcroot, srcname), srcname);
