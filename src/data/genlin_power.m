@@ -16,7 +16,7 @@ function genlin_power( srcroot, dstroot )
     dstroot = 'genlin.dat';
   end
   srcname = 'p7';
-  dstname = ['Genear_Linear_Power'];
+  dstname = ['General_Linear_Power'];
 
   % Load data
   data = getfield(load(srcroot, srcname), srcname);
@@ -24,9 +24,9 @@ function genlin_power( srcroot, dstroot )
   Y = data.y;
   
   % Normalize data
-  S = sqrt(sum(X.^2, 2));
+  S = X(:, 1);
   X = normr(X);
-  Y = Y ./ S;
+  Y = Y .* X(:, 1) ./ S;
 
   % Get size
   [n, p] = size(X);

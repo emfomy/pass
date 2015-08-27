@@ -8,7 +8,7 @@ Particle Swarm Stepwise (PaSS) Algorithm
 * Uses [git-flow](http://nvie.com/posts/a-successful-git-branching-model/) to control branches.
 
 ### Cluster
-* [IBM The Deep Computing Cluster (DCC)](http://dcc.pok.ibm.com/index.html).
+* [IBM The Deep Computing Cluster (DCC)](http://dcc.pok.ibm.com/index.html)
 
 ### Compiler
 * [GCC 5.2](https://gcc.gnu.org/gcc-5/)
@@ -16,7 +16,6 @@ Particle Swarm Stepwise (PaSS) Algorithm
 ### Library
 * [Intel® Math Kernel Library 11.0 Update 4](https://software.intel.com/en-us/intel-mkl)
 * [Open MPI v1.8.2](http://www.open-mpi.org/)
-* [Matrix Market I/O](http://math.nist.gov/MatrixMarket/mmio-c.html)
 
 ## Directory Structure
 
