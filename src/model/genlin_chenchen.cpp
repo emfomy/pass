@@ -217,11 +217,12 @@ int main( int argc, char **argv ) {
   ////////////////////////////////////////////////////////////////////////////
 
   printf("Creating a linear data using Chen and Chen's method... ");
+  fflush(stdout);
 
   // Allocate memory
   X = new float[n*p];
   Y = new float[n];
-  J = new bool[p]();
+  J = new bool[p];
   auto L = new float[p*p];
 
   // Generate X & Y using normal random
@@ -284,6 +285,7 @@ int main( int argc, char **argv ) {
               n, r, 1.0f, X, n, Beta, 1, 1.0f, Y, 1);
 
   // Generate J
+  memset(J, false, sizeof(bool) * p);
   memset(J, true, sizeof(bool) * r);
 
   printf("Done.\n");
@@ -314,11 +316,9 @@ int main( int argc, char **argv ) {
 ////////////////////////////////////////////////////////////////////////////////
 void ChenChenSave( const char *fileroot ) {
   FILE *file;
-  int size0 = strlen(dataname);
-  int size1 = strlen(suffix)+1;
-  int size = size0+size1;
 
   printf("Saving data into '%s'... ", fileroot);
+  fflush(stdout);
 
   // Open file
   file = fopen(fileroot, "wb");
@@ -328,14 +328,32 @@ void ChenChenSave( const char *fileroot ) {
   }
 
   // Write data
-  fwrite(&size, sizeof(int), 1, file);
-  fwrite(dataname, sizeof(char), size0, file);
-  fwrite(suffix, sizeof(char), size1, file);
-  fwrite(&n, sizeof(int), 1, file);
-  fwrite(&p, sizeof(int), 1, file);
-  fwrite(X, sizeof(float), n * p, file);
-  fwrite(Y, sizeof(float), n, file);
-  fwrite(J, sizeof(bool), p, file);
+  fprintf(file, "# 1st  line:  data name\n");
+  fprintf(file, "# 2st  line:  n p\n");
+  fprintf(file, "# 3rd  line:  * J\n");
+  fprintf(file, "# rest lines: Y X\n");
+  fprintf(file, "# \n");
+  fprintf(file, "# X: matrix, n by p, the regressors\n");
+  fprintf(file, "# Y: vector, n by 1, the regressand\n");
+  fprintf(file, "# J: vector, 1 by p, the chosen indices\n");
+  fprintf(file, "# \n");
+
+  fprintf(file, "%s%s\n", dataname, suffix);
+  fprintf(file, "%d %d\n", n, p);
+
+  fprintf(file, "%-16c", '*');
+  for ( auto j = 0; j < p; ++j ) {
+    fprintf(file, "%-16d", J[j]);
+  }
+  fprintf(file, "\n");
+
+  for ( auto i = 0; i < n; ++i) {
+    fprintf(file, "%-+16.6e", Y[i]);
+    for ( auto j = 0; j < p; ++j ) {
+      fprintf(file, "%-+16.6e", X[i+j*n]);
+    }
+    fprintf(file, "\n");
+  }
 
   // Close file
   fclose(file);

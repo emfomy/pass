@@ -319,6 +319,7 @@ int main( int argc, char **argv ) {
 
   if ( mpi_rank == 0 ) {
     printf("Normalizing data... ");
+    fflush(stdout);
   }
 
   // Centralize and normalize X0
@@ -566,10 +567,11 @@ int main( int argc, char **argv ) {
 void PassLoad( const char *fileroot ) {
   if ( mpi_rank == 0 ) {
     printf("Loading model from '%s'... ", fileroot);
+    fflush(stdout);
   }
 
   // Open file
-  auto file = fopen(fileroot, "rb");
+  auto file = fopen(fileroot, "r");
   if ( !file ) {
     if ( mpi_rank == 0 ) {
       printf("Failed!\n");
@@ -577,19 +579,40 @@ void PassLoad( const char *fileroot ) {
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
-  // Read data
-  int size;
-  fread(&size, sizeof(int), 1, file);
+  // Skip comments
+  const int kLineSize = 4096;
+  char line[kLineSize];
+  do {
+    fgets(line, kLineSize, file);
+  } while (line[0] == '#');
+
+  // Read data name
+  auto size = strlen(line);
   dataname = new char[size];
-  fread(dataname, sizeof(char), size, file);
-  fread(&n, sizeof(int), 1, file);
-  fread(&p, sizeof(int), 1, file);
+  memcpy(dataname, line, size);
+
+  // Read data size
+  fscanf(file, "%d%d\n", &n, &p);
+
+  // Alloocate memory
   X0 = new float[n*p];
   Y0 = new float[n];
   J0 = new bool[p];
-  fread(X0, sizeof(float), n*p, file);
-  fread(Y0, sizeof(float), n, file);
-  fread(J0, sizeof(bool), p, file);
+
+  // Read J0
+  fscanf(file, "%*s\n");
+  for ( auto j = 0; j < p; ++j ) {
+    int itemp;
+    fscanf(file, "%d", &itemp);
+    J0[j] = itemp;
+  }
+
+  for ( auto i = 0; i < n; ++i) {
+    fscanf(file, "%f", Y0+i);
+    for ( auto j = 0; j < p; ++j ) {
+      fscanf(file, "%f", X0+i+j*n);
+    }
+  }
 
   // Close file
   fclose(file);

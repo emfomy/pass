@@ -12,28 +12,28 @@ Particle Swarm Stepwise (PaSS) Algorithm
 
 ### Compiler
 * [GCC 5.2](https://gcc.gnu.org/gcc-5/)
-* [MATLAB R2014b](http://www.mathworks.com/products/matlab/)
 
 ### Library
-* [Open MPI v1.8.2](http://www.open-mpi.org/)
 * [Intel® Math Kernel Library 11.0 Update 4](https://software.intel.com/en-us/intel-mkl)
+* [Open MPI v1.8.2](http://www.open-mpi.org/)
+* [Matrix Market I/O](http://math.nist.gov/MatrixMarket/mmio-c.html)
 
 ## Directory Structure
 
 | Name          | Detail                                           |
 |---------------|--------------------------------------------------|
-| `/src`        | The source files                                 |
-| `/src/genlin` | The PaSS algorithm for general linear regression |
-| `/src/model`  | The model generators                             |
-| `/src/data`   | The data loaders                                 |
-| `/bin`        | The binary files                                 |
-| `/obj`        | The object files                                 |
-| `/dep`        | The dependency files                             |
-| `/mk`         | The Makefiles                                    |
-| `/sh`         | The shell scripts                                |
-| `/dat`        | The data files                                   |
-| `/run`        | The working directory                            |
-| `/log`        | The log files                                    |
+| `/src`        | the source files                                 |
+| `/src/genlin` | the PaSS algorithm for general linear regression |
+| `/src/model`  | the model generators                             |
+| `/src/data`   | the data loaders                                 |
+| `/bin`        | the binary files                                 |
+| `/obj`        | the object files                                 |
+| `/dep`        | the dependency files                             |
+| `/mk`         | the Makefiles                                    |
+| `/sh`         | the shell scripts                                |
+| `/dat`        | the data files                                   |
+| `/run`        | the working directory                            |
+| `/log`        | the log files                                    |
 
 ## Compiling
 
@@ -129,15 +129,24 @@ The following environment variables should be set before compiling.
 
 ### .dat files
 
-| Name   | Size       | Type                  | Detail                          |
-|--------|------------|-----------------------|---------------------------------|
-| `size` | `1`        | 4 byte integer        | The length of `name`            |
-| `name` | `size`     | 1 byte character      | The name of the data            |
-| `n`    | `1`        | 4 byte integer        | The number of statistical units |
-| `p`    | `1`        | 4 byte integer        | The number of total effects     |
-| `X`    | `n` by `p` | 4 byte floating point | The regressors                  |
-| `Y`    | `n` by `1` | 4 byte floating point | The regressand                  |
-| `J`    | `1` by `p` | 1 byte boolean        | The chosen indices              |
+```
+# 1st  line:  data name
+# 2st  line:  n p
+# 3rd  line:  * J
+# rest lines: Y X
+# 
+# X: float matrix, n by p, the regressors
+# Y: float vector, n by 1, the regressand
+# J: bool  vector, 1 by p, the chosen indices
+# 
+<data name>
+<n> <p>
+*     J[0]     J[1]     J[2]     ...
+Y[0]  X[0][0]  X[0][1]  X[0][2]  ...
+Y[1]  X[1][0]  X[1][1]  X[1][2]  ...
+Y[2]  X[2][0]  X[2][1]  X[2][2]  ...
+...
+```
 
 ## Reference
 * [Chen, R.-B., Huang, C.-C., & Wang, W. (2013). Particle Swarm Stepwise (PaSS) Algorithm for Variable Selection.]()
