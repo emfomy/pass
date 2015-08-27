@@ -19,7 +19,7 @@ SH = $(SHDIR)/pass.sh
 
 MKS = $(notdir $(basename $(wildcard $(MKDIR)/*.mk)))
 
-.PHONY: all $(MKS) .$(PASS) .$(MODEL) run clean kill killf del
+.PHONY: all $(MKS) run_$(PASS) run_$(MODEL) run clean kill killf del
 
 all: $(MKS)
 	@ echo > /dev/null
@@ -27,16 +27,16 @@ all: $(MKS)
 $(MKS):
 	@ $(MAKE) -f $(MKDIR)/$@.mk all
 
-run: .$(PASS)
+run: run_$(PASS)
 	@ jbinfo
 
-.$(PASS): $(SH) $(BINDIR)/$(PASS) .$(MODEL) | $(PWD)/$(RUNDIR)
+run_$(PASS): $(SH) $(BINDIR)/$(PASS) run_$(MODEL) | $(PWD)/$(RUNDIR)
 	( cd $(RUNDIR) ; ../$< $(PROJ) $(PASS) $(MODEL) )
 
-.$(MODEL): $(BINDIR)/$(PASS)_$(MODEL) | $(PWD)/$(RUNDIR)
+run_$(MODEL): $(BINDIR)/$(PASS)_$(MODEL) | $(PWD)/$(RUNDIR)
 	( cd $(RUNDIR) ; ../$< $(MODELOPTS) )
 
-.%: $(DATDIR)/$(PASS)_%.dat | $(PWD)/$(RUNDIR)
+run_%: $(DATDIR)/$(PASS)_%.dat | $(PWD)/$(RUNDIR)
 	cp $< $(RUNDIR)/$(PASS).dat
 
 $(PWD)/$(RUNDIR):

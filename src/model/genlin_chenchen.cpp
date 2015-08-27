@@ -26,7 +26,7 @@ const int kR          = 8;
 const int kType       = 3;
 const float kRho      = 0.2f;
 const char *kDataRoot = "genlin.dat";
-const char *kDataName = "GenLin_ChenChen";
+const char *kDataName = "General_Linear_ChenChen";
 
 // Global variables
 int n;                 // scalar, the number of statistical units
@@ -49,7 +49,7 @@ void ChenChenSave( const char *fileroot );
 ////////////////////////////////////////////////////////////////////////////////
 // Display help messages                                                      //
 ////////////////////////////////////////////////////////////////////////////////
-void IngLaiHelp( const char *cmd ) {
+void ChenChenHelp( const char *cmd ) {
   printf("Usage: %s [options] ...\n", cmd);
   printf("\n%-32s%-40s%s\n\n", "Option", "Detail", "Defalut Value");
   printf("%-32s%-40s%s\n",
@@ -127,7 +127,7 @@ int main( int argc, char **argv ) {
         if ( n <= 0 ) {
           fprintf(stderr, "%s: invalid option -- "
                  "<n> must be a positive integer!\n", argv[0]);
-          IngLaiHelp(argv[0]);
+          ChenChenHelp(argv[0]);
           exit(1);
         }
         break;
@@ -137,7 +137,7 @@ int main( int argc, char **argv ) {
         if ( p <= 0 ) {
           fprintf(stderr, "%s: invalid option -- "
                  "<p> must be a positive integer!\n", argv[0]);
-          IngLaiHelp(argv[0]);
+          ChenChenHelp(argv[0]);
           exit(1);
         }
         break;
@@ -147,7 +147,7 @@ int main( int argc, char **argv ) {
         if ( r < 0 ) {
           fprintf(stderr, "%s: invalid option -- "
                  "<r> must be a non-negative integer!\n", argv[0]);
-          IngLaiHelp(argv[0]);
+          ChenChenHelp(argv[0]);
           exit(1);
         }
         break;
@@ -157,7 +157,7 @@ int main( int argc, char **argv ) {
         if ( type < 1 || type > 3 ) {
           fprintf(stderr, "%s: invalid option -- "
                  "<type> must be 1, 2, or 3!\n", argv[0]);
-          IngLaiHelp(argv[0]);
+          ChenChenHelp(argv[0]);
           exit(1);
         }
         break;
@@ -167,7 +167,7 @@ int main( int argc, char **argv ) {
         if ( rho < 0 || rho > 1 ) {
           fprintf(stderr, "%s: invalid option -- "
                  "<rho> must be in range [0, 1]!\n", argv[0]);
-          IngLaiHelp(argv[0]);
+          ChenChenHelp(argv[0]);
           exit(1);
         }
         break;
@@ -177,11 +177,11 @@ int main( int argc, char **argv ) {
         break;
       }
       case 'h': {
-        IngLaiHelp(argv[0]);
+        ChenChenHelp(argv[0]);
         exit(0);
       }
       default: {
-        IngLaiHelp(argv[0]);
+        ChenChenHelp(argv[0]);
         exit(1);
       }
     }
@@ -217,11 +217,12 @@ int main( int argc, char **argv ) {
   ////////////////////////////////////////////////////////////////////////////
 
   printf("Creating a linear data using Chen and Chen's method... ");
+  fflush(stdout);
 
   // Allocate memory
   X = new float[n*p];
   Y = new float[n];
-  J = new bool[p]();
+  J = new bool[p];
   auto L = new float[p*p];
 
   // Generate X & Y using normal random
@@ -284,6 +285,7 @@ int main( int argc, char **argv ) {
               n, r, 1.0f, X, n, Beta, 1, 1.0f, Y, 1);
 
   // Generate J
+  memset(J, false, sizeof(bool) * p);
   memset(J, true, sizeof(bool) * r);
 
   printf("Done.\n");
@@ -307,79 +309,6 @@ int main( int argc, char **argv ) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Load parameters from config file                                           //
-//                                                                            //
-// Parameters:                                                                //
-// fileroot: the root of config file                                          //
-////////////////////////////////////////////////////////////////////////////////
-void ChenChenConfig( const char *fileroot ) {
-  const int kBufferSize = 1024;
-
-  printf("Loading config from '%s'... ", fileroot);
-
-  // Open file
-  auto file = fopen(fileroot, "r");
-
-  // Check if file exists
-  if ( file ) {
-    int offset;
-    char line[kBufferSize], *linetemp;
-
-    // Read data
-    fgets(line, kBufferSize, file);
-    sscanf(line, "%*s %d %d %d", &n, &p, &r);
-    Beta = new float[r];
-    fgets(line, kBufferSize, file);
-    sscanf(line, "%*s %n", &offset);
-    linetemp = line;
-    for ( auto i = 0; i < r; i++ ) {
-      linetemp += offset;
-      sscanf(linetemp, "%f %n", &Beta[i], &offset);
-    }
-    fgets(line, kBufferSize, file);
-    sscanf(line, "%*s %d", &type);
-    fgets(line, kBufferSize, file);
-    sscanf(line, "%*s %f", &rho);
-
-    // Close file
-    fclose(file);
-
-    printf("Done.\n");
-  } else {
-    printf("Failed!\nCreating config file '%s'... ", fileroot);
-
-    // Open file
-    file = fopen(fileroot, "w");
-    if ( !file ) {
-      printf("Failed!\n");
-      abort();
-    }
-  
-    // Generate Beta
-    Beta = new float[r];
-    float Beta_temp[8] = {0.7f, 0.9f, 0.4f, 0.3f, 1.0f, 0.2f, 0.2f, 0.1f};
-    for ( auto i = 0; i < r; i++ ) {
-      Beta[i] = Beta_temp[i%8];
-    }
-
-    // Write data
-    fprintf(file, "n/p/r %d %d %d\n", n, p, r);
-    fprintf(file, "Beta ");
-    for ( auto i = 0; i < r; i++ ) {
-      fprintf(file, " %.3f", Beta[i]);
-    }
-    fprintf(file, "\n");
-    fprintf(file, "type  %d\n", type);
-    fprintf(file, "rho   %.3f\n", rho);
-
-    // Close file
-    fclose(file);
-
-    printf("Done.\nUses default config.\n");
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Save data into file                                                        //
 //                                                                            //
 // Parameters:                                                                //
@@ -387,11 +316,9 @@ void ChenChenConfig( const char *fileroot ) {
 ////////////////////////////////////////////////////////////////////////////////
 void ChenChenSave( const char *fileroot ) {
   FILE *file;
-  int size0 = strlen(dataname);
-  int size1 = strlen(suffix)+1;
-  int size = size0+size1;
 
   printf("Saving data into '%s'... ", fileroot);
+  fflush(stdout);
 
   // Open file
   file = fopen(fileroot, "wb");
@@ -401,14 +328,32 @@ void ChenChenSave( const char *fileroot ) {
   }
 
   // Write data
-  fwrite(&size, sizeof(int), 1, file);
-  fwrite(dataname, sizeof(char), size0, file);
-  fwrite(suffix, sizeof(char), size1, file);
-  fwrite(&n, sizeof(int), 1, file);
-  fwrite(&p, sizeof(int), 1, file);
-  fwrite(X, sizeof(float), n * p, file);
-  fwrite(Y, sizeof(float), n, file);
-  fwrite(J, sizeof(bool), p, file);
+  fprintf(file, "# 1st  line:  data name\n");
+  fprintf(file, "# 2st  line:  n p\n");
+  fprintf(file, "# 3rd  line:  * J\n");
+  fprintf(file, "# rest lines: Y X\n");
+  fprintf(file, "# \n");
+  fprintf(file, "# X: matrix, n by p, the regressors\n");
+  fprintf(file, "# Y: vector, n by 1, the regressand\n");
+  fprintf(file, "# J: vector, 1 by p, the chosen indices\n");
+  fprintf(file, "# \n");
+
+  fprintf(file, "%s%s\n", dataname, suffix);
+  fprintf(file, "%d %d\n", n, p);
+
+  fprintf(file, "%-16c", '*');
+  for ( auto j = 0; j < p; ++j ) {
+    fprintf(file, "%-16d", J[j]);
+  }
+  fprintf(file, "\n");
+
+  for ( auto i = 0; i < n; ++i) {
+    fprintf(file, "%-+16.6e", Y[i]);
+    for ( auto j = 0; j < p; ++j ) {
+      fprintf(file, "%-+16.6e", X[i+j*n]);
+    }
+    fprintf(file, "\n");
+  }
 
   // Close file
   fclose(file);

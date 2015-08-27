@@ -58,6 +58,12 @@ void PassHelp( const char *cmd ) {
          "-t ###, --test ###",
          "the number of tests",
          kTest);
+  printf("  %-46s%-48s\n",
+         "--brief",
+         "switch to brief mode (default)");
+  printf("  %-46s%-48s\n",
+         "--verbose",
+         "switch to verbose mode");
   printf("  %-46s%-40s\n",
          "-h, --help", "display help messages");
 
@@ -122,11 +128,16 @@ int main( int argc, char **argv ) {
   srand(time(NULL) ^ mpi_rank);
   srand(rand());
 
+  ////////////////////////////////////////////////////////////////////////////
+  //  Load arguments                                                        //
+  ////////////////////////////////////////////////////////////////////////////
+
   // Initialize arguments
   auto num_test = kTest;
   auto dataroot = kDataRoot;
+  int verbose   = 0;
 
-  // Load arguments
+  // Set arguments
   int optidx = 0;
   char opts[] = "f:i:p:t:\1\2\3\4::\5\6\7h", c;
   opterr = (mpi_rank == 0);
@@ -135,17 +146,24 @@ int main( int argc, char **argv ) {
     {"iteration", required_argument, nullptr, 'm'},
     {"particle",  required_argument, nullptr, 't'},
     {"test",      required_argument, nullptr, 'o'},
+    {"brief",     no_argument,       &verbose, 0},
+    {"verbose",   no_argument,       &verbose, 1},
+    {"help",      no_argument,       nullptr, 'h'},
     {"prob",      no_argument,       nullptr, '\1'},
     {"AIC",       no_argument,       nullptr, '\2'},
     {"BIC",       no_argument,       nullptr, '\3'},
     {"EBIC",      optional_argument, nullptr, '\4'},
     {"HDBIC",     no_argument,       nullptr, '\5'},
     {"HQC",       no_argument,       nullptr, '\6'},
-    {"HDHQC",     no_argument,       nullptr, '\7'},
-    {"help",      no_argument,       nullptr, 'h'}
+    {"HDHQC",     no_argument,       nullptr, '\7'}
   };
+
+  // Load arguments
   while ( (c = getopt_long(argc, argv, opts, long_opts, &optidx)) != -1 ) {
     switch ( c ) {
+      case 0: {
+        break;
+      }
       case 'f': {
         dataroot = optarg;
         break;
@@ -256,7 +274,7 @@ int main( int argc, char **argv ) {
     }
   }
 
-  // Check parameters
+  // Check arguments
   auto num_thread = omp_get_max_threads();
   auto num_proc = omp_get_num_procs();
   if ( num_thread > num_proc ) {
@@ -301,6 +319,7 @@ int main( int argc, char **argv ) {
 
   if ( mpi_rank == 0 ) {
     printf("Normalizing data... ");
+    fflush(stdout);
   }
 
   // Centralize and normalize X0
@@ -339,6 +358,7 @@ int main( int argc, char **argv ) {
   int num_true_selection = 0;
   double start_time = 0.0, total_time = 0.0;
   float *rate_positive_selection = nullptr, *rate_false_discovery = nullptr;
+  Particle particle;
 
   if ( mpi_rank == 0 ) {
     printf("================================================================"
@@ -348,28 +368,33 @@ int main( int argc, char **argv ) {
     rate_positive_selection = new float[num_test];
     rate_false_discovery    = new float[num_test];
 
-    // Create solution model
-    Particle solution;
+    // Build solution model
     bool btemp = true;
     for ( auto i = 0; i < p; i++ ) {
       if ( J0[i] ) {
         if ( btemp ) {
-          solution.InitializeModel(i);
+          particle.InitializeModel(i);
           btemp = false;
         } else {
-          solution.UpdateModel(i);
+          particle.UpdateModel(i);
         }
       }
     }
-    solution.ComputeCriterion();
+    if ( btemp ) {
+      particle.k = 0;
+      cblas_scopy(n, Y0, 1, particle.R, 1);
+    }
+    particle.ComputeCriterion();
 
     // Display solution model
     auto isize = static_cast<int>(log10(p))+1;
-    printf("True(%02d):\t%12.6f; ", mpi_rank, solution.phi);
+    printf("True(**):\t%12.6f; ", particle.phi);
     for ( auto i = 0; i < p; i++ ) {
       if ( J0[i] ) {
         printf("%-*d ", isize, i);
         num_true_selection++;
+      } else if (verbose) {
+        printf("%*s ", isize, "");
       }
     }
     printf("\n\n");
@@ -411,12 +436,30 @@ int main( int argc, char **argv ) {
     }
 
     if ( mpi_rank == 0 ) {
-      // Display model
+      // Build best model
+      bool btemp = true;
+      for ( auto i = 0; i < p; i++ ) {
+        if ( I0[i] ) {
+          if ( btemp ) {
+            particle.InitializeModel(i);
+            btemp = false;
+          } else {
+            particle.UpdateModel(i);
+          }
+        }
+      }
+      if ( btemp ) {
+        particle.k = 0;
+        cblas_scopy(n, Y0, 1, particle.R, 1);
+      }
+      particle.ComputeCriterion();
+
+      // Display best model
       auto num_correct = 0;
       auto num_incorrect = 0;
       auto num_test_selection = 0;
       auto isize = static_cast<int>(log10(p))+1;
-      printf("%4d(%02d):\t%12.6f; ", t, recv.rank, phi0);
+      printf("%4d(%02d):\t%12.6f; ", t, recv.rank, particle.phi);
       for ( auto i = 0; i < p; i++ ) {
         if ( I0[i] ) {
           printf("%-*d ", isize, i);
@@ -426,6 +469,8 @@ int main( int argc, char **argv ) {
           } else {
             num_incorrect++;
           }
+        } else if (verbose) {
+          printf("%*s ", isize, "");
         }
       }
       printf("\n");
@@ -522,10 +567,11 @@ int main( int argc, char **argv ) {
 void PassLoad( const char *fileroot ) {
   if ( mpi_rank == 0 ) {
     printf("Loading model from '%s'... ", fileroot);
+    fflush(stdout);
   }
 
   // Open file
-  auto file = fopen(fileroot, "rb");
+  auto file = fopen(fileroot, "r");
   if ( !file ) {
     if ( mpi_rank == 0 ) {
       printf("Failed!\n");
@@ -533,19 +579,40 @@ void PassLoad( const char *fileroot ) {
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
-  // Read data
-  int size;
-  fread(&size, sizeof(int), 1, file);
+  // Skip comments
+  const int kLineSize = 4096;
+  char line[kLineSize];
+  do {
+    fgets(line, kLineSize, file);
+  } while (line[0] == '#');
+
+  // Read data name
+  auto size = strlen(line);
   dataname = new char[size];
-  fread(dataname, sizeof(char), size, file);
-  fread(&n, sizeof(int), 1, file);
-  fread(&p, sizeof(int), 1, file);
+  memcpy(dataname, line, size);
+
+  // Read data size
+  fscanf(file, "%d%d\n", &n, &p);
+
+  // Alloocate memory
   X0 = new float[n*p];
   Y0 = new float[n];
   J0 = new bool[p];
-  fread(X0, sizeof(float), n*p, file);
-  fread(Y0, sizeof(float), n, file);
-  fread(J0, sizeof(bool), p, file);
+
+  // Read J0
+  fscanf(file, "%*s\n");
+  for ( auto j = 0; j < p; ++j ) {
+    int itemp;
+    fscanf(file, "%d", &itemp);
+    J0[j] = itemp;
+  }
+
+  for ( auto i = 0; i < n; ++i) {
+    fscanf(file, "%f", Y0+i);
+    for ( auto j = 0; j < p; ++j ) {
+      fscanf(file, "%f", X0+i+j*n);
+    }
+  }
 
   // Close file
   fclose(file);

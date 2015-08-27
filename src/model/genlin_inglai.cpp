@@ -7,11 +7,12 @@
 // Author: emfo<emfomy@gmail.com>                                             //
 //                                                                            //
 // Reference:                                                                 //
-// Ing, C.-K., & Lai, T. L. (2011, October). A stepwise regression method and //
+// Ing, C.-K., & Lai, T. L. (2011). A stepwise regression method and          //
 //   consistent model selection for high-dimensional sparse linear models.    //
 //   http://doi.org/10.5705/ss.2010.081                                       //
 ////////////////////////////////////////////////////////////////////////////////
 
+#include <iostream>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -24,7 +25,7 @@ const int kN          = 400;
 const int kP          = 4000;
 const int kR          = 10;
 const char *kDataRoot = "genlin.dat";
-const char *kDataName = "GenLin_IngLai";
+const char *kDataName = "General_Linear_IngLai";
 
 // Global variables
 int n;                 // scalar, the number of statistical units
@@ -182,11 +183,12 @@ int main( int argc, char **argv ) {
   ////////////////////////////////////////////////////////////////////////////
 
   printf("Creating a linear data using Ing and Lai's method... ");
+  fflush(stdout);
 
   // Allocate memory
   X = new float[n*p];
   Y = new float[n];
-  J = new bool[p]();
+  J = new bool[p];
   auto S = new float[n]();
 
   // Generate X & Y using normal random
@@ -210,6 +212,7 @@ int main( int argc, char **argv ) {
               n, r, 1.0f, X, n, Beta, 1, 1.0f, Y, 1);
 
   // Generate J
+  memset(J, false, sizeof(bool) * p);
   memset(J, true, sizeof(bool) * r);
 
   printf("Done.\n");
@@ -239,25 +242,44 @@ int main( int argc, char **argv ) {
 ////////////////////////////////////////////////////////////////////////////////
 void IngLaiSave( const char *fileroot ) {
   FILE *file;
-  int size = strlen(dataname)+1;
 
   printf("Saving data into '%s'... ", fileroot);
+  fflush(stdout);
 
   // Open file
-  file = fopen(fileroot, "wb");
+  file = fopen(fileroot, "w");
   if ( !file ) {
     printf("Failed!\n");
     abort();
   }
 
   // Write data
-  fwrite(&size, sizeof(int), 1, file);
-  fwrite(dataname, sizeof(char), size, file);
-  fwrite(&n, sizeof(int), 1, file);
-  fwrite(&p, sizeof(int), 1, file);
-  fwrite(X, sizeof(float), n * p, file);
-  fwrite(Y, sizeof(float), n, file);
-  fwrite(J, sizeof(bool), p, file);
+  fprintf(file, "# 1st  line:  data name\n");
+  fprintf(file, "# 2st  line:  n p\n");
+  fprintf(file, "# 3rd  line:  * J\n");
+  fprintf(file, "# rest lines: Y X\n");
+  fprintf(file, "# \n");
+  fprintf(file, "# X: matrix, n by p, the regressors\n");
+  fprintf(file, "# Y: vector, n by 1, the regressand\n");
+  fprintf(file, "# J: vector, 1 by p, the chosen indices\n");
+  fprintf(file, "# \n");
+
+  fprintf(file, "%s\n", dataname);
+  fprintf(file, "%d %d\n", n, p);
+
+  fprintf(file, "%-16c\t", '*');
+  for ( auto j = 0; j < p; ++j ) {
+    fprintf(file, "%-16d", J[j]);
+  }
+  fprintf(file, "\n");
+
+  for ( auto i = 0; i < n; ++i) {
+    fprintf(file, "%-+16.6e", Y[i]);
+    for ( auto j = 0; j < p; ++j ) {
+      fprintf(file, "%-+16.6e", X[i+j*n]);
+    }
+    fprintf(file, "\n");
+  }
 
   // Close file
   fclose(file);

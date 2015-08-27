@@ -15,7 +15,21 @@ RM      = rm -rf
 RANLIB  = ranlib
 ARCHIVE = ar rv
 
-OMPFLAGS = -fopenmp
+# MKL
+ifndef MKLROOT
+  $(error MKLROOT is not set!)
+endif
+MKLINC ?= -I$(MKLROOT)/include
+MKLLIB ?= -L$(MKLROOT)/lib/intel64
+MKLLNK  = -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
 
-MPILNK = -lmpi_cxx -lmpi
-MKLLNK = -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
+# MPI
+ifndef MPIROOT
+  $(error MPIROOT is not set!)
+endif
+MKLINC ?= -I$(MPIROOT)/include
+MKLLIB ?= -L$(MPIROOT)/lib
+MPILNK  = -lmpi_cxx -lmpi
+
+# OpenMP
+OMPFLAGS = -fopenmp

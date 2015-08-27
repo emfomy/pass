@@ -4,7 +4,7 @@ Particle Swarm Stepwise (PaSS) Algorithm
 ## Programming
 
 ### Git
-* Uses [BitBucket](https://bitbucket.org/emfomy/ibm-pass/) to host.
+* Uses [BitBucket](https://bitbucket.org/emfomy/pass/) to host.
 * Uses [git-flow](http://nvie.com/posts/a-successful-git-branching-model/) to control branches.
 
 ### Cluster
@@ -12,28 +12,28 @@ Particle Swarm Stepwise (PaSS) Algorithm
 
 ### Compiler
 * [GCC 5.2](https://gcc.gnu.org/gcc-5/)
-* [MATLAB R2014b](http://www.mathworks.com/products/matlab/)
 
 ### Library
-* [Open MPI v1.8.2](http://www.open-mpi.org/)
 * [Intel® Math Kernel Library 11.0 Update 4](https://software.intel.com/en-us/intel-mkl)
+* [Open MPI v1.8.2](http://www.open-mpi.org/)
+* [Matrix Market I/O](http://math.nist.gov/MatrixMarket/mmio-c.html)
 
 ## Directory Structure
 
 | Name          | Detail                                           |
 |---------------|--------------------------------------------------|
-| `/src`        | The source files                                 |
-| `/src/genlin` | The PaSS algorithm for general linear regression |
-| `/src/model`  | The model generators                             |
-| `/src/data`   | The data loaders                                 |
-| `/bin`        | The binary files                                 |
-| `/obj`        | The object files                                 |
-| `/dep`        | The dependency files                             |
-| `/mk`         | The Makefiles                                    |
-| `/sh`         | The shell scripts                                |
-| `/dat`        | The data files                                   |
-| `/run`        | The working directory                            |
-| `/log`        | The log files                                    |
+| `/src`        | the source files                                 |
+| `/src/genlin` | the PaSS algorithm for general linear regression |
+| `/src/model`  | the model generators                             |
+| `/src/data`   | the data loaders                                 |
+| `/bin`        | the binary files                                 |
+| `/obj`        | the object files                                 |
+| `/dep`        | the dependency files                             |
+| `/mk`         | the Makefiles                                    |
+| `/sh`         | the shell scripts                                |
+| `/dat`        | the data files                                   |
+| `/run`        | the working directory                            |
+| `/log`        | the log files                                    |
 
 ## Compiling
 
@@ -44,14 +44,14 @@ Particle Swarm Stepwise (PaSS) Algorithm
 
 The following environment variables should be set before compiling.
 
-| Name      | Detail                                                                        |
-|-----------|-------------------------------------------------------------------------------|
-| `MKLROOT` | the root of Intel MKL                                                         |
-| `MKLINC`  | the include directories of MKL, usually defined as `-I$(MKLROOT)/include`     |
-| `MKLLIB`  | the library directories of MKL, usually defined as `-L$(MKLROOT)/lib/intel64` |
-| `MPIROOT` | the root of Open MPI                                                          |
-| `MPIINC`  | the include directories of MPI, usually defined as `-I$(MPIROOT)/include`     |
-| `MPILIB`  | the library directories of MPI, usually defined as `-L$(MPIROOT)/lib`         |
+| Name      | Detail                         | Defalut Value              |
+|-----------|--------------------------------|----------------------------|
+| `MKLROOT` | the root of Intel MKL          |                            |
+| `MKLINC`  | the include directories of MKL | `-I$(MKLROOT)/include`     |
+| `MKLLIB`  | the library directories of MKL | `-L$(MKLROOT)/lib/intel64` |
+| `MPIROOT` | the root of Open MPI           |                            |
+| `MPIINC`  | the include directories of MPI | `-I$(MPIROOT)/include`     |
+| `MPILIB`  | the library directories of MPI | `-L$(MPIROOT)/lib`         |
 
 ### Makefile
 
@@ -76,6 +76,8 @@ The following environment variables should be set before compiling.
 | `-i ###, --iteration ###`              | the number of iterations                            | `1024`        |
 | `-p ###, --particle ###`               | the number of particles per thread                  | `16`          |
 | `-t ###, --test ###`                   | the number of tests                                 | `100`         |
+| `--brief` (default)                    | switch to brief mode                                |               |
+| `--verbose`                            | switch to verbose mode                              |               |
 | `-h, --help`                           | display help messages                               |               |
 |                                        |                                                     |               |
 | `--prob <pfg> <pfl> <pfr> <pbl> <pbr>` | the probabilities                                   |               |
@@ -127,12 +129,27 @@ The following environment variables should be set before compiling.
 
 ### .dat files
 
-| Name   | Size       | Type                  | Detail                          |
-|--------|------------|-----------------------|---------------------------------|
-| `size` | `1`        | 4 byte integer        | The length of `name`            |
-| `name` | `size`     | 1 byte character      | The name of the data            |
-| `n`    | `1`        | 4 byte integer        | The number of statistical units |
-| `p`    | `1`        | 4 byte integer        | The number of total effects     |
-| `X`    | `n` by `p` | 4 byte floating point | The regressors                  |
-| `Y`    | `n` by `1` | 4 byte floating point | The regressand                  |
-| `J`    | `1` by `p` | 1 byte boolean        | The chosen indices              |
+```
+# 1st  line:  data name
+# 2st  line:  n p
+# 3rd  line:  * J
+# rest lines: Y X
+# 
+# X: float matrix, n by p, the regressors
+# Y: float vector, n by 1, the regressand
+# J: bool  vector, 1 by p, the chosen indices
+# 
+<data name>
+<n> <p>
+*     J[0]     J[1]     J[2]     ...
+Y[0]  X[0][0]  X[0][1]  X[0][2]  ...
+Y[1]  X[1][0]  X[1][1]  X[1][2]  ...
+Y[2]  X[2][0]  X[2][1]  X[2][2]  ...
+...
+```
+
+## Reference
+* [Chen, R.-B., Huang, C.-C., & Wang, W. (2013). Particle Swarm Stepwise (PaSS) Algorithm for Variable Selection.]()
+* [Ing, C.-K., & Lai, T. L. (2011). A stepwise regression method and consistent model selection for high-dimensional sparse linear models.](http://doi.org/10.5705/ss.2010.081)
+* [Chen, J., & Chen, Z. (2008). Extended Bayesian information criteria for model selection with large model spaces. Biometrika, 95(3), 759–771.](http://www.stat.ubc.ca/~jhchen/paper/Bio08.pdf)
+* [Hung, H., Chen, P.-W., Wang, C.-C., Huang, S.-Y., & Tzeng, J.-Y. (2013). Detection of Gene-Gene Interactions using Multistage Sparse and Low-Rank Regression.](http://arxiv.org/abs/1304.3769)
