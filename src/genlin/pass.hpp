@@ -2,7 +2,7 @@
 // Particle Swarm Stepwise (PaSS) Algorithm                                   //
 //                                                                            //
 // genlin.hpp                                                                 //
-// The header of the PaSS algorithm for General Linear Model                  //
+// The header of the PaSS algorithm for general linear regression             //
 //                                                                            //
 // Author: emfo<emfomy@gmail.com>                                             //
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,21 +23,24 @@ extern float* X0;                  // matrix, n by p, the regressors
 extern float* Y0;                  // vector, n by 1, the regressand
 extern bool* I0;                   // vector, 1 by p, the chosen indices
 extern float phi0;                 // scalar, the value given by criterion
-extern struct Parameter parameter; // the parameters
+extern struct Parameter parameter; // the PaSS parameters
 
 ////////////////////////////////////////////////////////////////////////////////
 // The PaSS algorithm for Linear Regression                                   //
 //                                                                            //
-// Input Parameters:                                                          //
+// Input Global Parameters:                                                   //
 // n:         scalar, the number of statistical units                         //
 // p:         scalar, the number of total effects                             //
 // X0:        matrix, n by p, the regressors                                  //
 // Y0:        vector, n by 1, the regressand                                  //
-// parameter: the parameters                                                  //
+// parameter: the PaSS parameters                                             //
 //                                                                            //
 // Output Global Variables:                                                   //
 // I0:        vector, 1 by p, the chosen indices                              //
 // phi0:      scalar, the value given by criterion                            //
+//                                                                            //
+// Note:                                                                      //
+// Please call srand before using this routine.                               //
 ////////////////////////////////////////////////////////////////////////////////
 void GenLin();
 
@@ -59,57 +62,33 @@ enum Criterion {
 // Parameters:                                                                //
 // criterion:  the criterion                                                  //
 ////////////////////////////////////////////////////////////////////////////////
-static const char* Criterion2String( const Criterion criterion ) {
-  switch(criterion) {
-    case AIC: {
-      return "AIC";
-    }
-    case BIC: {
-      return "BIC";
-    }
-    case EBIC: {
-      return "EBIC";
-    }
-    case HDBIC: {
-      return "HDBIC";
-    }
-    case HQC: {
-      return "HQC";
-    }
-    case HDHQC: {
-      return "HDHQC";
-    }
-    default: {
-      return "";
-    }
-  }
-}
+const char* Criterion2String( const Criterion criterion );
 
 ////////////////////////////////////////////////////////////////////////////////
 // The parameters of the PaSS algorithm                                       //
 ////////////////////////////////////////////////////////////////////////////////
 struct Parameter {
-  int num_particle;            // the number of particles
-  int num_iteration;           // the number of iterations
-  float prob_forward_global;   // the probability of forward step: global
-  float prob_forward_local;    // the probability of forward step: local
-  float prob_forward_random;   // the probability of forward step: random
-  float prob_backward_local;   // the probability of backward step: local
-  float prob_backward_random;  // the probability of backward step: random
-  Criterion criterion;         // the criterion
-  float ebic_gamma;            // the penalty parameter for EBIC
-  bool is_normalized;          // the data is normalized of not
+  unsigned int num_iteration;        // the number of iterations
+  unsigned int num_particle_thread;  // the number of particles per thread
+  float prob_forward_global;         // the probability of forward step: global
+  float prob_forward_local;          // the probability of forward step: local
+  float prob_forward_random;         // the probability of forward step: random
+  float prob_backward_local;         // the probability of backward step: local
+  float prob_backward_random;        // the probability of backward step: random
+  Criterion criterion;               // the criterion
+  float ebic_gamma;                  // the penalty parameter for EBIC
+  bool is_normalized;                // the data is normalized of not
 
   // Constructor
   Parameter() {
-    num_particle = 256;
     num_iteration = 1024;
+    num_particle_thread = 16;
     prob_forward_global = 0.1;
     prob_forward_local = 0.8;
     prob_forward_random = 0.1;
     prob_backward_local = 0.9;
     prob_backward_random = 0.1;
-    criterion = EBIC;
+    criterion = HDBIC;
     ebic_gamma = 1.0;
     is_normalized = false;
   }
@@ -119,29 +98,28 @@ struct Parameter {
 // The structure of a particle                                                //
 ////////////////////////////////////////////////////////////////////////////////
 struct Particle {
-  float *X;        // matrix, n by k, the regressors
-  float *Y;        // vector, n by 1, the regressand
-  float *Beta;     // vector, k by 1, the effects
-  float *Theta;    // vector, k by 1, X'*Y
-  float *M;        // matrix, k by k, inv( X'*X ), upper general storage
-  float *R;        // vector, n by 1, the residual
-  float *B;        // vector, n by 1, temporary vecter
-  float *D;        // vector, n by 1, temporary vecter
-  float e;         // scalar, the norm of R
-  float phi;       // scalar, the value given by criterion
-  float phi_old;   // scalar, the value given by criterion, past iteration
+  float *X;           // matrix, n by k, the regressors
+  float *Y;           // vector, n by 1, the regressand
+  float *Beta;        // vector, k by 1, the effects
+  float *Theta;       // vector, k by 1, X'*Y
+  float *M;           // matrix, k by k, inv( X'*X ), upper general storage
+  float *R;           // vector, n by 1, the residual
+  float *B;           // vector, n by 1, temporary vecter
+  float *D;           // vector, n by 1, temporary vecter
+  float e;            // scalar, the norm of R
+  float phi;          // scalar, the value given by criterion
+  float phi_old;      // scalar, the value given by criterion, past iteration
 
-  int *Idx_lf;     // vector, 1 by k, map local effects to full effects
-  int *Idx_fl;     // vector, 1 by p, map full effects to local effects
-  bool *I;         // vector, 1 by p, the chosen indices
-  int k;           // scalar, the number of chosen effects
-  int l;           // scalar, the number of chosen indices
+  int *Idx_lf;        // vector, 1 by k, map local effects to full effects
+  int *Idx_fl;        // vector, 1 by p, map full effects to local effects
+  int *Idx_temp;      // vector, 1 by p, workspace
+  bool *I;            // vector, 1 by p, the chosen indices
+  int k;              // scalar, the number of chosen effects
+  int l;              // scalar, the number of chosen indices
 
-  bool status;     // scalar, the status (forward/backward)
+  bool status;        // scalar, the status (forward/backward)
 
-  int *Idx_temp;   // vector, p by 1
-
-  unsigned int iseed; // the random seed;
+  unsigned int iseed; // scalar, the random seed;
 
   // Constructor
   Particle();
@@ -150,6 +128,7 @@ struct Particle {
   ~Particle();
 
   // Initialize model
+  void InitializeModel();
   void InitializeModel( const int idx );
 
   // Update model

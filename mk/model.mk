@@ -1,29 +1,22 @@
 # Particle Swarm Stepwise (PaSS) Algorithm
 # The Makafile for 'model'
 
-MAKEINC = Makefile.inc
+include Makefile.inc
 
-include $(MAKEINC)
+INCS = $(MKLINC)
+LIBS = $(MKLLIB)
+LNKS = $(MKLLNK)
 
-INCS =
-
-LIBS = -llapacke -llapack -lcblas -lblas -ltmglib -lgfortran
-
-TGTDIR = model
-
+NAME = model
 BINDIR = bin
-
-SRCDIR = src/$(TGTDIR)
-
-DEPDIR = dep/$(TGTDIR)
+SRCDIR = src/$(NAME)
+DEPDIR = dep/$(NAME)
 
 SRCS = $(wildcard $(SRCDIR)/*.cpp)
-
 BINS = $(SRCS:$(SRCDIR)/%.cpp=$(BINDIR)/%)
-
 DEPS = $(BINS:$(BINDIR)/%=$(DEPDIR)/%.d)
 
-.PHONY: all dep run clean
+.PHONY: all dep clean
 
 all: $(BINS)
 	@ echo > /dev/null
@@ -31,13 +24,13 @@ all: $(BINS)
 dep: $(DEPS)
 	@ echo > /dev/null
 
-$(BINDIR)/%: $(SRCDIR)/%.cpp $(MAKEINC) | $(BINDIR)
-	$(CXX) $(CXXFLAGS) $< -o $@ $(INCS) $(LIBS)
+$(BINDIR)/%: $(SRCDIR)/%.cpp | $(PWD)/$(BINDIR)
+	$(CXX) $(CXXFLAGS) $< -o $@ $(INCS) $(LIBS) $(LNKS)
 
-$(DEPDIR)/%.d: $(SRCDIR)/%.cpp $(MAKEINC) | $(DEPDIR)
-	$(CXX) -E -MM $< -MF $@ -MT '$(BINDIR)/$*' $(INCS)
+$(DEPDIR)/%.d: $(SRCDIR)/%.cpp | $(PWD)/$(DEPDIR)
+	@ $(CXX) $(CXXFLAGS) -E -MM $< -MF $@ -MT '$(BINDIR)/$*' $(INCS)
 
-$(BINDIR) $(DEPDIR):
+$(PWD)/$(BINDIR) $(PWD)/$(DEPDIR):
 	@ mkdir -p $@
 
 clean:

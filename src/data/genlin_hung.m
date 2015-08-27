@@ -23,8 +23,7 @@ function genlin_hung( srcname, srcroot, dstroot )
   if nargin < 3
     dstroot = 'genlin.dat';
   end
-  dstname = ['GenLin_Hung_', srcname, 0];
-  dstlen = length(dstname);
+  dstname = ['Genear_Linear_Hung_', srcname];
 
   % load data
   data = getfield(load(srcroot, srcname), srcname);
@@ -73,13 +72,28 @@ function genlin_hung( srcname, srcroot, dstroot )
   J(Idx) = true;
 
   % Save data
-  file = fopen(dstroot, 'wb', 'ieee-be');
-  fwrite(file, dstlen, 'integer*4');
-  fwrite(file, dstname, 'char*1');
-  fwrite(file, n, 'integer*4');
-  fwrite(file, p, 'integer*4');
-  fwrite(file, X, 'real*4');
-  fwrite(file, Y, 'real*4');
-  fwrite(file, J);
+  file = fopen(dstroot, 'w');
+
+  fprintf(file, '# 1st  line:  data name\n');
+  fprintf(file, '# 2st  line:  n p\n');
+  fprintf(file, '# 3rd  line:  * J\n');
+  fprintf(file, '# rest lines: Y X\n');
+  fprintf(file, '# \n');
+  fprintf(file, '# X: matrix, n by p, the regressors\n');
+  fprintf(file, '# Y: vector, n by 1, the regressand\n');
+  fprintf(file, '# J: vector, 1 by p, the chosen indices\n');
+  fprintf(file, '# \n');
+
+  fprintf(file, '%s\n', dstname);
+  fprintf(file, '%d %d\n', n, p);
+
+  fprintf(file, '%-16c', '*');
+  fprintf(file, '%-16d', J);
+  fprintf(file, '\n');
+  for i = 1:n
+    fprintf(file, '%-+16.6e', [Y(i), X(i, :)]);
+    fprintf(file, '\n');
+  end
+
   fclose(file);
 end

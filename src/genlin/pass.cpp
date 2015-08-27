@@ -2,7 +2,7 @@
 // Particle Swarm Stepwise (PaSS) Algorithm                                   //
 //                                                                            //
 // pass.cpp                                                                   //
-// The PaSS algorithm for Linear Regression                                   //
+// The PaSS algorithm for general linear regression                           //
 //                                                                            //
 // Author: emfo<emfomy@gmail.com>                                             //
 ////////////////////////////////////////////////////////////////////////////////
@@ -32,11 +32,13 @@
 
 #include "pass.hpp"
 #include <cstdlib>
-#include <essl.h>
+#include <cstring>
+#include <cmath>
+#include <mkl.h>
 #include <omp.h>
 
 // The log-binomial function
-static inline lbinom( const int n, const int k ) {
+static inline float lbinom( const int n, const int k ) {
   int i;
   return (lgammaf_r(n+1, &i) - lgammaf_r(n-k+1, &i) - lgammaf_r(k+1, &i));
 }
@@ -45,25 +47,23 @@ static inline lbinom( const int n, const int k ) {
 // The namespace pass                                                         //
 ////////////////////////////////////////////////////////////////////////////////
 namespace pass {
-
-// Global variables
-int n;               // scalar, the number of statistical units
-int p;               // scalar, the number of total effects
-float* X0;           // matrix, n by p, the regressors
-float* Y0;           // vector, n by 1, the regressand
-bool* I0;            // vector, 1 by p, the chosen indices
-float phi0;          // scalar, the value given by criterion
-Parameter parameter; // the parameters
+int n;                // scalar, the number of statistical units
+int p;                // scalar, the number of total effects
+float* X0;            // matrix, n by p, the regressors
+float* Y0;            // vector, n by 1, the regressand
+bool* I0;             // vector, 1 by p, the chosen indices
+float phi0;           // scalar, the value given by criterion
+Parameter parameter;  // the PaSS parameters
 
 ////////////////////////////////////////////////////////////////////////////////
 // The PaSS algorithm for Linear Regression                                   //
 //                                                                            //
-// Input Parameters:                                                          //
+// Input Global Parameters:                                                   //
 // n:         scalar, the number of statistical units                         //
 // p:         scalar, the number of total effects                             //
 // X0:        matrix, n by p, the regressors                                  //
 // Y0:        vector, n by 1, the regressand                                  //
-// parameter: the parameters                                                  //
+// parameter: the PaSS parameters                                             //
 //                                                                            //
 // Output Global Variables:                                                   //
 // I0:        vector, 1 by p, the chosen indices                              //
@@ -73,11 +73,10 @@ Parameter parameter; // the parameters
 // Please call srand before using this routine.                               //
 ////////////////////////////////////////////////////////////////////////////////
 void GenLin() {
+
   // Check parameters
   auto num_thread = omp_get_max_threads();
-  if ( num_thread > parameter.num_particle ) {
-    num_thread = parameter.num_particle;
-  }
+  auto num_particle = num_thread*parameter.num_particle_thread;
 
   ////////////////////////////////////////////////////////////////////////////
   // Centralize and normalize the original data                             //
@@ -85,19 +84,27 @@ void GenLin() {
 
   if ( !parameter.is_normalized ) {
     // Centralize and normalize X0
-    for ( auto i = 0; i < p; ++i ) {
+    for ( auto j = 0; j < p; ++j ) {
       float stemp = 1.0f;
-      stemp = sdot(n, X0+i*n, 1, &stemp, 0) / n;
-      sves(n, X0+i*n, 1, &stemp, 0, X0+i*n, 1);
-      sscal(n, (1.0f/snorm2(n, X0+i*n, 1)), X0+i*n, 1);
+      #pragma omp simd
+      for ( auto i = 0; i < n; ++i ) {
+        stemp += X0[i+j*n];
+      }
+      stemp /= n;
+      vsLinearFrac(n, X0+j*n, X0+j*n, 1.0f, -stemp, 0.0f, 1.0f, X0+j*n);
+      cblas_sscal(n, (1.0f/cblas_snrm2(n, X0+j*n, 1)), X0+j*n, 1);
     }
 
     // Centralize and normalize Y0
     {
       float stemp = 1.0f;
-      stemp = sdot(n, Y0, 1, &stemp, 0) / n;
-      sves(n, Y0, 1, &stemp, 0, Y0, 1);
-      sscal(n, (1.0f/snorm2(n, Y0, 1)), Y0, 1);
+      #pragma omp simd
+      for ( auto i = 0; i < n; ++i ) {
+        stemp += Y0[i];
+      }
+      stemp /= n;
+      vsLinearFrac(n, Y0, Y0, 1.0f, -stemp, 0.0f, 1.0f, Y0);
+      cblas_sscal(n, (1.0f/cblas_snrm2(n, Y0, 1)), Y0, 1);
     }
   }
 
@@ -106,22 +113,22 @@ void GenLin() {
   ////////////////////////////////////////////////////////////////////////////
 
   // Allocate particles
-  auto particle = new Particle[parameter.num_particle];
-  phi0 = 0.0f/0.0f;
+  auto particle = new Particle[num_particle];
+  phi0 = INFINITY;
 
   // Use openMP parallel
   #pragma omp parallel
   {
-    auto tid = omp_get_thread_num();
+    unsigned int tid = omp_get_thread_num();
 
-    for ( auto j = tid; j < parameter.num_particle; j+=num_thread ) {
+    for ( auto j = tid; j < num_particle; j+=num_thread ) {
       // Initialize particles
-      particle[j].InitializeModel(rand_r(&particle[j].iseed) % p);
+      particle[j].InitializeModel();
       particle[j].ComputeCriterion();
       particle[j].phi_old = particle[j].phi;
 
       // Copy best model
-      if ( !(phi0 <= particle[j].phi) ) {
+      if ( phi0 > particle[j].phi ) {
         phi0 = particle[j].phi;
         memcpy(I0, particle[j].I, sizeof(bool) * p);
       }
@@ -130,13 +137,19 @@ void GenLin() {
     #pragma omp barrier
 
     // Find best model
-    for ( auto i = 1; i < parameter.num_iteration; ++i ) {
-      for ( auto j = tid; j < parameter.num_particle; j+=num_thread ) {
+    for ( auto i = 1u; i < parameter.num_iteration; ++i ) {
+      for ( auto j = tid; j < num_particle; j+=num_thread ) {
         // Update model
         int idx;
         particle[j].SelectIndex(idx);
         particle[j].UpdateModel(idx);
         particle[j].ComputeCriterion();
+
+        // Check singularity
+        if ( isnan(particle[j].phi) ) {
+          particle[j].InitializeModel();
+          particle[j].ComputeCriterion();
+        }
 
         // Change status
         if ( particle[j].phi > particle[j].phi_old ) {
@@ -145,14 +158,14 @@ void GenLin() {
         if ( particle[j].k <= 1 ) {
           particle[j].status = true;
         }
-        if ( particle[j].k >= n-4 || particle[j].k >= p-4 ) {
+        if ( particle[j].k >= n || particle[j].k >= p-4 ) {
           particle[j].status = false;
         }
 
         particle[j].phi_old = particle[j].phi;
 
         // Copy best model
-        if ( !(phi0 <= particle[j].phi) ) {
+        if ( phi0 > particle[j].phi ) {
           phi0 = particle[j].phi;
           memcpy(I0, particle[j].I, sizeof(bool) * p);
         }
@@ -160,11 +173,9 @@ void GenLin() {
     }
   }
 
-  // Copy best model
-  memcpy(I0, I0, sizeof(bool) * p);
-
   ////////////////////////////////////////////////////////////////////////////
 
+  // Delete memory
   delete[] particle;
 }
 
@@ -183,9 +194,8 @@ Particle::Particle() {
 
   Idx_lf   = new int[n];
   Idx_fl   = new int[p];
-  I        = new bool[p];
-
   Idx_temp = new int[p];
+  I        = new bool[p];
 
   iseed    = rand();
 }
@@ -205,9 +215,15 @@ Particle::~Particle() {
 
   delete[] Idx_lf;
   delete[] Idx_fl;
-  delete[] I;
-
   delete[] Idx_temp;
+  delete[] I;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Initialize the model of Particle randomly                                  //
+////////////////////////////////////////////////////////////////////////////////
+void Particle::InitializeModel() {
+  InitializeModel(rand_r(&iseed) % p);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -229,22 +245,23 @@ void Particle::InitializeModel( const int idx ) {
   Idx_fl[idx] = 0;
 
   // X := X0[idx col]
-  scopy(n, X0+idx*n, 1, X, 1);
+  cblas_scopy(n, X0+idx*n, 1, X, 1);
 
   // Y := Y0
-  scopy(n, Y0, 1, Y, 1);
+  cblas_scopy(n, Y0, 1, Y, 1);
 
   // M := 1 / (X' * X)
-  M[0] = 1.0f / sdot(n, X, 1, X, 1);
+  M[0] = 1.0f;
 
   // Theta := X' * Y
-  Theta[0] = sdot(n, X, 1, Y, 1);
+  Theta[0] = cblas_sdot(n, X, 1, Y, 1);
 
   // Beta := M * Theta
   Beta[0] = M[0] * Theta[0];
 
   // R = Y - X * Beta
-  szaxpy(n, -Beta[0], X, 1, Y, 1, R, 1);
+  cblas_scopy(n, Y, 1, R, 1);
+  cblas_saxpy(n, -Beta[0], X, 1, R, 1);
 
   // Set status
   status = true;
@@ -271,20 +288,22 @@ void Particle::UpdateModel( const int idx ) {
     auto Xnew = X+km*n;
 
     // Insert new row of X
-    scopy(n, X0+idx*n, 1, Xnew, 1);
+    cblas_scopy(n, X0+idx*n, 1, Xnew, 1);
 
     ////////////////////////////////////////////////////////////////////////
     // Solve Y = X * Beta for Beta                                        //
     ////////////////////////////////////////////////////////////////////////
 
     // B := X' * Xnew
-    sgemv("T", n, km, 1, X, n, Xnew, 1, 0.0f, B, 1);
+    cblas_sgemv(CblasColMajor, CblasTrans,
+                n, km, 1, X, n, Xnew, 1, 0.0f, B, 1);
 
     // D := M * B
-    ssymv("U", km, 1.0f, M, n, B, 1, 0.0f, D, 1);
+    cblas_ssymv(CblasColMajor, CblasUpper,
+                km, 1.0f, M, n, B, 1, 0.0f, D, 1);
 
     // a := 1 / (Xnew' * Xnew - B' * D)
-    auto a = 1.0f / (sdot(n, Xnew, 1, Xnew, 1) - sdot(km, B, 1, D, 1));
+    auto a = 1.0f / (1.0f - cblas_sdot(km, B, 1, D, 1));
 
     // insert D by -1.0
     D[km] = -1.0f;
@@ -295,16 +314,17 @@ void Particle::UpdateModel( const int idx ) {
     }
 
     // M += a * D * D'
-    ssyr("U", k, a, D, 1, M, n);
+    cblas_ssyr(CblasColMajor, CblasUpper,
+               k, a, D, 1, M, n);
 
     // insert Theta by Xnew' * Y
-    Theta[km] = sdot(n, Xnew, 1, Y, 1);
+    Theta[km] = cblas_sdot(n, Xnew, 1, Y, 1);
 
     // insert Beta by zero
     Beta[km] = 0.0f;
 
     // Beta += a * (D' * Theta) * D
-    saxpy(k, a*sdot(k, D, 1, Theta, 1), D, 1, Beta, 1);
+    cblas_saxpy(k, a*cblas_sdot(k, D, 1, Theta, 1), D, 1, Beta, 1);
 
     ////////////////////////////////////////////////////////////////////////
 
@@ -325,24 +345,23 @@ void Particle::UpdateModel( const int idx ) {
       a = M[j*n+j];
       b = Beta[j];
 
-      scopy(n, X+k*n, 1, X+j*n, 1);
+      cblas_scopy(n, X+k*n, 1, X+j*n, 1);
       Beta[j] = Beta[k];
       Theta[j] = Theta[k];
       Idx_lf[j] = Idx_lf[k];
       Idx_fl[Idx_lf[j]] = j;
 
-      scopy(j, M+j*n, 1, D, 1);
-      scopy(k-j-1, M+j*n+n+j, n, D+j+1, 1);
+      cblas_scopy(j, M+j*n, 1, D, 1);
+      cblas_scopy(k-j-1, M+j*n+n+j, n, D+j+1, 1);
       D[j] = M[k*n+j];
 
-      scopy(j, M+k*n, 1, M+j*n, 1);
-      scopy(k-j-1, M+k*n+j+1, 1, M+j*n+n+j, n);
+      cblas_scopy(j, M+k*n, 1, M+j*n, 1);
+      cblas_scopy(k-j-1, M+k*n+j+1, 1, M+j*n+n+j, n);
       M[j*n+j] = M[k*n+k];
-    }
-    else {
+    } else {
       a = M[k*n+k];
       b = Beta[k];
-      scopy(k, M+k*n, 1, D, 1);
+      cblas_scopy(k, M+k*n, 1, D, 1);
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -350,17 +369,19 @@ void Particle::UpdateModel( const int idx ) {
     ////////////////////////////////////////////////////////////////////////
 
     // M -= 1/a * D * D'
-    ssyr("U", k, -1.0f/a, D, 1, M, n);
+    cblas_ssyr(CblasColMajor, CblasUpper,
+               k, -1.0f/a, D, 1, M, n);
 
     // Beta -= b/a * D
-    saxpy(k, -b/a, D, 1, Beta, 1);
+    cblas_saxpy(k, -b/a, D, 1, Beta, 1);
 
     ////////////////////////////////////////////////////////////////////////
   }
   
   // R = Y - X * Beta
-  scopy(n, Y, 1, R, 1);
-  sgemv("N", n, k, -1.0f, X, n, Beta, 1, 1.0f, R, 1);
+  cblas_scopy(n, Y, 1, R, 1);
+  cblas_sgemv(CblasColMajor, CblasNoTrans,
+              n, k, -1.0f, X, n, Beta, 1, 1.0f, R, 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -381,8 +402,7 @@ void Particle::SelectIndex( int& idx ) {
         if ( I0[i] ) {
           Idx_temp[itemp] = i;
           itemp++;
-        }
-        else {
+        } else {
           j--;
           Idx_temp[j] = i;
         }
@@ -394,8 +414,7 @@ void Particle::SelectIndex( int& idx ) {
       choose = (frand < parameter.prob_forward_global)
              + (frand < parameter.prob_forward_global+
                         parameter.prob_forward_local);
-    }
-    else {
+    } else {
       choose = frand < parameter.prob_forward_local
                      / (parameter.prob_forward_local+
                         parameter.prob_forward_random);
@@ -407,14 +426,14 @@ void Particle::SelectIndex( int& idx ) {
         break;
       }
       case 1: {  // Local best
-        auto phi_temp = 0.0f/0.0f;
+        auto phi_temp = -INFINITY;
         for ( auto i = 0; i < p; ++i ) {
           if ( !I[i] ) {
             // ftemp := abs( X0[i col]' * R )
-            auto ftemp = fabs(sdot(n, X0+i*n, 1, R, 1));
+            auto ftemp = fabs(cblas_sdot(n, X0+i*n, 1, R, 1));
 
             // Check if this value is maximum
-            if ( !(ftemp <= phi_temp) ) {
+            if ( phi_temp < ftemp ) {
               phi_temp = ftemp;
               idx = i;
             }
@@ -429,16 +448,17 @@ void Particle::SelectIndex( int& idx ) {
     }
   } else {  // backward step
     if ( frand < parameter.prob_backward_local ) {  // Local best
-      auto phi_temp = 0.0f/0.0f;
+      auto phi_temp = INFINITY;
       for ( auto i = 0; i < k; ++i ) {
         // B := R + Beta[i] * X[i col]
-        szaxpy(n, Beta[i], X+i*n, 1, R, 1, B, 1);
+        cblas_scopy(n, R, 1, B, 1);
+        cblas_saxpy(n, Beta[i], X+i*n, 1, B, 1);
 
         // ftemp = norm(B)
-        auto ftemp = snorm2(n, B, 1);
+        auto ftemp = cblas_snrm2(n, B, 1);
 
         // Check if this value is minimal
-        if ( !(ftemp >= phi_temp) ) {
+        if ( phi_temp > ftemp ) {
           phi_temp = ftemp;
           idx = Idx_lf[i];
         }
@@ -454,7 +474,7 @@ void Particle::SelectIndex( int& idx ) {
 ////////////////////////////////////////////////////////////////////////////////
 void Particle::ComputeCriterion() {
   // e := norm(R)
-  e = snorm2(n, R, 1);
+  e = cblas_snrm2(n, R, 1);
 
   // Compute criterion
   switch(parameter.criterion) {
@@ -481,6 +501,38 @@ void Particle::ComputeCriterion() {
     case HDHQC: {  // phi := n*log(e^2/n) + 2k*log(log(n))*log(p)
       phi = n*logf(e*e/n) + 2.0f*k*logf(logf(n))*logf(p);
       break;
+    }
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Change criterion to string                                                 //
+//                                                                            //
+// Parameters:                                                                //
+// criterion:  the criterion                                                  //
+////////////////////////////////////////////////////////////////////////////////
+const char* Criterion2String( const Criterion criterion ) {
+  switch(criterion) {
+    case AIC: {
+      return "AIC";
+    }
+    case BIC: {
+      return "BIC";
+    }
+    case EBIC: {
+      return "EBIC";
+    }
+    case HDBIC: {
+      return "HDBIC";
+    }
+    case HQC: {
+      return "HQC";
+    }
+    case HDHQC: {
+      return "HDHQC";
+    }
+    default: {
+      return "";
     }
   }
 }

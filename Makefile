@@ -5,38 +5,45 @@ MAKEINC = Makefile.inc
 
 include $(MAKEINC)
 
-TGTDIR = mk
-
+SRCDIR = src
+BINDIR = bin
+OBJDIR = obj
+DEPDIR = dep
 RUNDIR = run
+LOGDIR = log
+DATDIR = dat
+MKDIR  = mk
+SHDIR  = sh
 
-TGTS = $(notdir $(basename $(wildcard $(TGTDIR)/*.mk)))
+SH = $(SHDIR)/pass.sh
 
-MODEL = inglai
+MKS = $(notdir $(basename $(wildcard $(MKDIR)/*.mk)))
 
-MAIN = sh/genlin.sh
+.PHONY: all $(MKS) run_$(PASS) run_$(MODEL) run clean kill killf del
 
-.PHONY: all $(TGTS) test clean cancel
-
-all: $(TGTS)
+all: $(MKS)
 	@ echo > /dev/null
 
-$(TGTS):
-	@ ( $(MAKE) -f $(TGTDIR)/$@.mk dep all )
+$(MKS):
+	@ $(MAKE) -f $(MKDIR)/$@.mk all
 
-test: $(MAIN) .$(MODEL) | $(RUNDIR)
-	( cd $(RUNDIR) ; ../$< )
+run: run_$(PASS)
+	@ jbinfo
 
-.%: bin/genlin_% | $(RUNDIR)
-	( cd $(RUNDIR) ; ../$< )
+run_$(PASS): $(SH) $(BINDIR)/$(PASS) run_$(MODEL) | $(PWD)/$(RUNDIR)
+	( cd $(RUNDIR) ; ../$< $(PROJ) $(PASS) $(MODEL) )
 
-.%: data/genlin_%.dat | $(RUNDIR)
-	cp $< $(RUNDIR)/genlin.dat
+run_$(MODEL): $(BINDIR)/$(PASS)_$(MODEL) | $(PWD)/$(RUNDIR)
+	( cd $(RUNDIR) ; ../$< $(MODELOPTS) )
 
-$(RUNDIR):
+run_%: $(DATDIR)/$(PASS)_%.dat | $(PWD)/$(RUNDIR)
+	cp $< $(RUNDIR)/$(PASS).dat
+
+$(PWD)/$(RUNDIR):
 	@ mkdir -p $@
 
 clean:
-	$(RM) bin obj dep run
+	$(RM) $(BINDIR) $(OBJDIR) $(DEPDIR) $(RUNDIR) $(LOGDIR)
 
-cancel:
-	scancel -A $(USER)
+kill killf del:
+	- jbadmin -$@ -proj $(PROJ) all

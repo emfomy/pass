@@ -16,13 +16,17 @@ function genlin_power( srcroot, dstroot )
     dstroot = 'genlin.dat';
   end
   srcname = 'p7';
-  dstname = ['GenLin_Power', 0];
-  dstlen = length(dstname);
+  dstname = ['Genear_Linear_Power'];
 
-  % load data
+  % Load data
   data = getfield(load(srcroot, srcname), srcname);
   X = data.x;
   Y = data.y;
+  
+  % Normalize data
+  S = sqrt(sum(X.^2, 2));
+  X = normr(X);
+  Y = Y ./ S;
 
   % Get size
   [n, p] = size(X);
@@ -31,13 +35,28 @@ function genlin_power( srcroot, dstroot )
   J = false(1, p);
 
   % Save data
-  file = fopen(dstroot, 'wb', 'ieee-be');
-  fwrite(file, dstlen, 'integer*4');
-  fwrite(file, dstname, 'char*1');
-  fwrite(file, n, 'integer*4');
-  fwrite(file, p, 'integer*4');
-  fwrite(file, X, 'real*4');
-  fwrite(file, Y, 'real*4');
-  fwrite(file, J);
+  file = fopen(dstroot, 'w');
+
+  fprintf(file, '# 1st  line:  data name\n');
+  fprintf(file, '# 2st  line:  n p\n');
+  fprintf(file, '# 3rd  line:  * J\n');
+  fprintf(file, '# rest lines: Y X\n');
+  fprintf(file, '# \n');
+  fprintf(file, '# X: matrix, n by p, the regressors\n');
+  fprintf(file, '# Y: vector, n by 1, the regressand\n');
+  fprintf(file, '# J: vector, 1 by p, the chosen indices\n');
+  fprintf(file, '# \n');
+
+  fprintf(file, '%s\n', dstname);
+  fprintf(file, '%d %d\n', n, p);
+
+  fprintf(file, '%-16c', '*');
+  fprintf(file, '%-16d', J);
+  fprintf(file, '\n');
+  for i = 1:n
+    fprintf(file, '%-+16.6e', [Y(i), X(i, :)]);
+    fprintf(file, '\n');
+  end
+
   fclose(file);
 end

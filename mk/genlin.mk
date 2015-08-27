@@ -1,36 +1,25 @@
 # Particle Swarm Stepwise (PaSS) Algorithm
 # The Makafile for 'genlin'
 
-MAKEINC = Makefile.inc
+include Makefile.inc
 
-include $(MAKEINC)
+CXXFLAGS += $(OMPFLAGS)
+INCS = $(MKLINC) $(MPIINC)
+LIBS = $(MKLLIB) $(MPILIB)
+LNKS = $(MKLLNK) $(MPILNK)
 
-INCS = \
-	-I$(ESSLINC)
-
-LIBS = \
-	-L$(ESSLLIB) -lesslbg \
-	-L$(XLFLIB) -lxlopt -lxlf90_r -lxlfmath -lxl
-
-TGTDIR = genlin
-
+NAME = genlin
 BINDIR = bin
+SRCDIR = src/$(NAME)
+OBJDIR = obj/$(NAME)
+DEPDIR = dep/$(NAME)
 
-SRCDIR = src/$(TGTDIR)
-
-OBJDIR = obj/$(TGTDIR)
-
-DEPDIR = dep/$(TGTDIR)
-
-BINS = $(BINDIR)/$(TGTDIR)
-
+BINS = $(BINDIR)/$(NAME)
 SRCS = $(wildcard $(SRCDIR)/*.cpp)
-
 OBJS = $(SRCS:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
-
 DEPS = $(OBJS:$(OBJDIR)/%.o=$(DEPDIR)/%.d)
 
-.PHONY: all dep run clean
+.PHONY: all dep clean
 
 all: $(BINS)
 	@ echo > /dev/null
@@ -38,16 +27,16 @@ all: $(BINS)
 dep: $(DEPS)
 	@ echo > /dev/null
 
-$(BINS): $(OBJS) $(MAKEINC) | $(BINDIR)
-	$(BGCXX) $(BGCXXFLAGS) $(OBJS) -o $@ $(LIBS)
+$(BINS): $(OBJS) | $(PWD)/$(BINDIR)
+	$(CXX) $(CXXFLAGS) $(OBJS) -o $@ $(LIBS) $(LNKS)
 
-$(OBJDIR)/%.o: $(SRCDIR)/%.cpp $(MAKEINC) | $(OBJDIR)
-	$(BGCXX) $(BGCXXFLAGS) -c $< -o $@ $(INCS)
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp | $(PWD)/$(OBJDIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCS)
 
-$(DEPDIR)/%.d: $(SRCDIR)/%.cpp $(MAKEINC) | $(DEPDIR)
-	$(CXX) -E -MM $< -MF $@ -MT '$(OBJDIR)/$*.o' $(INCS)
+$(DEPDIR)/%.d: $(SRCDIR)/%.cpp | $(PWD)/$(DEPDIR)
+	@ $(CXX) $(CXXFLAGS) -E -MM $< -MF $@ -MT '$(OBJDIR)/$*.o' $(INCS)
 
-$(BINDIR) $(OBJDIR) $(DEPDIR):
+$(PWD)/$(BINDIR) $(PWD)/$(OBJDIR) $(PWD)/$(DEPDIR):
 	@ mkdir -p $@
 
 clean:
