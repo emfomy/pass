@@ -2,14 +2,14 @@
 // Particle Swarm Stepwise (PaSS) Algorithm                                   //
 //                                                                            //
 // pass.hpp                                                                   //
-// The header of the PaSS algorithm for general linear regression             //
+// The header of the PaSS algorithm for general logistic regression           //
 //                                                                            //
 // Author: emfo<emfomy@gmail.com>                                             //
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef PASS_GENLIN_PASS_HPP_
+#ifndef PASS_GENLOG_PASS_HPP_
 
-#define PASS_GENLIN_PASS_HPP_
+#define PASS_GENLOG_PASS_HPP_
 
 ////////////////////////////////////////////////////////////////////////////////
 // The namespace pass                                                         //
@@ -42,7 +42,7 @@ extern struct Parameter parameter;  // the PaSS parameters
 // Note:                                                                      //
 // Please call srand before using this routine.                               //
 ////////////////////////////////////////////////////////////////////////////////
-void GenLin();
+void GenLog();
 
 ////////////////////////////////////////////////////////////////////////////////
 // The criterions used in the PaSS algorithm                                  //
@@ -98,28 +98,30 @@ struct Parameter {
 // The structure of a particle                                                //
 ////////////////////////////////////////////////////////////////////////////////
 struct Particle {
-  float *X;           // matrix, n by k, the regressors
-  float *Y;           // vector, n by 1, the regressand
-  float *Beta;        // vector, k by 1, the effects
-  float *Theta;       // vector, k by 1, X'*Y
-  float *M;           // matrix, k by k, inv( X'*X ), upper general storage
-  float *R;           // vector, n by 1, the residual
-  float *B;           // vector, n by 1, temporary vector
-  float *D;           // vector, n by 1, temporary vector
-  float e;            // scalar, the norm of R
-  float phi;          // scalar, the criterion value
-  float phi_old;      // scalar, the criterion value, past iteration
+  float *X;      // matrix, n by k, the regressors
+  float *Y;      // vector, n by 1, the regressand
+  float *Beta;   // vector, k by 1, the effects
+  float *Theta;  // vector, n by 1, X'*Y, the logit of P
+  float *Eta;    // vector, n by 1, exp(Theta)
+  float *P;      // vector, n by 1, Eta./(1+Eta), the probability of Y=1
+  float *W;      // vector, n by 1, P.*(1-P)
+  float *M;      // matrix, k by k, X'*diag(W)*X, lower packed storage
+  float *Ones;   // vector, n by 1, ones
+  float *STemp;  // vector, n by 1, temporary vector
+  float llv;     // scalar, the log-likelihood value
+  float phi;     // scalar, the criterion value
+  float phi_old; // scalar, the criterion value, past iteration
 
-  int *Idx_lf;        // vector, 1 by k, map local effects to full effects
-  int *Idx_fl;        // vector, 1 by p, map full effects to local effects
-  int *Idx_temp;      // vector, 1 by p, workspace
-  bool *I;            // vector, 1 by p, the chosen indices
-  int k;              // scalar, the number of chosen effects
-  int l;              // scalar, the number of chosen indices
+  int *Idx_lf;   // vector, 1 by k, map local effects to full effects
+  int *Idx_fl;   // vector, 1 by p, map full effects to local effects
+  int *Idx_temp; // vector, 1 by p, workspace
+  bool *I;       // vector, 1 by p, the chosen indices
+  int k;         // scalar, the number of chosen effects
+  int l;         // scalar, the number of chosen indices
 
-  bool status;        // scalar, the status (forward/backward)
+  bool status;   // scalar, the status (forward/backward)
 
-  unsigned int iseed; // scalar, the random seed;
+  unsigned int iseed;  // scalar, the random seed;
 
   // Constructor
   Particle();
@@ -136,6 +138,9 @@ struct Particle {
 
   // Select the index to add or remove
   void SelectIndex( int& idx );
+
+  // Compute Beta
+  void ComputeBeta();
 
   // Compute the criterion value
   void ComputeCriterion();

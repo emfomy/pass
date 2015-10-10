@@ -1,17 +1,16 @@
 #!/bin/bash
 
-nodes=8
+nodes=4
 threads=16
 cores=${nodes}x${threads/16/A}
 
 jbsub="jbsub"
+# jbsub="jbsub -interactive"
 queue="x86_excl"
 
 proj=$1
 pass=$2
 model=$3
-
-binopt="-p32 -i1024 --HDBIC --prob .1 .5 .4 .5 .5"
 
 mpirun="/hlt/exec/mpiwrap.sh -per-node 1"
 
@@ -22,9 +21,13 @@ bin=${bindir}/${pass}
 
 mkdir -p ${logdir}
 
-out=${logdir}/${model}.out
-err=${logdir}/${model}.err
+for cri in EBIC HDBIC HQC HDHQC ; do
+	binopt="-p64 -i4096 --${cri} --prob .1 .5 .4 .5 .5 --verbose"
 
-${jbsub} -queue ${queue} -proj ${proj} -name ${pass}:${model} \
-	-pjobs 16 -cores ${cores} -out ${out} -err ${err} \
-	OMP_NUM_THREADS=${threads} ${mpirun} ${bin} ${binopt}
+	out=${logdir}/${model}_${cri}.out
+	err=${logdir}/${model}_${cri}.err
+
+	${jbsub} -queue ${queue} -proj ${proj} -name ${pass}:${model}:${cri} \
+		-pjobs 16 -cores ${cores} -out ${out} -err ${err} \
+		OMP_NUM_THREADS=${threads} ${mpirun} ${bin} ${binopt}
+done

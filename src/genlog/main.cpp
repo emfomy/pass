@@ -2,7 +2,7 @@
 // Particle Swarm Stepwise (PaSS) Algorithm                                   //
 //                                                                            //
 // main.cpp                                                                   //
-// The main funcitons for general linear regression                           //
+// The main funcitons for general logistic regression                         //
 //                                                                            //
 // Author: emfo<emfomy@gmail.com>                                             //
 ////////////////////////////////////////////////////////////////////////////////
@@ -22,7 +22,7 @@ using namespace pass;
 
 // Default arguments
 const unsigned int kTest = 100;
-const char *kDataRoot    = "genlin.dat";
+const char *kDataRoot    = "genlog.dat";
 
 // Global variables
 bool *J0;        // vector, 1 by p, the chosen indices (solution)
@@ -314,43 +314,6 @@ int main( int argc, char **argv ) {
   }
 
   ////////////////////////////////////////////////////////////////////////////
-  // Centralize and normalize the original data                             //
-  ////////////////////////////////////////////////////////////////////////////
-
-  if ( mpi_rank == 0 ) {
-    printf("Normalizing data... ");
-    fflush(stdout);
-  }
-
-  // Centralize and normalize X0
-  for ( auto j = 0; j < p; ++j ) {
-    float stemp = 0.0f;
-    for ( auto i = 0; i < n; ++i ) {
-      stemp += X0[i+j*n];
-    }
-    stemp /= n;
-    vsLinearFrac(n, X0+j*n, X0+j*n, 1.0f, -stemp, 0.0f, 1.0f, X0+j*n);
-    cblas_sscal(n, (1.0f/cblas_snrm2(n, X0+j*n, 1)), X0+j*n, 1);
-  }
-
-  // Centralize and normalize Y0
-  {
-    float stemp = 0.0f;
-    for ( auto i = 0; i < n; ++i ) {
-      stemp += Y0[i];
-    }
-    stemp /= n;
-    vsLinearFrac(n, Y0, Y0, 1.0f, -stemp, 0.0f, 1.0f, Y0);
-    cblas_sscal(n, (1.0f/cblas_snrm2(n, Y0, 1)), Y0, 1);
-  }
-
-  parameter.is_normalized = true;
-
-  if ( mpi_rank == 0 ) {
-    printf("Done.\n");
-  }
-
-  ////////////////////////////////////////////////////////////////////////////
   // Run PaSS                                                               //
   ////////////////////////////////////////////////////////////////////////////
 
@@ -382,7 +345,7 @@ int main( int argc, char **argv ) {
     }
     if ( btemp ) {
       particle.k = 0;
-      cblas_scopy(n, Y0, 1, particle.R, 1);
+      particle.ComputeBeta();
     }
     particle.ComputeCriterion();
 
@@ -408,7 +371,7 @@ int main( int argc, char **argv ) {
     }
 
     // Run PaSS
-    GenLin();
+    GenLog();
 
     // Find best model
     struct { float value; int rank; } send, recv;
@@ -450,7 +413,7 @@ int main( int argc, char **argv ) {
       }
       if ( btemp ) {
         particle.k = 0;
-        cblas_scopy(n, Y0, 1, particle.R, 1);
+        particle.ComputeBeta();
       }
       particle.ComputeCriterion();
 

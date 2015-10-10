@@ -2,38 +2,92 @@
 // Particle Swarm Stepwise (PaSS) Algorithm                                   //
 //                                                                            //
 // pass.cpp                                                                   //
-// The PaSS algorithm for general linear regression                           //
+// The PaSS algorithm for general logistic regression                         //
 //                                                                            //
 // Author: emfo<emfomy@gmail.com>                                             //
 //                                                                            //
 // ========================================================================== //
 //                                                                            //
 // Notation:                                                                  //
-// X    : the regressors                                                      //
-// Y    : the regressand                                                      //
-// Beta : the effects                                                         //
-// R    : the residual                                                        //
+// X     : the regressors                                                     //
+// Y     : the regressand                                                     //
+// Beta  : the effects                                                        //
+// P     : the probability of Y=1                                             //
+// Theta : the logit function of P                                            //
+// lv    : the likelihood value                                               //
+// llv   : the log-likelihood value                                           //
 //                                                                            //
 // ========================================================================== //
 //                                                                            //
-// Linear model:                                                              //
-// Y = X * Beta + error                                                       //
-// R = Y - X * Beta                                                           //
+// Logistic model:                                                            //
+// P     := exp(X*Beta) ./ 1+exp(X*Beta)                                      //
+// Theta := logit(P) = X*Beta                                                 //
+//                                                                            //
+// Update Beta:                                                               //
+// Theta := X * Beta                                                          //
+// Eta   := exp(Theta)                                                        //
+// P     := Eta ./ (1+Eta)                                                    //
+// 1-P    = 1 ./ (1+Eta)                                                      //
+// W     := P .* (1-P)                                                        //
+// Beta  += inv( X'*diag(W)*X ) * X' * (Y-P)                                  //
+//                                                                            //
+// Compute log-likelihood:                                                    //
+// lv    := prod( p^y * (1-p)^(1-y) )                                         //
+// llv   := log( lv )                                                         //
+//        = sum( y * log(p) + (1-y) * log(1-p) )                              //
+//        = sum( y * log(eta) - y * log(1+eta) - (1-Y) * log(1+eta) )         //
+//        = Y' * Theta - sum( log(1+eta) )                                    //
+//                                                                            //
+// Newton-Raphson method:                                                     //
+// d(llv)/d(Beta)     =   X' * (Y-P)                                          //
+// d^2(llv)/d(Beta)^2 = - X' * diag(W) * X                                    //
 //                                                                            //
 // ========================================================================== //
 //                                                                            //
 // Select index in forward step:                                              //
-// idx = argmax_{i not in I} abs( X[i col]' * R  )                            //
+// idx = argmax_{i not in I} llv_hat                                          //
+// Theta_hat := Theta_new - Theta = Beta[i] * X[i col]                        //
+// Eta_hat   := Eta_new  ./ Eta   = exp( Theta_hat )                          //
+// llv_hat   := llv_new - llv                                                 //
+//            = ( Y' * Theta_new - Y' * Theta )                               //
+//              - ( sum( log(1+eta_new) ) - sum( log(1+eta) ) )               //
+//            = Y' * Theta_hat - sum( log( (1+eta_new)/(1+eta) ) )            //
+//            = Y' * Theta_hat - sum( log( 1 + (eta_hat-1)*p ) )              //
+//                                                                            //
+// Approximate Beta[i] with Newton-Raphson method:                            //
+// Beta[i]   += ( X[i col]'*(Y-P_new) ) / ( X[i col]'*diag(W_new)*X[i col] )  //
+//                                                                            //
+// ========================================================================== //
 //                                                                            //
 // Select index in backward step:                                             //
-// idx = argmin_{i in I} norm( R_{I exclude i} )                              //
-//     = argmin_{i in I} norm( R + Beta[i] * X[i col] )                       //
+// idx = argmax_{i in I} llv_hat                                              //
+// Theta_hat := Theta_new - Theta = -Beta[i] * X[i col]                       //
+// Eta_hat   := Eta_new  ./ Eta   = exp( Theta_hat )                          //
+// llv_hat   := llv_new - llv                                                 //
+//            = ( Y' * Theta_new - Y' * Theta )                               //
+//              - ( sum( log(1+eta_new) ) - sum( log(1+eta) ) )               //
+//            = Y' * Theta_hat - sum( log( (1+eta_new)/(1+eta) ) )            //
+//            = Y' * Theta_hat - sum( log( 1 + (eta_hat-1)*p ) )              //
 //                                                                            //
 // ========================================================================== //
 //                                                                            //
 // References:                                                                //
-// Chen, R.-B., Huang, C.-C., & Wang, W. (2013).                              //
-//   Particle Swarm Stepwise (PaSS) Algorithm for Variable Selection.         //
+// Chen, R.-B., Huang, C.-C., & Wang, W. (2013). Particle Swarm Stepwise      //
+//   (PaSS) Algorithm for Variable Selection.                                 //
+//                                                                            //
+// Liu, Z., & Liu, M. (2011). Logistic Regression Parameter Estimation Based  //
+//   on Parallel Matrix Computation. In Q. Zhou (Ed.), Communications in      //
+//   Computer and Information Science (Vol. 164, pp. 268–275). Berlin,        //
+//   Heidelberg: Springer Berlin Heidelberg.                                  //
+//   doi.org/10.1007/978-3-642-24999-0_38                                     //
+//                                                                            //
+// Singh, S., Kubica, J., Larsen, S., & Sorokina, D. (2013). Parallel Large   //
+//   Scale Feature Selection for Logistic Regression (pp. 1172–1183).         //
+//   Philadelphia, PA: Society for Industrial and Applied Mathematics.        //
+//   doi.org/10.1137/1.9781611972795.100                                      //
+//                                                                            //
+// Barbu, A., She, Y., Ding, L., & Gramajo, G. (2014). Feature Selection with //
+//   Annealing for Big Data Learning. arxiv.org/pdf/1310.288                  //
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "pass.hpp"
@@ -62,7 +116,7 @@ float phi0;           // scalar, the criterion value
 Parameter parameter;  // the PaSS parameters
 
 ////////////////////////////////////////////////////////////////////////////////
-// The PaSS algorithm for Linear Regression                                   //
+// The PaSS algorithm for Logistic Regression                                 //
 //                                                                            //
 // Input Global Parameters:                                                   //
 // n:         scalar, the number of statistical units                         //
@@ -78,41 +132,11 @@ Parameter parameter;  // the PaSS parameters
 // Note:                                                                      //
 // Please call srand before using this routine.                               //
 ////////////////////////////////////////////////////////////////////////////////
-void GenLin() {
+void GenLog() {
 
   // Check parameters
   auto num_thread = omp_get_max_threads();
   auto num_particle = num_thread*parameter.num_particle_thread;
-
-  ////////////////////////////////////////////////////////////////////////////
-  // Centralize and normalize the original data                             //
-  ////////////////////////////////////////////////////////////////////////////
-
-  if ( !parameter.is_normalized ) {
-    // Centralize and normalize X0
-    for ( auto j = 0; j < p; ++j ) {
-      float stemp = 1.0f;
-      #pragma omp simd
-      for ( auto i = 0; i < n; ++i ) {
-        stemp += X0[i+j*n];
-      }
-      stemp /= n;
-      vsLinearFrac(n, X0+j*n, X0+j*n, 1.0f, -stemp, 0.0f, 1.0f, X0+j*n);
-      cblas_sscal(n, (1.0f/cblas_snrm2(n, X0+j*n, 1)), X0+j*n, 1);
-    }
-
-    // Centralize and normalize Y0
-    {
-      float stemp = 1.0f;
-      #pragma omp simd
-      for ( auto i = 0; i < n; ++i ) {
-        stemp += Y0[i];
-      }
-      stemp /= n;
-      vsLinearFrac(n, Y0, Y0, 1.0f, -stemp, 0.0f, 1.0f, Y0);
-      cblas_sscal(n, (1.0f/cblas_snrm2(n, Y0, 1)), Y0, 1);
-    }
-  }
 
   ////////////////////////////////////////////////////////////////////////////
   // Run PaSS                                                               //
@@ -194,10 +218,10 @@ Particle::Particle() {
   Y        = new float[n];
   Beta     = new float[n];
   Theta    = new float[n];
-  M        = new float[n*n];
-  R        = new float[n];
-  B        = new float[n];
-  D        = new float[n];
+  Eta      = new float[n];
+  P        = new float[n];
+  W        = new float[n];
+  M        = new float[n*(n+1)/2];
 
   Idx_lf   = new int[n];
   Idx_fl   = new int[p];
@@ -215,10 +239,10 @@ Particle::~Particle() {
   delete[] Y;
   delete[] Beta;
   delete[] Theta;
+  delete[] Eta;
+  delete[] P;
+  delete[] W;
   delete[] M;
-  delete[] B;
-  delete[] D;
-  delete[] R;
 
   delete[] Idx_lf;
   delete[] Idx_fl;
@@ -241,37 +265,24 @@ void Particle::InitializeModel() {
 ////////////////////////////////////////////////////////////////////////////////
 void Particle::InitializeModel( const int idx ) {
   // Initialize size
-  k = 1;
+  k = 0;
 
   // Initialize index
   memset(I, false, sizeof(bool) * p);
 
-  // Update index
-  I[idx] = true;
-  Idx_lf[0] = idx;
-  Idx_fl[idx] = 0;
-
-  // X := X0[idx col]
-  cblas_scopy(n, X0+idx*n, 1, X, 1);
+  // X[0 col] := 1.0
+  auto stemp = 1.0f;
+  cblas_scopy(n, &stemp, 0, X+n, 1);
+  Ones = X;
 
   // Y := Y0
   cblas_scopy(n, Y0, 1, Y, 1);
 
-  // M := 1 / (X' * X)
-  M[0] = 1.0f;
-
-  // Theta := X' * Y
-  Theta[0] = cblas_sdot(n, X, 1, Y, 1);
-
-  // Beta := M * Theta
-  Beta[0] = M[0] * Theta[0];
-
-  // R = Y - X * Beta
-  cblas_scopy(n, Y, 1, R, 1);
-  cblas_saxpy(n, -Beta[0], X, 1, R, 1);
-
   // Set status
   status = true;
+
+  // Insert effect
+  UpdateModel(idx);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -283,61 +294,16 @@ void Particle::InitializeModel( const int idx ) {
 void Particle::UpdateModel( const int idx ) {
   if ( status ) {  // forward step
     // Update size
-    auto km = k;
     k++;
 
     // Update index
     I[idx] = true;
-    Idx_lf[km] = idx;
-    Idx_fl[idx] = km;
-
-    // Set Xnew
-    auto Xnew = X+km*n;
+    Idx_lf[k] = idx;
+    Idx_fl[idx] = k;
 
     // Insert new row of X
-    cblas_scopy(n, X0+idx*n, 1, Xnew, 1);
-
-    ////////////////////////////////////////////////////////////////////////
-    // Solve Y = X * Beta for Beta                                        //
-    ////////////////////////////////////////////////////////////////////////
-
-    // B := X' * Xnew
-    cblas_sgemv(CblasColMajor, CblasTrans,
-                n, km, 1, X, n, Xnew, 1, 0.0f, B, 1);
-
-    // D := M * B
-    cblas_ssymv(CblasColMajor, CblasUpper,
-                km, 1.0f, M, n, B, 1, 0.0f, D, 1);
-
-    // a := 1 / (Xnew' * Xnew - B' * D)
-    auto a = 1.0f / (1.0f - cblas_sdot(km, B, 1, D, 1));
-
-    // insert D by -1.0
-    D[km] = -1.0f;
-
-    // insert M by zeros
-    for ( auto i = 0; i < k; i++ ) {
-      M[km*n+i] = 0.0f;
-    }
-
-    // M += a * D * D'
-    cblas_ssyr(CblasColMajor, CblasUpper,
-               k, a, D, 1, M, n);
-
-    // insert Theta by Xnew' * Y
-    Theta[km] = cblas_sdot(n, Xnew, 1, Y, 1);
-
-    // insert Beta by zero
-    Beta[km] = 0.0f;
-
-    // Beta += a * (D' * Theta) * D
-    cblas_saxpy(k, a*cblas_sdot(k, D, 1, Theta, 1), D, 1, Beta, 1);
-
-    ////////////////////////////////////////////////////////////////////////
+    cblas_scopy(n, X0+idx*n, 1, X+k*n, 1);
   } else {  // backward step
-    // Update size
-    k--;
-
     // Update index
     I[idx] = false;
 
@@ -345,49 +311,95 @@ void Particle::UpdateModel( const int idx ) {
     auto j = Idx_fl[idx];
 
     // Copy index end to index j
-    // a := M[end, end], b := Beta[end], D := M[end col]
-    float a, b;
     if ( j != k ) {
-      a = M[j*n+j];
-      b = Beta[j];
-
       cblas_scopy(n, X+k*n, 1, X+j*n, 1);
-      Beta[j] = Beta[k];
-      Theta[j] = Theta[k];
       Idx_lf[j] = Idx_lf[k];
       Idx_fl[Idx_lf[j]] = j;
-
-      cblas_scopy(j, M+j*n, 1, D, 1);
-      cblas_scopy(k-j-1, M+j*n+n+j, n, D+j+1, 1);
-      D[j] = M[k*n+j];
-
-      cblas_scopy(j, M+k*n, 1, M+j*n, 1);
-      cblas_scopy(k-j-1, M+k*n+j+1, 1, M+j*n+n+j, n);
-      M[j*n+j] = M[k*n+k];
-    } else {
-      a = M[k*n+k];
-      b = Beta[k];
-      cblas_scopy(k, M+k*n, 1, D, 1);
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // Solve Y = X * Beta for Beta                                        //
-    ////////////////////////////////////////////////////////////////////////
-
-    // M -= 1/a * D * D'
-    cblas_ssyr(CblasColMajor, CblasUpper,
-               k, -1.0f/a, D, 1, M, n);
-
-    // Beta -= b/a * D
-    cblas_saxpy(k, -b/a, D, 1, Beta, 1);
-
-    ////////////////////////////////////////////////////////////////////////
+    // Update size
+    k--;
   }
+
+  // Compute Beta
+  ComputeBeta();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Compute Beta                                                               //
+////////////////////////////////////////////////////////////////////////////////
+void Particle::ComputeBeta() {
+  auto kp = k+1;
+  float stemp;
+
+  // Beta := 0.0
+  for ( auto i = 0; i < kp; ++i ) {
+    Beta[i] = 0.0f;
+  }
+  stemp = 0.0f;
+  cblas_scopy(kp, &stemp, 0, Beta, 1);
   
-  // R = Y - X * Beta
-  cblas_scopy(n, Y, 1, R, 1);
-  cblas_sgemv(CblasColMajor, CblasNoTrans,
-              n, k, -1.0f, X, n, Beta, 1, 1.0f, R, 1);
+  // P := 0.5, W := 0.25
+  for ( auto i = 0; i < n; ++i ) {
+    P[i] = 0.25f;
+    W[i] = 0.5f;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Find Beta using Newton-Raphson's method                                //
+  ////////////////////////////////////////////////////////////////////////////
+
+  do {
+    ////////////////////////////////////////////////////////////////////////
+    // Beta += inv(X'*diag(W)*X) * X' * (Y-P)                             //
+    ////////////////////////////////////////////////////////////////////////
+
+    // M := X' * diag(W) * X
+    for ( auto i = 0; i < kp*(kp+1)/2; ++i ) {
+      M[i] = 0.0f;
+    }
+    for ( auto i = 0; i < n; ++i ) {
+      cblas_sspr(CblasColMajor, CblasLower, kp, W[i], X+i, n, M);
+    }
+
+    // Compute Cholesky decomposition of M
+    LAPACKE_spptrf(LAPACK_COL_MAJOR, 'L', kp, M);
+
+    // W := (Y-P)
+    vsSub(n, Y, P, W);
+
+    // STemp := X' * W
+    cblas_sgemv(CblasColMajor, CblasTrans,
+                n, l, 1.0f, X, n, W, 1, 0.0f, STemp, 1);
+
+    // Solve STemp = inv(M) * STemp
+    cblas_stpsv(CblasColMajor, CblasLower, CblasNoTrans, CblasNonUnit,
+                kp, M, STemp, 1);
+
+    // Solve STemp = inv(M') * STemp
+    cblas_stpsv(CblasColMajor, CblasLower, CblasTrans, CblasNonUnit,
+                kp, M, STemp, 1);
+
+    // Beta += STemp
+    vsAdd(kp, Beta, STemp, Beta);
+
+    ////////////////////////////////////////////////////////////////////////
+    
+    // Theta := X * Beta
+    cblas_sgemv(CblasColMajor, CblasNoTrans,
+                n, kp, 1.0f, X, n, Beta, 1, 0.0f, Theta, 1);
+
+    // Eta := exp(Theta)
+    vsExp(n, Theta, Eta);
+
+    // P := Eta ./ (1+Eta)
+    vsLinearFrac(n, Eta, Eta, 1.0f, 0.0f, 1.0f, 1.0f, P);
+
+    // W := P .* (1-P)
+    vsLinearFrac(n, P, Eta, 1.0f, 0.0f, 1.0f, 1.0f, W);
+  } while ( cblas_snrm2(kp, STemp, 1) > sqrt(kp) * 1e-4f );
+
+  ////////////////////////////////////////////////////////////////////////////
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -432,15 +444,70 @@ void Particle::SelectIndex( int& idx ) {
         break;
       }
       case 1: {  // Local best
-        auto phi_temp = -INFINITY;
+        auto llv_temp = -INFINITY;
         for ( auto i = 0; i < p; ++i ) {
           if ( !I[i] ) {
-            // stemp := abs( X0[i col]' * R )
-            auto stemp = fabs(cblas_sdot(n, X0+i*n, 1, R, 1));
+            // beta := 0
+            auto beta = 0.0f;
+
+            // Xnew := X0[i col]
+            auto Xnew = X0+i*n;
+
+            // stemp := Xnew' * Y
+            auto stemp = cblas_sdot(n, Xnew, 1, Y, 1);
+
+            //////////////////////////////////////////////////////////////////
+            // Find Beta using Newton-Raphson's method                      //
+            //////////////////////////////////////////////////////////////////
+
+            auto beta_temp = INFINITY;
+            do {
+              // STemp(Theta_new) := Theta + beta * Xnew
+              cblas_scopy(n, Theta, 1, STemp, 1);
+              cblas_saxpy(n, beta, Xnew, 1, STemp, 1);
+
+              // Eta(Eta_new) := exp(Theta_new)
+              vsExp(n, STemp, Eta);
+
+              // STemp(P_new) := Eta_new ./ (1+Eta_new)
+              vsLinearFrac(n, Eta, Eta, 1.0f, 0.0f, 1.0f, 1.0f, STemp);
+
+              // W(W_new) := P_new .* (1-P_new)
+              vsLinearFrac(n, STemp, Eta, 1.0f, 0.0f, 1.0f, 1.0f, W);
+
+              // beta += (Xnew'*(Y-P_new)) / (Xnew'*diag(W_new)*Xnew)
+              vsMul(n, W, Xnew, W);
+              beta_temp = (stemp - cblas_sdot(n, Xnew, 1, STemp, 1)) /
+                          cblas_sdot(n, Xnew, 1, W, 1);
+              beta += beta_temp;
+            } while ( beta_temp > 1e-4f );
+
+            //////////////////////////////////////////////////////////////////
+            // stemp := Y' * Theta_hat - sum(log(1+(eta_hat-1)*p))          //
+            //////////////////////////////////////////////////////////////////
+
+            // STemp(Theta_hat) := beta * Xnew
+            cblas_saxpby(n, beta, Xnew, 1, 0.0f, STemp, 1);
+
+            // stemp := Y' * Theta_hat
+            stemp = cblas_sdot(n, Y, 1, STemp, 1);
+
+            // STemp := log(1+(Eta_hat-1)*P)
+            vsExpm1(n, STemp, Eta);
+            vsMul(n, Eta, P, W);
+            vsLog1p(n, W, STemp);
+
+            // stemp += sum(STemp)
+            #pragma omp simd
+            for ( auto j = 0; j < n; ++j ) {
+              stemp += STemp[j];
+            }
+
+            //////////////////////////////////////////////////////////////////
 
             // Check if this value is maximum
-            if ( phi_temp < stemp ) {
-              phi_temp = stemp;
+            if ( llv_temp < stemp ) {
+              llv_temp = stemp;
               idx = i;
             }
           }
@@ -455,18 +522,32 @@ void Particle::SelectIndex( int& idx ) {
   } else {  // backward step
     if ( srand < parameter.prob_backward_local ) {  // Local best
       auto phi_temp = INFINITY;
-      for ( auto i = 0; i < k; ++i ) {
-        // B := R + Beta[i] * X[i col]
-        cblas_scopy(n, R, 1, B, 1);
-        cblas_saxpy(n, Beta[i], X+i*n, 1, B, 1);
+      for ( auto i = 1; i < k; ++i ) {
+        //////////////////////////////////////////////////////////////////
+        // stemp := Y' * Theta_hat - sum(log(1+(eta_hat-1)*p))          //
+        //////////////////////////////////////////////////////////////////
 
-        // stemp = norm(B)
-        auto stemp = cblas_snrm2(n, B, 1);
+        // STemp(Theta_hat) := -Beta[i] * X[i]
+        cblas_saxpby(n, -Beta[i], X+i*n, 1, 0.0f, STemp, 1);
+
+        // stemp := Y' * Theta_hat
+        auto stemp = cblas_sdot(n, Y, 1, STemp, 1);
+
+        // STemp := log(1+(Eta_hat-1)*P)
+        vsExpm1(n, STemp, Eta);
+        vsMul(n, Eta, P, W);
+        vsLog1p(n, W, STemp);
+
+        // stemp += sum(STemp)
+        #pragma omp simd
+        for ( auto j = 0; j < n; ++j ) {
+          stemp += STemp[j];
+        }
 
         // Check if this value is minimal
         if ( phi_temp > stemp ) {
           phi_temp = stemp;
-          idx = Idx_lf[i];
+          idx = i;
         }
       }
     } else {  // Random
@@ -479,33 +560,38 @@ void Particle::SelectIndex( int& idx ) {
 // Compute the criterion value                                                //
 ////////////////////////////////////////////////////////////////////////////////
 void Particle::ComputeCriterion() {
-  // e := norm(R)
-  e = cblas_snrm2(n, R, 1);
+  // llv := Y' * Theta - sum(log(1+Eta))
+  vsLog1p(n, Eta, STemp);
+  llv = cblas_sdot(n, Y, 1, Theta, 1);
+  #pragma omp simd
+  for ( auto i = 0; i < n; ++i ) {
+    llv += STemp[i];
+  }
 
   // Compute criterion
   switch(parameter.criterion) {
     case AIC: {    // phi := n*log(e^2/n) + 2k
-      phi = n*logf(e*e/n) + 2.0f*k;
+      phi = -2.0f*llv + 2.0f*k;
       break;
     }
     case BIC: {    // phi := n*log(e^2/n) + k*log(n)
-      phi = n*logf(e*e/n) + k*logf(n);
+      phi = -2.0f*llv + k*logf(n);
       break;
     }
     case EBIC: {   // phi := n*log(e^2/n) + k*log(n) + 2gamma*log(p choose k)
-      phi = n*logf(e*e/n) + k*logf(n) + 2.0f*parameter.ebic_gamma*lbinom(p, k);
+      phi = -2.0f*llv + k*logf(n) + 2.0f*parameter.ebic_gamma*lbinom(p, k);
       break;
     }
     case HDBIC: {  // phi := n*log(e^2/n) + k*log(n)*log(p)
-      phi = n*logf(e*e/n) + k*logf(n)*logf(p);
+      phi = -2.0f*llv + k*logf(n)*logf(p);
       break;
     }
     case HQC: {    // phi := n*log(e^2/n) + 2k*log(log(n))
-      phi = n*logf(e*e/n) + 2.0f*k*logf(logf(n));
+      phi = -2.0f*llv + 2.0f*k*logf(logf(n));
       break;
     }
     case HDHQC: {  // phi := n*log(e^2/n) + 2k*log(log(n))*log(p)
-      phi = n*logf(e*e/n) + 2.0f*k*logf(logf(n))*logf(p);
+      phi = -2.0f*llv + 2.0f*k*logf(logf(n))*logf(p);
       break;
     }
   }

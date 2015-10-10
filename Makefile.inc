@@ -4,12 +4,12 @@
 MAKEFLAGS += --no-print-directory
 
 PROJ      ?= pass
-PASS      ?= genlin
-MODEL     ?= power
+PASS      ?= genlog
+MODEL     ?= inglai
 MODELOPTS ?=
 
 CXX      = g++
-CXXFLAGS = -O3 -std=c++11 -Wall
+CXXFLAGS = -O3 -std=c++11 -Wall -Wextra -pedantic
 
 RM      = rm -rf
 RANLIB  = ranlib
@@ -19,7 +19,7 @@ ARCHIVE = ar rv
 ifndef MKLROOT
   $(error MKLROOT is not set!)
 endif
-MKLINC ?= -I$(MKLROOT)/include
+MKLINC ?= -I$(MKLROOT)/include -I$HOME/local/include/intel/mkl
 MKLLIB ?= -L$(MKLROOT)/lib/intel64
 MKLLNK  = -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
 
