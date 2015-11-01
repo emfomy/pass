@@ -1,5 +1,5 @@
 # Particle Swarm Stepwise (PaSS) Algorithm
-# The Makafile for 'model'
+# The Makefile for 'model'
 
 include Makefile.inc
 

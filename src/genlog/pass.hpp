@@ -62,7 +62,17 @@ enum Criterion {
 // Parameters:                                                                //
 // criterion:  the criterion                                                  //
 ////////////////////////////////////////////////////////////////////////////////
-const char* Criterion2String( const Criterion criterion );
+static inline const char* Criterion2String( const Criterion criterion ) {
+  switch(criterion) {
+    case AIC:   return "AIC";
+    case BIC:   return "BIC";
+    case EBIC:  return "EBIC";
+    case HDBIC: return "HDBIC";
+    case HQC:   return "HQC";
+    case HDHQC: return "HDHQC";
+    default:    return "!";
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // The parameters of the PaSS algorithm                                       //
@@ -98,30 +108,28 @@ struct Parameter {
 // The structure of a particle                                                //
 ////////////////////////////////////////////////////////////////////////////////
 struct Particle {
-  float *X;      // matrix, n by k, the regressors
+  float *X;      // matrix, n by (k+1), the regressors
   float *Y;      // vector, n by 1, the regressand
-  float *Beta;   // vector, k by 1, the effects
-  float *Theta;  // vector, n by 1, X'*Y, the logit of P
+  float *Beta;   // vector, (k+1) by 1, the effects
+  float *Theta;  // vector, n by 1, X*Beta, the logit of P
   float *Eta;    // vector, n by 1, exp(Theta)
   float *P;      // vector, n by 1, Eta./(1+Eta), the probability of Y=1
   float *W;      // vector, n by 1, P.*(1-P)
-  float *M;      // matrix, k by k, X'*diag(W)*X, lower packed storage
-  float *Ones;   // vector, n by 1, ones
+  float *M;      // matrix, (k+1) by (k+1), X'*diag(W)*X, lower packed storage
   float *STemp;  // vector, n by 1, temporary vector
   float llv;     // scalar, the log-likelihood value
   float phi;     // scalar, the criterion value
   float phi_old; // scalar, the criterion value, past iteration
 
-  int *Idx_lf;   // vector, 1 by k, map local effects to full effects
-  int *Idx_fl;   // vector, 1 by p, map full effects to local effects
+  int *Idx_lo;   // vector, 1 by (k+1), map local effects to original effects
+  int *Idx_ol;   // vector, 1 by p, map original effects to local effects
   int *Idx_temp; // vector, 1 by p, workspace
   bool *I;       // vector, 1 by p, the chosen indices
   int k;         // scalar, the number of chosen effects
-  int l;         // scalar, the number of chosen indices
 
   bool status;   // scalar, the status (forward/backward)
 
-  unsigned int iseed;  // scalar, the random seed;
+  unsigned int iseed; // scalar, the random seed;
 
   // Constructor
   Particle();
@@ -136,11 +144,11 @@ struct Particle {
   // Update model
   void UpdateModel( const int idx );
 
-  // Select the index to add or remove
-  void SelectIndex( int& idx );
-
   // Compute Beta
   void ComputeBeta();
+
+  // Select the index to add or remove
+  void SelectIndex( int& idx );
 
   // Compute the criterion value
   void ComputeCriterion();

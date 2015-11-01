@@ -164,7 +164,7 @@ int main( int argc, char **argv ) {
   } else {
     Beta = new float[r];
     for ( auto i = 0; i < r; ++i ) {
-      Beta[i] = 3.0f + .75f*i;
+      Beta[i] = -1.5f + 0.35f*i;
     }
   }
 
@@ -200,7 +200,7 @@ int main( int argc, char **argv ) {
     cblas_saxpy(n, 1.0f, X+i*n, 1, S, 1);
   }
 
-  // X[i col] := sqrt(.75/r) * S + .5 * X[i col], i >= r
+  // X[i col] := sqrt(0.75/r) * S + 0.5 * X[i col], i >= r
   cblas_sscal(n, sqrt(0.75f/r), S, 1);
   cblas_sscal(n*(p-r), 0.5f, X+r*n, 1);
   for ( auto i = r; i < p; ++i ) {
@@ -238,6 +238,7 @@ int main( int argc, char **argv ) {
   delete[] Y;
   delete[] Beta;
   delete[] J;
+  delete[] S;
 
   printf("================================================================"
          "================================================================\n");

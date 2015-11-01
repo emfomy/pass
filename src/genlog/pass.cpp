@@ -35,7 +35,7 @@
 // lv    := prod( p^y * (1-p)^(1-y) )                                         //
 // llv   := log( lv )                                                         //
 //        = sum( y * log(p) + (1-y) * log(1-p) )                              //
-//        = sum( y * log(eta) - y * log(1+eta) - (1-Y) * log(1+eta) )         //
+//        = sum( y * log(eta) - y * log(1+eta) - (1-y) * log(1+eta) )         //
 //        = Y' * Theta - sum( log(1+eta) )                                    //
 //                                                                            //
 // Newton-Raphson method:                                                     //
@@ -79,15 +79,15 @@
 //   on Parallel Matrix Computation. In Q. Zhou (Ed.), Communications in      //
 //   Computer and Information Science (Vol. 164, pp. 268–275). Berlin,        //
 //   Heidelberg: Springer Berlin Heidelberg.                                  //
-//   doi.org/10.1007/978-3-642-24999-0_38                                     //
+//   http://doi.org/10.1007/978-3-642-24999-0_38                              //
 //                                                                            //
 // Singh, S., Kubica, J., Larsen, S., & Sorokina, D. (2013). Parallel Large   //
 //   Scale Feature Selection for Logistic Regression (pp. 1172–1183).         //
 //   Philadelphia, PA: Society for Industrial and Applied Mathematics.        //
-//   doi.org/10.1137/1.9781611972795.100                                      //
+//   http://doi.org/10.1137/1.9781611972795.100                               //
 //                                                                            //
 // Barbu, A., She, Y., Ding, L., & Gramajo, G. (2014). Feature Selection with //
-//   Annealing for Big Data Learning. arxiv.org/pdf/1310.288                  //
+//   Annealing for Big Data Learning. http://arxiv.org/pdf/1310.288           //
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "pass.hpp"
@@ -136,7 +136,7 @@ void GenLog() {
 
   // Check parameters
   auto num_thread = omp_get_max_threads();
-  auto num_particle = num_thread*parameter.num_particle_thread;
+  auto num_particle = num_thread * parameter.num_particle_thread;
 
   ////////////////////////////////////////////////////////////////////////////
   // Run PaSS                                                               //
@@ -188,8 +188,7 @@ void GenLog() {
         if ( particle[j].k <= 1 ) {
           particle[j].status = true;
         }
-        if ( particle[j].k >= n ||
-             particle[j].k >= p-4 ) {
+        if ( particle[j].k >= n-1 || particle[j].k >= p-4 ) {
           particle[j].status = false;
         }
 
@@ -222,9 +221,10 @@ Particle::Particle() {
   P        = new float[n];
   W        = new float[n];
   M        = new float[n*(n+1)/2];
+  STemp    = new float[n];
 
-  Idx_lf   = new int[n];
-  Idx_fl   = new int[p];
+  Idx_lo   = new int[n];
+  Idx_ol   = new int[p];
   Idx_temp = new int[p];
   I        = new bool[p];
 
@@ -243,9 +243,10 @@ Particle::~Particle() {
   delete[] P;
   delete[] W;
   delete[] M;
+  delete[] STemp;
 
-  delete[] Idx_lf;
-  delete[] Idx_fl;
+  delete[] Idx_lo;
+  delete[] Idx_ol;
   delete[] Idx_temp;
   delete[] I;
 }
@@ -271,9 +272,9 @@ void Particle::InitializeModel( const int idx ) {
   memset(I, false, sizeof(bool) * p);
 
   // X[0 col] := 1.0
-  auto stemp = 1.0f;
-  cblas_scopy(n, &stemp, 0, X+n, 1);
-  Ones = X;
+  for ( auto i = 0; i < n; ++i ) {
+    X[i] = 1.0f;
+  }
 
   // Y := Y0
   cblas_scopy(n, Y0, 1, Y, 1);
@@ -298,23 +299,26 @@ void Particle::UpdateModel( const int idx ) {
 
     // Update index
     I[idx] = true;
-    Idx_lf[k] = idx;
-    Idx_fl[idx] = k;
+    Idx_lo[k] = idx;
+    Idx_ol[idx] = k;
+
+    // Set Xnew
+    auto Xnew = X+k*n;
 
     // Insert new row of X
-    cblas_scopy(n, X0+idx*n, 1, X+k*n, 1);
+    cblas_scopy(n, X0+idx*n, 1, Xnew, 1);
   } else {  // backward step
     // Update index
     I[idx] = false;
 
     // Find index
-    auto j = Idx_fl[idx];
+    auto j = Idx_ol[idx];
 
     // Copy index end to index j
     if ( j != k ) {
       cblas_scopy(n, X+k*n, 1, X+j*n, 1);
-      Idx_lf[j] = Idx_lf[k];
-      Idx_fl[Idx_lf[j]] = j;
+      Idx_lo[j] = Idx_lo[k];
+      Idx_ol[Idx_lo[j]] = j;
     }
 
     // Update size
@@ -330,14 +334,11 @@ void Particle::UpdateModel( const int idx ) {
 ////////////////////////////////////////////////////////////////////////////////
 void Particle::ComputeBeta() {
   auto kp = k+1;
-  float stemp;
 
   // Beta := 0.0
   for ( auto i = 0; i < kp; ++i ) {
     Beta[i] = 0.0f;
   }
-  stemp = 0.0f;
-  cblas_scopy(kp, &stemp, 0, Beta, 1);
   
   // P := 0.5, W := 0.25
   for ( auto i = 0; i < n; ++i ) {
@@ -370,7 +371,7 @@ void Particle::ComputeBeta() {
 
     // STemp := X' * W
     cblas_sgemv(CblasColMajor, CblasTrans,
-                n, l, 1.0f, X, n, W, 1, 0.0f, STemp, 1);
+                n, kp, 1.0f, X, n, W, 1, 0.0f, STemp, 1);
 
     // Solve STemp = inv(M) * STemp
     cblas_stpsv(CblasColMajor, CblasLower, CblasNoTrans, CblasNonUnit,
@@ -397,6 +398,10 @@ void Particle::ComputeBeta() {
 
     // W := P .* (1-P)
     vsLinearFrac(n, P, Eta, 1.0f, 0.0f, 1.0f, 1.0f, W);
+
+    for ( auto i = 0; i < kp; ++i ) {
+    }
+    cblas_snrm2(kp, STemp, 1);
   } while ( cblas_snrm2(kp, STemp, 1) > sqrt(kp) * 1e-4f );
 
   ////////////////////////////////////////////////////////////////////////////
@@ -445,71 +450,68 @@ void Particle::SelectIndex( int& idx ) {
       }
       case 1: {  // Local best
         auto llv_temp = -INFINITY;
-        for ( auto i = 0; i < p; ++i ) {
-          if ( !I[i] ) {
-            // beta := 0
-            auto beta = 0.0f;
+        for ( auto i = 0; i < p-k; ++i ) {
+          // beta := 0
+          auto beta = 0.0f;
 
-            // Xnew := X0[i col]
-            auto Xnew = X0+i*n;
+          // Xnew := X0[Idx_temp[i] col]
+          auto Xnew = X0+Idx_temp[i]*n;
 
-            // stemp := Xnew' * Y
-            auto stemp = cblas_sdot(n, Xnew, 1, Y, 1);
+          // stemp := Xnew' * Y
+          auto stemp = cblas_sdot(n, Xnew, 1, Y, 1);
 
-            //////////////////////////////////////////////////////////////////
-            // Find Beta using Newton-Raphson's method                      //
-            //////////////////////////////////////////////////////////////////
+          //////////////////////////////////////////////////////////////////
+          // Find Beta using Newton-Raphson's method                      //
+          //////////////////////////////////////////////////////////////////
 
-            auto beta_temp = INFINITY;
-            do {
-              // STemp(Theta_new) := Theta + beta * Xnew
-              cblas_scopy(n, Theta, 1, STemp, 1);
-              cblas_saxpy(n, beta, Xnew, 1, STemp, 1);
+          auto beta_temp = 0.0f;
+          do {
+            // STemp(Theta_new) := Theta + beta * Xnew
+            cblas_scopy(n, Theta, 1, STemp, 1);
+            cblas_saxpy(n, beta, Xnew, 1, STemp, 1);
 
-              // Eta(Eta_new) := exp(Theta_new)
-              vsExp(n, STemp, Eta);
+            // Eta(Eta_new) := exp(Theta_new)
+            vsExp(n, STemp, Eta);
 
-              // STemp(P_new) := Eta_new ./ (1+Eta_new)
-              vsLinearFrac(n, Eta, Eta, 1.0f, 0.0f, 1.0f, 1.0f, STemp);
+            // STemp(P_new) := Eta_new ./ (1+Eta_new)
+            vsLinearFrac(n, Eta, Eta, 1.0f, 0.0f, 1.0f, 1.0f, STemp);
 
-              // W(W_new) := P_new .* (1-P_new)
-              vsLinearFrac(n, STemp, Eta, 1.0f, 0.0f, 1.0f, 1.0f, W);
+            // W(W_new) := P_new .* (1-P_new)
+            vsLinearFrac(n, STemp, Eta, 1.0f, 0.0f, 1.0f, 1.0f, W);
 
-              // beta += (Xnew'*(Y-P_new)) / (Xnew'*diag(W_new)*Xnew)
-              vsMul(n, W, Xnew, W);
-              beta_temp = (stemp - cblas_sdot(n, Xnew, 1, STemp, 1)) /
-                          cblas_sdot(n, Xnew, 1, W, 1);
-              beta += beta_temp;
-            } while ( beta_temp > 1e-4f );
+            // beta += (Xnew'*(Y-P_new)) / (Xnew'*diag(W_new)*Xnew)
+            vsMul(n, W, Xnew, W);
+            beta_temp = (stemp - cblas_sdot(n, Xnew, 1, STemp, 1)) /
+                        cblas_sdot(n, Xnew, 1, W, 1);
+            beta += beta_temp;
+          } while ( beta_temp > 1e-4f );
 
-            //////////////////////////////////////////////////////////////////
-            // stemp := Y' * Theta_hat - sum(log(1+(eta_hat-1)*p))          //
-            //////////////////////////////////////////////////////////////////
+          //////////////////////////////////////////////////////////////////
+          // stemp := Y' * Theta_hat - sum( log( 1 + (eta_hat-1)*p ) )    //
+          //////////////////////////////////////////////////////////////////
 
-            // STemp(Theta_hat) := beta * Xnew
-            cblas_saxpby(n, beta, Xnew, 1, 0.0f, STemp, 1);
+          // STemp(Theta_hat) := beta * Xnew
+          cblas_saxpby(n, beta, Xnew, 1, 0.0f, STemp, 1);
 
-            // stemp := Y' * Theta_hat
-            stemp = cblas_sdot(n, Y, 1, STemp, 1);
+          // stemp := Y' * Theta_hat
+          stemp = cblas_sdot(n, Y, 1, STemp, 1);
 
-            // STemp := log(1+(Eta_hat-1)*P)
-            vsExpm1(n, STemp, Eta);
-            vsMul(n, Eta, P, W);
-            vsLog1p(n, W, STemp);
+          // STemp := log(1+(Eta_hat-1)*P)
+          vsExpm1(n, STemp, Eta);
+          vsMul(n, Eta, P, W);
+          vsLog1p(n, W, STemp);
 
-            // stemp += sum(STemp)
-            #pragma omp simd
-            for ( auto j = 0; j < n; ++j ) {
-              stemp += STemp[j];
-            }
+          // stemp += sum(STemp)
+          for ( auto j = 0; j < n; ++j ) {
+            stemp += STemp[j];
+          }
 
-            //////////////////////////////////////////////////////////////////
+          //////////////////////////////////////////////////////////////////
 
-            // Check if this value is maximum
-            if ( llv_temp < stemp ) {
-              llv_temp = stemp;
-              idx = i;
-            }
+          // Check if this value is maximum
+          if ( llv_temp < stemp ) {
+            llv_temp = stemp;
+            idx = Idx_temp[i];
           }
         }
         break;
@@ -521,10 +523,10 @@ void Particle::SelectIndex( int& idx ) {
     }
   } else {  // backward step
     if ( srand < parameter.prob_backward_local ) {  // Local best
-      auto phi_temp = INFINITY;
-      for ( auto i = 1; i < k; ++i ) {
+      auto llv_temp = INFINITY;
+      for ( auto i = 1; i <= k; ++i ) {
         //////////////////////////////////////////////////////////////////
-        // stemp := Y' * Theta_hat - sum(log(1+(eta_hat-1)*p))          //
+        // stemp := Y' * Theta_hat - sum( log( 1 + (eta_hat-1)*p ) )    //
         //////////////////////////////////////////////////////////////////
 
         // STemp(Theta_hat) := -Beta[i] * X[i]
@@ -539,19 +541,20 @@ void Particle::SelectIndex( int& idx ) {
         vsLog1p(n, W, STemp);
 
         // stemp += sum(STemp)
-        #pragma omp simd
         for ( auto j = 0; j < n; ++j ) {
           stemp += STemp[j];
         }
 
+        //////////////////////////////////////////////////////////////////
+
         // Check if this value is minimal
-        if ( phi_temp > stemp ) {
-          phi_temp = stemp;
-          idx = i;
+        if ( llv_temp > stemp ) {
+          llv_temp = stemp;
+          idx = Idx_lo[i];
         }
       }
     } else {  // Random
-      idx = Idx_lf[rand_r(&iseed) % k];
+      idx = Idx_lo[rand_r(&iseed) % k + 1];
     }
   }
 }
@@ -563,7 +566,6 @@ void Particle::ComputeCriterion() {
   // llv := Y' * Theta - sum(log(1+Eta))
   vsLog1p(n, Eta, STemp);
   llv = cblas_sdot(n, Y, 1, Theta, 1);
-  #pragma omp simd
   for ( auto i = 0; i < n; ++i ) {
     llv += STemp[i];
   }
@@ -593,38 +595,6 @@ void Particle::ComputeCriterion() {
     case HDHQC: {  // phi := n*log(e^2/n) + 2k*log(log(n))*log(p)
       phi = -2.0f*llv + 2.0f*k*logf(logf(n))*logf(p);
       break;
-    }
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Change criterion to string                                                 //
-//                                                                            //
-// Parameters:                                                                //
-// criterion:  the criterion                                                  //
-////////////////////////////////////////////////////////////////////////////////
-const char* Criterion2String( const Criterion criterion ) {
-  switch(criterion) {
-    case AIC: {
-      return "AIC";
-    }
-    case BIC: {
-      return "BIC";
-    }
-    case EBIC: {
-      return "EBIC";
-    }
-    case HDBIC: {
-      return "HDBIC";
-    }
-    case HQC: {
-      return "HQC";
-    }
-    case HDHQC: {
-      return "HDHQC";
-    }
-    default: {
-      return "";
     }
   }
 }

@@ -1,5 +1,5 @@
 # Particle Swarm Stepwise (PaSS) Algorithm
-# The Makafile for 'genlin'
+# The Makefile for 'genlin'
 
 include Makefile.inc
 

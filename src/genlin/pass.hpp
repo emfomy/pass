@@ -62,7 +62,17 @@ enum Criterion {
 // Parameters:                                                                //
 // criterion:  the criterion                                                  //
 ////////////////////////////////////////////////////////////////////////////////
-const char* Criterion2String( const Criterion criterion );
+static inline const char* Criterion2String( const Criterion criterion ) {
+  switch(criterion) {
+    case AIC:   return "AIC";
+    case BIC:   return "BIC";
+    case EBIC:  return "EBIC";
+    case HDBIC: return "HDBIC";
+    case HQC:   return "HQC";
+    case HDHQC: return "HDHQC";
+    default:    return "!";
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // The parameters of the PaSS algorithm                                       //
@@ -110,12 +120,11 @@ struct Particle {
   float phi;          // scalar, the criterion value
   float phi_old;      // scalar, the criterion value, past iteration
 
-  int *Idx_lf;        // vector, 1 by k, map local effects to full effects
-  int *Idx_fl;        // vector, 1 by p, map full effects to local effects
+  int *Idx_lo;        // vector, 1 by k, map local effects to original effects
+  int *Idx_ol;        // vector, 1 by p, map original effects to local effects
   int *Idx_temp;      // vector, 1 by p, workspace
   bool *I;            // vector, 1 by p, the chosen indices
   int k;              // scalar, the number of chosen effects
-  int l;              // scalar, the number of chosen indices
 
   bool status;        // scalar, the status (forward/backward)
 

@@ -1,11 +1,11 @@
 #!/bin/bash
 
-nodes=4
+nodes=2
 threads=16
 cores=${nodes}x${threads/16/A}
 
-jbsub="jbsub"
-# jbsub="jbsub -interactive"
+# jbsub="jbsub"
+jbsub="jbsub -interactive"
 queue="x86_excl"
 
 proj=$1
@@ -21,8 +21,8 @@ bin=${bindir}/${pass}
 
 mkdir -p ${logdir}
 
-for cri in EBIC HDBIC HQC HDHQC ; do
-	binopt="-p64 -i4096 --${cri} --prob .1 .5 .4 .5 .5 --verbose"
+for cri in HDBIC ; do
+	binopt="-p16 -i16 -t8 --${cri} --prob .1 .5 .4 .5 .5"
 
 	out=${logdir}/${model}_${cri}.out
 	err=${logdir}/${model}_${cri}.err

@@ -31,10 +31,10 @@ run: run_$(PASS)
 	@ jbinfo
 
 run_$(PASS): $(SH) $(BINDIR)/$(PASS) run_$(MODEL) | $(PWD)/$(RUNDIR)
-	( cd $(RUNDIR) ; ../$< $(PROJ) $(PASS) $(MODEL) )
+	( cd $(RUNDIR) && ../$< $(PROJ) $(PASS) $(MODEL) )
 
 run_$(MODEL): $(BINDIR)/$(PASS)_$(MODEL) | $(PWD)/$(RUNDIR)
-	( cd $(RUNDIR) ; ../$< $(MODELOPTS) )
+	( cd $(RUNDIR) && ../$< $(MODELOPTS) )
 
 run_%: $(DATDIR)/$(PASS)_%.dat | $(PWD)/$(RUNDIR)
 	cp $< $(RUNDIR)/$(PASS).dat

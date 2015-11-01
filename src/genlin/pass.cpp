@@ -82,7 +82,7 @@ void GenLin() {
 
   // Check parameters
   auto num_thread = omp_get_max_threads();
-  auto num_particle = num_thread*parameter.num_particle_thread;
+  auto num_particle = num_thread * parameter.num_particle_thread;
 
   ////////////////////////////////////////////////////////////////////////////
   // Centralize and normalize the original data                             //
@@ -164,8 +164,7 @@ void GenLin() {
         if ( particle[j].k <= 1 ) {
           particle[j].status = true;
         }
-        if ( particle[j].k >= n ||
-             particle[j].k >= p-4 ) {
+        if ( particle[j].k >= n || particle[j].k >= p-4 ) {
           particle[j].status = false;
         }
 
@@ -199,8 +198,8 @@ Particle::Particle() {
   B        = new float[n];
   D        = new float[n];
 
-  Idx_lf   = new int[n];
-  Idx_fl   = new int[p];
+  Idx_lo   = new int[n];
+  Idx_ol   = new int[p];
   Idx_temp = new int[p];
   I        = new bool[p];
 
@@ -220,8 +219,8 @@ Particle::~Particle() {
   delete[] D;
   delete[] R;
 
-  delete[] Idx_lf;
-  delete[] Idx_fl;
+  delete[] Idx_lo;
+  delete[] Idx_ol;
   delete[] Idx_temp;
   delete[] I;
 }
@@ -248,8 +247,8 @@ void Particle::InitializeModel( const int idx ) {
 
   // Update index
   I[idx] = true;
-  Idx_lf[0] = idx;
-  Idx_fl[idx] = 0;
+  Idx_lo[0] = idx;
+  Idx_ol[idx] = 0;
 
   // X := X0[idx col]
   cblas_scopy(n, X0+idx*n, 1, X, 1);
@@ -288,8 +287,8 @@ void Particle::UpdateModel( const int idx ) {
 
     // Update index
     I[idx] = true;
-    Idx_lf[km] = idx;
-    Idx_fl[idx] = km;
+    Idx_lo[km] = idx;
+    Idx_ol[idx] = km;
 
     // Set Xnew
     auto Xnew = X+km*n;
@@ -342,7 +341,7 @@ void Particle::UpdateModel( const int idx ) {
     I[idx] = false;
 
     // Find index
-    auto j = Idx_fl[idx];
+    auto j = Idx_ol[idx];
 
     // Copy index end to index j
     // a := M[end, end], b := Beta[end], D := M[end col]
@@ -354,8 +353,8 @@ void Particle::UpdateModel( const int idx ) {
       cblas_scopy(n, X+k*n, 1, X+j*n, 1);
       Beta[j] = Beta[k];
       Theta[j] = Theta[k];
-      Idx_lf[j] = Idx_lf[k];
-      Idx_fl[Idx_lf[j]] = j;
+      Idx_lo[j] = Idx_lo[k];
+      Idx_ol[Idx_lo[j]] = j;
 
       cblas_scopy(j, M+j*n, 1, D, 1);
       cblas_scopy(k-j-1, M+j*n+n+j, n, D+j+1, 1);
@@ -432,15 +431,15 @@ void Particle::SelectIndex( int& idx ) {
         break;
       }
       case 1: {  // Local best
-        auto phi_temp = -INFINITY;
+        auto e_temp = -INFINITY;
         for ( auto i = 0; i < p; ++i ) {
           if ( !I[i] ) {
             // stemp := abs( X0[i col]' * R )
             auto stemp = fabs(cblas_sdot(n, X0+i*n, 1, R, 1));
 
             // Check if this value is maximum
-            if ( phi_temp < stemp ) {
-              phi_temp = stemp;
+            if ( e_temp < stemp ) {
+              e_temp = stemp;
               idx = i;
             }
           }
@@ -454,7 +453,7 @@ void Particle::SelectIndex( int& idx ) {
     }
   } else {  // backward step
     if ( srand < parameter.prob_backward_local ) {  // Local best
-      auto phi_temp = INFINITY;
+      auto e_temp = INFINITY;
       for ( auto i = 0; i < k; ++i ) {
         // B := R + Beta[i] * X[i col]
         cblas_scopy(n, R, 1, B, 1);
@@ -464,13 +463,13 @@ void Particle::SelectIndex( int& idx ) {
         auto stemp = cblas_snrm2(n, B, 1);
 
         // Check if this value is minimal
-        if ( phi_temp > stemp ) {
-          phi_temp = stemp;
-          idx = Idx_lf[i];
+        if ( e_temp > stemp ) {
+          e_temp = stemp;
+          idx = Idx_lo[i];
         }
       }
     } else {  // Random
-      idx = Idx_lf[rand_r(&iseed) % k];
+      idx = Idx_lo[rand_r(&iseed) % k];
     }
   }
 }
@@ -507,38 +506,6 @@ void Particle::ComputeCriterion() {
     case HDHQC: {  // phi := n*log(e^2/n) + 2k*log(log(n))*log(p)
       phi = n*logf(e*e/n) + 2.0f*k*logf(logf(n))*logf(p);
       break;
-    }
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Change criterion to string                                                 //
-//                                                                            //
-// Parameters:                                                                //
-// criterion:  the criterion                                                  //
-////////////////////////////////////////////////////////////////////////////////
-const char* Criterion2String( const Criterion criterion ) {
-  switch(criterion) {
-    case AIC: {
-      return "AIC";
-    }
-    case BIC: {
-      return "BIC";
-    }
-    case EBIC: {
-      return "EBIC";
-    }
-    case HDBIC: {
-      return "HDBIC";
-    }
-    case HQC: {
-      return "HQC";
-    }
-    case HDHQC: {
-      return "HDHQC";
-    }
-    default: {
-      return "";
     }
   }
 }

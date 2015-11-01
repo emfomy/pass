@@ -1,6 +1,9 @@
 # PaSS
 Particle Swarm Stepwise (PaSS) Algorithm
 
+# TODO List
+* Compare the speed of general storage versus packed storage of using the symmetric matrix M.
+
 ## Programming
 
 ### Git
@@ -8,7 +11,7 @@ Particle Swarm Stepwise (PaSS) Algorithm
 * Uses [git-flow](http://nvie.com/posts/a-successful-git-branching-model/) to control branches.
 
 ### Cluster
-* [IBM The Deep Computing Cluster (DCC)](http://dcc.pok.ibm.com/index.html)
+* [IBM® Cognitive Computing Cluster (CCC)](http://ccc.pok.ibm.com/index.html)
 
 ### Compiler
 * [GCC 5.2](https://gcc.gnu.org/gcc-5/)

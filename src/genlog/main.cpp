@@ -9,6 +9,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <cmath>
 #include <numeric>
@@ -345,6 +346,11 @@ int main( int argc, char **argv ) {
     }
     if ( btemp ) {
       particle.k = 0;
+      #pragma omp simd
+      for ( auto i = 0; i < n; ++i ) {
+        particle.X[i] = 1.0f;
+      }
+      cblas_scopy(n, Y0, 1, particle.Y, 1);
       particle.ComputeBeta();
     }
     particle.ComputeCriterion();
@@ -413,6 +419,11 @@ int main( int argc, char **argv ) {
       }
       if ( btemp ) {
         particle.k = 0;
+        #pragma omp simd
+        for ( auto i = 0; i < n; ++i ) {
+          particle.X[i] = 1.0f;
+        }
+        cblas_scopy(n, Y0, 1, particle.Y, 1);
         particle.ComputeBeta();
       }
       particle.ComputeCriterion();
@@ -552,7 +563,8 @@ void PassLoad( const char *fileroot ) {
   // Read data name
   auto size = strlen(line);
   dataname = new char[size];
-  memcpy(dataname, line, size);
+  memcpy(dataname, line, size-1);
+  dataname[size-1] = '\0';
 
   // Read data size
   fscanf(file, "%d%d\n", &n, &p);

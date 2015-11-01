@@ -1,5 +1,5 @@
 # Particle Swarm Stepwise (PaSS) Algorithm
-# The Makafile for 'genlog'
+# The Makefile for 'genlog'
 
 include Makefile.inc
 
