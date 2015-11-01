@@ -22,7 +22,7 @@ bin=${bindir}/${pass}
 mkdir -p ${logdir}
 
 for cri in HDBIC ; do
-	binopt="-p16 -i16 -t8 --${cri} --prob .1 .5 .4 .5 .5"
+	binopt="-p1 -i128 -t10 --${cri} --prob .1 .5 .4 .5 .5"
 
 	out=${logdir}/${model}_${cri}.out
 	err=${logdir}/${model}_${cri}.err

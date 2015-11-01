@@ -139,6 +139,20 @@ void GenLog() {
   auto num_particle = num_thread * parameter.num_particle_thread;
 
   ////////////////////////////////////////////////////////////////////////////
+  // Normalize the original data                                            //
+  ////////////////////////////////////////////////////////////////////////////
+
+  if ( !parameter.is_normalized ) {
+    // Normalize X0
+    for ( auto j = 0; j < p; ++j ) {
+      cblas_sscal(n, (1.0f/cblas_snrm2(n, X0+j*n, 1)), X0+j*n, 1);
+    }
+
+    // Normalize Y0
+    cblas_sscal(n, (1.0f/cblas_snrm2(n, Y0, 1)), Y0, 1);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
   // Run PaSS                                                               //
   ////////////////////////////////////////////////////////////////////////////
 
@@ -398,10 +412,6 @@ void Particle::ComputeBeta() {
 
     // W := P .* (1-P)
     vsLinearFrac(n, P, Eta, 1.0f, 0.0f, 1.0f, 1.0f, W);
-
-    for ( auto i = 0; i < kp; ++i ) {
-    }
-    cblas_snrm2(kp, STemp, 1);
   } while ( cblas_snrm2(kp, STemp, 1) > sqrt(kp) * 1e-4f );
 
   ////////////////////////////////////////////////////////////////////////////

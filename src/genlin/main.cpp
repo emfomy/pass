@@ -496,26 +496,20 @@ int main( int argc, char **argv ) {
         std::accumulate(rate_positive_selection,
                         rate_positive_selection+num_test,
                         0.0f) / num_test;
-    auto rate_positive_selection_meansq =
-        rate_positive_selection_mean * rate_positive_selection_mean;
-    auto rate_positive_selection_sqmean =
-        cblas_sdot(num_test, rate_positive_selection, 1,
-                             rate_positive_selection, 1) / num_test;
+    vsLinearFrac(num_test, rate_positive_selection, rate_positive_selection,
+                 1.0f, -rate_positive_selection_mean, 0.0f, 1.0f,
+                 rate_positive_selection);
     auto rate_positive_selection_sd =
-        std::sqrt(rate_positive_selection_sqmean -
-                  rate_positive_selection_meansq);
+        cblas_snrm2(num_test, rate_positive_selection, 1);
     auto rate_false_discovery_mean =
         std::accumulate(rate_false_discovery,
                         rate_false_discovery+num_test,
                         0.0f) / num_test;
-    auto rate_false_discovery_meansq =
-        rate_false_discovery_mean * rate_false_discovery_mean;
-    auto rate_false_discovery_sqmean =
-        cblas_sdot(num_test, rate_false_discovery, 1,
-                             rate_false_discovery, 1) / num_test;
+    vsLinearFrac(num_test, rate_false_discovery, rate_false_discovery,
+                 1.0f, -rate_false_discovery_mean, 0.0f, 1.0f,
+                 rate_false_discovery);
     auto rate_false_discovery_sd =
-        std::sqrt(rate_false_discovery_sqmean -
-                  rate_false_discovery_meansq);
+        cblas_snrm2(num_test, rate_false_discovery, 1);
 
     // Display statistic report
     printf("%s\n", dataname);

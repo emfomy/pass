@@ -164,7 +164,7 @@ int main( int argc, char **argv ) {
   } else {
     Beta = new float[r];
     for ( auto i = 0; i < r; ++i ) {
-      Beta[i] = -1.5f + 0.35f*i;
+      Beta[i] = 0.3f + 0.075f*i;
     }
   }
 
