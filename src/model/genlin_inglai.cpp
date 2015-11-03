@@ -39,13 +39,13 @@ const char *dataroot;  // string, the root of the data file
 const char *dataname;  // string, the name of the data
 
 // Functions
-void IngLaiHelp();
-void IngLaiSave( const char *fileroot );
+void GenLinIngLaiHelp( const char *cmd );
+void GenLinIngLaiSave( const char *fileroot );
 
 ////////////////////////////////////////////////////////////////////////////////
 // Display help messages                                                      //
 ////////////////////////////////////////////////////////////////////////////////
-void IngLaiHelp( const char *cmd ) {
+void GenLinIngLaiHelp( const char *cmd ) {
   printf("Usage: %s [options] ...\n", cmd);
   printf("\n%-32s%-40s%s\n\n", "Option", "Detail", "Defalut Value");
   printf("%-32s%-40s%s\n",
@@ -114,7 +114,7 @@ int main( int argc, char **argv ) {
         if ( n <= 0 ) {
           fprintf(stderr, "%s: invalid option -- "
                   "<n> must be a positive integer!\n", argv[0]);
-          IngLaiHelp(argv[0]);
+          GenLinIngLaiHelp(argv[0]);
           exit(1);
         }
         break;
@@ -124,7 +124,7 @@ int main( int argc, char **argv ) {
         if ( p <= 0 ) {
           fprintf(stderr, "%s: invalid option -- "
                   "<p> must be a positive integer!\n", argv[0]);
-          IngLaiHelp(argv[0]);
+          GenLinIngLaiHelp(argv[0]);
           exit(1);
         }
         break;
@@ -134,7 +134,7 @@ int main( int argc, char **argv ) {
         if ( r < 0 ) {
           fprintf(stderr, "%s: invalid option -- "
                   "<r> must be a non-negative integer!\n", argv[0]);
-          IngLaiHelp(argv[0]);
+          GenLinIngLaiHelp(argv[0]);
           exit(1);
         }
         break;
@@ -144,11 +144,11 @@ int main( int argc, char **argv ) {
         break;
       }
       case 'h': {
-        IngLaiHelp(argv[0]);
+        GenLinIngLaiHelp(argv[0]);
         exit(0);
       }
       default: {
-        IngLaiHelp(argv[0]);
+        GenLinIngLaiHelp(argv[0]);
         exit(1);
       }
     }
@@ -220,7 +220,7 @@ int main( int argc, char **argv ) {
   ////////////////////////////////////////////////////////////////////////////
 
   // Save data
-  IngLaiSave(dataroot);
+  GenLinIngLaiSave(dataroot);
 
   // Free memory
   delete[] X;
@@ -240,7 +240,7 @@ int main( int argc, char **argv ) {
 // Parameters:                                                                //
 // fileroot: the root of data file                                            //
 ////////////////////////////////////////////////////////////////////////////////
-void IngLaiSave( const char *fileroot ) {
+void GenLinIngLaiSave( const char *fileroot ) {
   FILE *file;
 
   printf("Saving data into '%s'... ", fileroot);

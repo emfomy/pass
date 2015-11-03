@@ -79,7 +79,6 @@ Parameter parameter;  // the PaSS parameters
 // Please call srand before using this routine.                               //
 ////////////////////////////////////////////////////////////////////////////////
 void GenLin() {
-
   // Check parameters
   auto num_thread = omp_get_max_threads();
   auto num_particle = num_thread * parameter.num_particle_thread;
