@@ -321,6 +321,9 @@ void Particle::UpdateModel( const int idx ) {
 
     // Insert new row of X
     cblas_scopy(n, X0+idx*n, 1, Xnew, 1);
+
+    // insert Beta by zero
+    Beta[k] = 0.0f;
   } else {  // backward step
     // Update index
     I[idx] = false;
@@ -331,6 +334,7 @@ void Particle::UpdateModel( const int idx ) {
     // Copy index end to index j
     if ( j != k ) {
       cblas_scopy(n, X+k*n, 1, X+j*n, 1);
+      Beta[j] = Beta[k];
       Idx_lo[j] = Idx_lo[k];
       Idx_ol[Idx_lo[j]] = j;
     }
@@ -349,22 +353,24 @@ void Particle::UpdateModel( const int idx ) {
 void Particle::ComputeBeta() {
   auto kp = k+1;
 
-  // Beta := 0.0
-  for ( auto i = 0; i < kp; ++i ) {
-    Beta[i] = 0.0f;
-  }
-  
-  // P := 0.5, W := 0.25
-  for ( auto i = 0; i < n; ++i ) {
-    P[i] = 0.25f;
-    W[i] = 0.5f;
-  }
-
   ////////////////////////////////////////////////////////////////////////////
   // Find Beta using Newton-Raphson's method                                //
   ////////////////////////////////////////////////////////////////////////////
 
   do {
+    // Theta := X * Beta
+    cblas_sgemv(CblasColMajor, CblasNoTrans,
+                n, kp, 1.0f, X, n, Beta, 1, 0.0f, Theta, 1);
+
+    // Eta := exp(Theta)
+    vsExp(n, Theta, Eta);
+
+    // P := Eta ./ (1+Eta)
+    vsLinearFrac(n, Eta, Eta, 1.0f, 0.0f, 1.0f, 1.0f, P);
+
+    // W := P .* (1-P)
+    vsLinearFrac(n, P, Eta, 1.0f, 0.0f, 1.0f, 1.0f, W);
+
     ////////////////////////////////////////////////////////////////////////
     // Beta += inv(X'*diag(W)*X) * X' * (Y-P)                             //
     ////////////////////////////////////////////////////////////////////////
@@ -399,19 +405,6 @@ void Particle::ComputeBeta() {
     vsAdd(kp, Beta, STemp, Beta);
 
     ////////////////////////////////////////////////////////////////////////
-    
-    // Theta := X * Beta
-    cblas_sgemv(CblasColMajor, CblasNoTrans,
-                n, kp, 1.0f, X, n, Beta, 1, 0.0f, Theta, 1);
-
-    // Eta := exp(Theta)
-    vsExp(n, Theta, Eta);
-
-    // P := Eta ./ (1+Eta)
-    vsLinearFrac(n, Eta, Eta, 1.0f, 0.0f, 1.0f, 1.0f, P);
-
-    // W := P .* (1-P)
-    vsLinearFrac(n, P, Eta, 1.0f, 0.0f, 1.0f, 1.0f, W);
   } while ( cblas_snrm2(kp, STemp, 1) > sqrt(kp) * 1e-4f );
 
   ////////////////////////////////////////////////////////////////////////////
