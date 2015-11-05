@@ -2,9 +2,9 @@
 // Particle Swarm Stepwise (PaSS) Algorithm                                   //
 //                                                                            //
 // main.cpp                                                                   //
-// The main funcitons for general logistic regression                         //
+// The main functions of PaSS for general logistic regression                 //
 //                                                                            //
-// Author: emfo<emfomy@gmail.com>                                             //
+// Author: Mu Yang <emfomy@gmail.com>                                         //
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <cstdio>

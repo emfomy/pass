@@ -4,7 +4,7 @@
 % genlin_hung.m                                                                %
 % Transform Hung et al.'s data                                                 %
 %                                                                              %
-% Author: emfo<emfomy@gmail.com>                                               %
+% Author: Mu Yang <emfomy@gmail.com>                                           %
 %                                                                              %
 % Reference:                                                                   %
 % Hung, H., Chen, P.-W., Wang, C.-C., Huang, S.-Y., & Tzeng, J.-Y. (2013).     %

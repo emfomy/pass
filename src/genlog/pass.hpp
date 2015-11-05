@@ -4,7 +4,7 @@
 // pass.hpp                                                                   //
 // The header of the PaSS algorithm for general logistic regression           //
 //                                                                            //
-// Author: emfo<emfomy@gmail.com>                                             //
+// Author: Mu Yang <emfomy@gmail.com>                                         //
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifndef PASS_GENLOG_PASS_HPP_

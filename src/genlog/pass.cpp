@@ -4,7 +4,7 @@
 // pass.cpp                                                                   //
 // The PaSS algorithm for general logistic regression                         //
 //                                                                            //
-// Author: emfo<emfomy@gmail.com>                                             //
+// Author: Mu Yang <emfomy@gmail.com>                                         //
 //                                                                            //
 // ========================================================================== //
 //                                                                            //

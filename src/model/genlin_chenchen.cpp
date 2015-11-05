@@ -4,7 +4,7 @@
 // genlin_chenchen.cpp                                                        //
 // Create a general linear regression data using Chen and Chen's method       //
 //                                                                            //
-// Author: emfo<emfomy@gmail.com>                                             //
+// Author: Mu Yang <emfomy@gmail.com>                                         //
 //                                                                            //
 // Reference:                                                                 //
 // Chen, J., & Chen, Z. (2008). Extended Bayesian information criteria for    //

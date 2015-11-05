@@ -4,7 +4,7 @@
 // genlog_inglai.cpp                                                          //
 // Create a general logistic regression data using Ing and Lai's method       //
 //                                                                            //
-// Author: emfo<emfomy@gmail.com>                                             //
+// Author: Mu Yang <emfomy@gmail.com>                                         //
 //                                                                            //
 // Reference:                                                                 //
 // Ing, C.-K., & Lai, T. L. (2011). A stepwise regression method and          //
