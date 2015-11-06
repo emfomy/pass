@@ -1,40 +1,47 @@
-////////////////////////////////////////////////////////////////////////////////
-// Particle Swarm Stepwise (PaSS) Algorithm                                   //
-//                                                                            //
-// pass.cpp                                                                   //
-// The PaSS algorithm for general linear regression                           //
-//                                                                            //
-// Author: Mu Yang <emfomy@gmail.com>                                         //
-//                                                                            //
-// ========================================================================== //
-//                                                                            //
-// Notation:                                                                  //
-// X    : the regressors                                                      //
-// Y    : the regressand                                                      //
-// Beta : the effects                                                         //
-// R    : the residual                                                        //
-//                                                                            //
-// ========================================================================== //
-//                                                                            //
-// Linear model:                                                              //
-// Y = X * Beta + error                                                       //
-// R = Y - X * Beta                                                           //
-//                                                                            //
-// ========================================================================== //
-//                                                                            //
-// Select index in forward step:                                              //
-// idx = argmax_{i not in I} abs( X[i col]' * R  )                            //
-//                                                                            //
-// Select index in backward step:                                             //
-// idx = argmin_{i in I} norm( R_{I exclude i} )                              //
-//     = argmin_{i in I} norm( R + Beta[i] * X[i col] )                       //
-//                                                                            //
-// ========================================================================== //
-//                                                                            //
-// References:                                                                //
-// Chen, R.-B., Huang, C.-C., & Wang, W. (2013).                              //
-//   Particle Swarm Stepwise (PaSS) Algorithm for Variable Selection.         //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// @file   genlin/pass.cpp
+/// @brief  The main PaSS algorithm for general linear regression
+///
+/// @author Mu Yang <emfomy@gmail.com>
+///
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// @mainpage Particle Swarm Stepwise (PaSS) Algorithm for General Linear Regression
+///
+/// @code{.unparsed}
+/// ==========================================================================================================================
+///
+/// Notation:
+/// X    : the regressors
+/// Y    : the regressand
+/// Beta : the effects
+/// R    : the residual
+///
+/// ==========================================================================================================================
+///
+/// Linear model:
+/// Y = X * Beta + error
+/// R = Y - X * Beta
+///
+/// ==========================================================================================================================
+///
+/// Select index in forward step:
+/// idx = argmax_{i not in I} abs( X[i col]' * R  )
+///
+/// Select index in backward step:
+/// idx = argmin_{i in I} norm( R_{I exclude i} )
+///     = argmin_{i in I} norm( R + Beta[i] * X[i col] )
+///
+/// ==========================================================================================================================
+///
+/// References:
+/// Chen, R.-B., Huang, C.-C., & Wang, W. (2015). Particle Swarm Stepwise (PaSS) Algorithm for Variable Selection.
+///
+/// ==========================================================================================================================
+/// @endcode
+///
+/// @author  Mu Yang <emfomy@gmail.com>
+///
 
 #include "pass.hpp"
 #include <cstdlib>
@@ -43,16 +50,24 @@
 #include <mkl.h>
 #include <omp.h>
 
-// The log-binomial function
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// The log-binomial function
+///
+/// @param   n  a number
+/// @param   k  a number
+///
+/// @return     return the log-binomial value of n and k
+///
 static inline float lbinom( const int n, const int k ) {
   int i;
   return (lgammaf_r(n+1, &i) - lgammaf_r(n-k+1, &i) - lgammaf_r(k+1, &i));
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// The namespace pass                                                         //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//  The namespace of PaSS
+//
 namespace pass {
+
 int n;                // scalar, the number of statistical units
 int p;                // scalar, the number of total effects
 float* X0;            // matrix, n by p, the regressors
@@ -61,31 +76,26 @@ bool* I0;             // vector, 1 by p, the chosen indices
 float phi0;           // scalar, the criterion value
 Parameter parameter;  // the PaSS parameters
 
-////////////////////////////////////////////////////////////////////////////////
-// The PaSS algorithm for Linear Regression                                   //
-//                                                                            //
-// Input Global Parameters:                                                   //
-// n:         scalar, the number of statistical units                         //
-// p:         scalar, the number of total effects                             //
-// X0:        matrix, n by p, the regressors                                  //
-// Y0:        vector, n by 1, the regressand                                  //
-// parameter: the PaSS parameters                                             //
-//                                                                            //
-// Output Global Variables:                                                   //
-// I0:        vector, 1 by p, the chosen indices                              //
-// phi0:      scalar, the criterion value                                     //
-//                                                                            //
-// Note:                                                                      //
-// Please call srand before using this routine.                               //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// The PaSS algorithm for linear regression
+///
+/// @param[in]   pass::n          scalar, the number of statistical units
+/// @param[in]   pass::p          scalar, the number of total effects
+/// @param[in]   pass::X0         matrix, n by p, the regressors
+/// @param[in]   pass::Y0         vector, n by 1, the regressand
+/// @param[in]   pass::parameter  the PaSS parameters
+///
+/// @param[out]  pass::I0         vector, 1 by p, the chosen indices
+/// @param[out]  pass::phi0       scalar, the criterion value
+///
+/// @note        Please call @c srand() before using this routine.
+///
 void GenLin() {
   // Check parameters
   auto num_thread = omp_get_max_threads();
   auto num_particle = num_thread * parameter.num_particle_thread;
 
-  ////////////////////////////////////////////////////////////////////////////
-  // Centralize and normalize the original data                             //
-  ////////////////////////////////////////////////////////////////////////////
+  // ======== Centralize and normalize the original data ================================================================== //
 
   if ( !parameter.is_normalized ) {
     // Centralize and normalize X0
@@ -113,9 +123,7 @@ void GenLin() {
     }
   }
 
-  ////////////////////////////////////////////////////////////////////////////
-  // Run PaSS                                                               //
-  ////////////////////////////////////////////////////////////////////////////
+  // ======== Run PaSS ==================================================================================================== //
 
   // Allocate particles
   auto particle = new Particle[num_particle];
@@ -178,15 +186,15 @@ void GenLin() {
     }
   }
 
-  ////////////////////////////////////////////////////////////////////////////
+  // ====================================================================================================================== //
 
   // Delete memory
   delete[] particle;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// The constructor of Particle                                                //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// The constructor
+///
 Particle::Particle() {
   X        = new float[n*n];
   Y        = new float[n];
@@ -205,9 +213,9 @@ Particle::Particle() {
   iseed    = rand();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// The destructor of Particle                                                 //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// The destructor
+///
 Particle::~Particle() {
   delete[] X;
   delete[] Y;
@@ -224,19 +232,18 @@ Particle::~Particle() {
   delete[] I;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Initialize the model of Particle randomly                                  //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Initialize the model randomly
+///
 void Particle::InitializeModel() {
   InitializeModel(rand_r(&iseed) % p);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Initialize the model of Particle                                           //
-//                                                                            //
-// Parameters:                                                                //
-// idx: the index of the effect                                               //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Initialize the model
+///
+/// @param[in]  idx  the index of the effect
+///
 void Particle::InitializeModel( const int idx ) {
   // Initialize size
   k = 1;
@@ -272,12 +279,11 @@ void Particle::InitializeModel( const int idx ) {
   status = true;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Update the model of Particle                                               //
-//                                                                            //
-// Parameters:                                                                //
-// idx: the index of the effect                                               //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Update the model
+///
+/// @param[in]  idx  the index of the effect
+///
 void Particle::UpdateModel( const int idx ) {
   if ( status ) {  // forward step
     // Update size
@@ -295,17 +301,13 @@ void Particle::UpdateModel( const int idx ) {
     // Insert new row of X
     cblas_scopy(n, X0+idx*n, 1, Xnew, 1);
 
-    ////////////////////////////////////////////////////////////////////////
-    // Solve Y = X * Beta for Beta                                        //
-    ////////////////////////////////////////////////////////////////////////
+    // ======== Solve Y = X * Beta for Beta =============================================================================== //
 
     // B := X' * Xnew
-    cblas_sgemv(CblasColMajor, CblasTrans,
-                n, km, 1, X, n, Xnew, 1, 0.0f, B, 1);
+    cblas_sgemv(CblasColMajor, CblasTrans, n, km, 1, X, n, Xnew, 1, 0.0f, B, 1);
 
     // D := M * B
-    cblas_ssymv(CblasColMajor, CblasUpper,
-                km, 1.0f, M, n, B, 1, 0.0f, D, 1);
+    cblas_ssymv(CblasColMajor, CblasUpper, km, 1.0f, M, n, B, 1, 0.0f, D, 1);
 
     // a := 1 / (Xnew' * Xnew - B' * D)
     auto a = 1.0f / (1.0f - cblas_sdot(km, B, 1, D, 1));
@@ -319,8 +321,7 @@ void Particle::UpdateModel( const int idx ) {
     }
 
     // M += a * D * D'
-    cblas_ssyr(CblasColMajor, CblasUpper,
-               k, a, D, 1, M, n);
+    cblas_ssyr(CblasColMajor, CblasUpper, k, a, D, 1, M, n);
 
     // insert Theta by Xnew' * Y
     Theta[km] = cblas_sdot(n, Xnew, 1, Y, 1);
@@ -331,7 +332,7 @@ void Particle::UpdateModel( const int idx ) {
     // Beta += a * (D' * Theta) * D
     cblas_saxpy(k, a*cblas_sdot(k, D, 1, Theta, 1), D, 1, Beta, 1);
 
-    ////////////////////////////////////////////////////////////////////////
+    // ==================================================================================================================== //
   } else {  // backward step
     // Update size
     k--;
@@ -368,9 +369,7 @@ void Particle::UpdateModel( const int idx ) {
       cblas_scopy(k, M+k*n, 1, D, 1);
     }
 
-    ////////////////////////////////////////////////////////////////////////
-    // Solve Y = X * Beta for Beta                                        //
-    ////////////////////////////////////////////////////////////////////////
+    // ======== Solve Y = X * Beta for Beta =============================================================================== //
 
     // M -= 1/a * D * D'
     cblas_ssyr(CblasColMajor, CblasUpper,
@@ -379,21 +378,19 @@ void Particle::UpdateModel( const int idx ) {
     // Beta -= b/a * D
     cblas_saxpy(k, -b/a, D, 1, Beta, 1);
 
-    ////////////////////////////////////////////////////////////////////////
+    // ==================================================================================================================== //
   }
-  
+
   // R = Y - X * Beta
   cblas_scopy(n, Y, 1, R, 1);
-  cblas_sgemv(CblasColMajor, CblasNoTrans,
-              n, k, -1.0f, X, n, Beta, 1, 1.0f, R, 1);
+  cblas_sgemv(CblasColMajor, CblasNoTrans, n, k, -1.0f, X, n, Beta, 1, 1.0f, R, 1);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Select index of the effect to update                                       //
-//                                                                            //
-// Output Parameters:                                                         //
-// idx: the index of the effect                                               //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Select index of the effect to update
+///
+/// @param[out]  idx  the index of the effect
+///
 void Particle::SelectIndex( int& idx ) {
   auto srand = static_cast<float>(rand_r(&iseed)) / RAND_MAX;
 
@@ -415,13 +412,9 @@ void Particle::SelectIndex( int& idx ) {
 
     int choose;
     if ( itemp ) {
-      choose = (srand < parameter.prob_forward_global)
-             + (srand < parameter.prob_forward_global+
-                        parameter.prob_forward_local);
+      choose = (srand < parameter.prob_forward_global) + (srand < parameter.prob_forward_global+parameter.prob_forward_local);
     } else {
-      choose = srand < parameter.prob_forward_local
-                     / (parameter.prob_forward_local+
-                        parameter.prob_forward_random);
+      choose = srand < parameter.prob_forward_local / (parameter.prob_forward_local+parameter.prob_forward_random);
     }
 
     switch( choose ) {
@@ -473,9 +466,9 @@ void Particle::SelectIndex( int& idx ) {
   }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Compute the criterion value                                                //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Compute the criterion value
+///
 void Particle::ComputeCriterion() {
   // e := norm(R)
   e = cblas_snrm2(n, R, 1);

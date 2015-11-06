@@ -1,16 +1,15 @@
-////////////////////////////////////////////////////////////////////////////////
-// Particle Swarm Stepwise (PaSS) Algorithm                                   //
-//                                                                            //
-// genlin_inglai.cpp                                                          //
-// Create a general linear regression data using Ing and Lai's method         //
-//                                                                            //
-// Author: Mu Yang <emfomy@gmail.com>                                         //
-//                                                                            //
-// Reference:                                                                 //
-// Ing, C.-K., & Lai, T. L. (2011). A stepwise regression method and          //
-//   consistent model selection for high-dimensional sparse linear models.    //
-//   http://doi.org/10.5705/ss.2010.081                                       //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// @file    model/genlin_inglai.cpp
+/// @brief   Create a general linear regression data using Ing and Lai's method
+///
+/// @author  Mu Yang <emfomy@gmail.com>
+
+// ===========================================================================================================================
+// Reference:
+// Ing, C.-K., & Lai, T. L. (2011).
+//   A stepwise regression method and consistent model selection for high-dimensional sparse linear models.
+//   http://doi.org/10.5705/ss.2010.081
+//
 
 #include <iostream>
 #include <cstdio>
@@ -21,59 +20,33 @@
 #include <mkl.h>
 
 // Default arguments
-const int kN          = 400;
-const int kP          = 4000;
-const int kR          = 10;
-const char *kDataRoot = "genlin.dat";
-const char *kDataName = "General_Linear_IngLai";
+const int kN          = 400;                      ///< the default value of n
+const int kP          = 4000;                     ///< the default value of p
+const int kR          = 10;                       ///< the default value of r
+const char *kDataRoot = "genlin.dat";             ///< the default data file root
+const char *kDataName = "General_Linear_IngLai";  ///< the default data name
 
 // Global variables
-int n;                 // scalar, the number of statistical units
-int p;                 // scalar, the number of total effects
-int r;                 // scalar, the number of given effects
-float *X;              // matrix, n by p, the regressors
-float *Y;              // vector, n by 1, the regressand
-float *Beta;           // vector, r by 1, the effects
-bool *J;               // vector, 1 by p, the chosen indices
-const char *dataroot;  // string, the root of the data file
-const char *dataname;  // string, the name of the data
+int n;                                            ///< scalar, the number of statistical units
+int p;                                            ///< scalar, the number of total effects
+int r;                                            ///< scalar, the number of given effects
+float *X;                                         ///< matrix, n by p, the regressors
+float *Y;                                         ///< vector, n by 1, the regressand
+float *Beta;                                      ///< vector, r by 1, the effects
+bool *J;                                          ///< vector, 1 by p, the chosen indices
+const char *dataroot;                             ///< string, the root of the data file
+const char *dataname;                             ///< string, the name of the data
 
 // Functions
 void GenLinIngLaiHelp( const char *cmd );
 void GenLinIngLaiSave( const char *fileroot );
 
-////////////////////////////////////////////////////////////////////////////////
-// Display help messages                                                      //
-////////////////////////////////////////////////////////////////////////////////
-void GenLinIngLaiHelp( const char *cmd ) {
-  printf("Usage: %s [options] ...\n", cmd);
-  printf("\n%-32s%-40s%s\n\n", "Option", "Detail", "Defalut Value");
-  printf("%-32s%-40s%s\n",
-         "-f <file>, --file <file>", "save data into <file>", kDataRoot);
-  printf("%-32s%-40s%s\n",
-         "-m <name>, --name <name>", "set the data name as <name>", kDataName);
-  printf("%-32s%-40s\n",
-         "-b <beta>, --beta <beta>", "set the effects as <beta>s");
-  printf("%-32s%-40s%d\n",
-         "-n ###", "the number of statistical units" , kN);
-  printf("%-32s%-40s%d\n",
-         "-p ###", "the number of total effects" , kP);
-  printf("%-32s%-40s%d\n",
-         "-r ###", "the number of given effects", kR);
-  printf("%-32s%-40s\n",
-         "", "ignored if '-b' is set");
-  printf("%-32s%-40s\n",
-         "-h, --help", "display help messages");
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Main function                                                              //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Main function
+///
 int main( int argc, char **argv ) {
 
-  ////////////////////////////////////////////////////////////////////////////
-  // Initialize arguments                                                   //
-  ////////////////////////////////////////////////////////////////////////////
+  // ======== Initialize variables ======================================================================================== //
 
   // Initialize random generator
   srand(time(NULL));
@@ -112,8 +85,7 @@ int main( int argc, char **argv ) {
       case 'n': {
         n = atoi(optarg);
         if ( n <= 0 ) {
-          fprintf(stderr, "%s: invalid option -- "
-                  "<n> must be a positive integer!\n", argv[0]);
+          fprintf(stderr, "%s: invalid option -- <n> must be a positive integer!\n", argv[0]);
           GenLinIngLaiHelp(argv[0]);
           exit(1);
         }
@@ -122,8 +94,7 @@ int main( int argc, char **argv ) {
       case 'p': {
         p = atoi(optarg);
         if ( p <= 0 ) {
-          fprintf(stderr, "%s: invalid option -- "
-                  "<p> must be a positive integer!\n", argv[0]);
+          fprintf(stderr, "%s: invalid option -- <p> must be a positive integer!\n", argv[0]);
           GenLinIngLaiHelp(argv[0]);
           exit(1);
         }
@@ -132,8 +103,7 @@ int main( int argc, char **argv ) {
       case 'r': {
         r = atoi(optarg);
         if ( r < 0 ) {
-          fprintf(stderr, "%s: invalid option -- "
-                  "<r> must be a non-negative integer!\n", argv[0]);
+          fprintf(stderr, "%s: invalid option -- <r> must be a non-negative integer!\n", argv[0]);
           GenLinIngLaiHelp(argv[0]);
           exit(1);
         }
@@ -178,9 +148,7 @@ int main( int argc, char **argv ) {
   }
   printf("\n\n");
 
-  ////////////////////////////////////////////////////////////////////////////
-  // Create data                                                            //
-  ////////////////////////////////////////////////////////////////////////////
+  // ======== Create data ================================================================================================= //
 
   printf("Creating a linear data using Ing and Lai's method... ");
   fflush(stdout);
@@ -208,8 +176,7 @@ int main( int argc, char **argv ) {
   }
 
   // Y += X[0~r cols] * Beta
-  cblas_sgemv(CblasColMajor, CblasNoTrans,
-              n, r, 1.0f, X, n, Beta, 1, 1.0f, Y, 1);
+  cblas_sgemv(CblasColMajor, CblasNoTrans, n, r, 1.0f, X, n, Beta, 1, 1.0f, Y, 1);
 
   // Generate J
   memset(J, false, sizeof(bool) * p);
@@ -217,7 +184,7 @@ int main( int argc, char **argv ) {
 
   printf("Done.\n");
 
-  ////////////////////////////////////////////////////////////////////////////
+  // ====================================================================================================================== //
 
   // Save data
   GenLinIngLaiSave(dataroot);
@@ -234,12 +201,29 @@ int main( int argc, char **argv ) {
   return 0;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Save data into file                                                        //
-//                                                                            //
-// Parameters:                                                                //
-// fileroot: the root of data file                                            //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Display help messages
+///
+/// @param  cmd  the command name
+///
+void GenLinIngLaiHelp( const char *cmd ) {
+  printf("Usage: %s [options] ...\n", cmd);
+  printf("\n%-32s%-40s%s\n\n", "Option",                   "Detail",                          "Defalut Value");
+  printf("%-32s%-40s%s\n",     "-f <file>, --file <file>", "save data into <file>",           kDataRoot);
+  printf("%-32s%-40s%s\n",     "-m <name>, --name <name>", "set the data name as <name>",     kDataName);
+  printf("%-32s%-40s\n",       "-b <beta>, --beta <beta>", "set the effects as <beta>s");
+  printf("%-32s%-40s%d\n",     "-n ###",                   "the number of statistical units", kN);
+  printf("%-32s%-40s%d\n",     "-p ###",                   "the number of total effects",     kP);
+  printf("%-32s%-40s%d\n",     "-r ###",                   "the number of given effects",     kR);
+  printf("%-32s%-40s\n",       "",                         "ignored if '-b' is set");
+  printf("%-32s%-40s\n",       "-h, --help",               "display help messages");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Save data info file
+///
+/// @param  fileroot  the root of data file
+///
 void GenLinIngLaiSave( const char *fileroot ) {
   FILE *file;
 

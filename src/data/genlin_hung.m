@@ -1,16 +1,14 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Particle Swarm Stepwise (PaSS) Algorithm                                     %
-%                                                                              %
-% genlin_hung.m                                                                %
-% Transform Hung et al.'s data                                                 %
-%                                                                              %
-% Author: Mu Yang <emfomy@gmail.com>                                           %
-%                                                                              %
-% Reference:                                                                   %
-% Hung, H., Chen, P.-W., Wang, C.-C., Huang, S.-Y., & Tzeng, J.-Y. (2013).     %
-%   Detection of Gene-Gene Interactions using Multistage Sparse and Low-Rank   %
-%   Regression. http://arxiv.org/abs/1304.3769                                 %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% @file    data/genlin_hung.m
+% @brief   Transform Hung et al.'s data
+%
+% @author  Mu Yang <emfomy@gmail.com>
+
+% ============================================================================================================================
+% Reference:
+% Hung, H., Chen, P.-W., Wang, C.-C., Huang, S.-Y., & Tzeng, J.-Y. (2013).
+%   Detection of Gene-Gene Interactions using Multistage Sparse and Low-Rank Regression. http://arxiv.org/abs/1304.3769
+%
 
 %% Main function
 function genlin_hung( srcname, srcroot, dstroot )

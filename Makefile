@@ -14,12 +14,16 @@ LOGDIR = log
 DATDIR = dat
 MKDIR  = mk
 SHDIR  = sh
+DOCDIR = doc
+HTMLDIR = html
+PASSHTML = pass.html
 
 SH = $(SHDIR)/pass.sh
 
 MKS = $(notdir $(basename $(wildcard $(MKDIR)/*.mk)))
+DOCS = $(notdir $(basename $(wildcard $(DOCDIR)/*.inc)))
 
-.PHONY: all $(MKS) run_$(PASS) run_$(MODEL) run clean kill killf del
+.PHONY: all $(MKS) doc $(DOCS) run run-$(PASS) run-$(MODEL) clean kill killf del
 
 all: $(MKS)
 	@ echo > /dev/null
@@ -27,23 +31,27 @@ all: $(MKS)
 $(MKS):
 	@ $(MAKE) -f $(MKDIR)/$@.mk all
 
-run: run_$(PASS)
+doc: $(DOCS)
+	@ sed -i '' 's|PaSS Documentation|Particle Swarm Stepwise (PaSS) Algorithm|g' $(HTMLDIR)/index.html
+	ln -sf $(HTMLDIR)/index.html $(PASSHTML)
+
+$(DOCS): | $(PWD)/$(HTMLDIR)
+	doxygen $(DOCDIR)/$@.inc
+
+run: run-$(PASS)
 	@ jbinfo
 
-run_$(PASS): $(SH) $(BINDIR)/$(PASS) run_$(MODEL) | $(PWD)/$(RUNDIR)
+run-$(PASS): $(SH) $(BINDIR)/$(PASS) run-$(MODEL) | $(PWD)/$(RUNDIR)
 	( cd $(RUNDIR) && ../$< $(PROJ) $(PASS) $(MODEL) )
 
-run_$(MODEL): $(BINDIR)/$(PASS)_$(MODEL) | $(PWD)/$(RUNDIR)
+run-$(MODEL): $(BINDIR)/$(PASS)_$(MODEL) | $(PWD)/$(RUNDIR)
 	( cd $(RUNDIR) && ../$< $(MODELOPTS) )
 
-run_%: $(DATDIR)/$(PASS)_%.dat | $(PWD)/$(RUNDIR)
-	cp $< $(RUNDIR)/$(PASS).dat
-
-$(PWD)/$(RUNDIR):
+$(PWD)/$(RUNDIR) $(PWD)/$(HTMLDIR):
 	@ mkdir -p $@
 
 clean:
-	$(RM) $(BINDIR) $(OBJDIR) $(DEPDIR) $(RUNDIR) $(LOGDIR)
+	$(RM) $(BINDIR) $(OBJDIR) $(DEPDIR) $(HTMLDIR) $(PASSHTML) $(RUNDIR) $(LOGDIR)
 
 kill killf del:
 	- jbadmin -$@ -proj $(PROJ) all

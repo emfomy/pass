@@ -1,14 +1,13 @@
-# PaSS
-Particle Swarm Stepwise (PaSS) Algorithm
+# Particle Swarm Stepwise (PaSS) Algorithm
 
-## Git
-https://bitbucket.org/emfomy/pass/
+### Git
+* https://bitbucket.org/emfomy/pass/
 
-## Documentation
-https://dl.dropboxusercontent.com/u/71338658/PaSS/index.html
+### Documentation
+* https://dl.dropboxusercontent.com/u/71338658/PaSS/index.html
 
-## TODO List
-* Compare the speed of general storage versus packed storage of using the symmetric matrix *M*.
+### Author
+* Mu Yang <emfomy@gmail.com>
 
 ## Programming
 
@@ -39,8 +38,8 @@ https://dl.dropboxusercontent.com/u/71338658/PaSS/index.html
 | `dat`        | the data files                                     |
 | `run`        | the working directory                              |
 | `log`        | the log files                                      |
-| `html`       | the HTML documentation                             |
-| `latex`      | the LaTeX documentation                            |
+| `doc`        | the documentation settings                         |
+| `html`       | the html documentation                             |
 
 ## Compiling
 
@@ -51,25 +50,26 @@ https://dl.dropboxusercontent.com/u/71338658/PaSS/index.html
 
 The following environment variables should be set before compiling.
 
-| Name      | Detail                         | Defalut Value              |
-|-----------|--------------------------------|----------------------------|
-| `MKLROOT` | the root of Intel MKL          |                            |
-| `MKLINC`  | the include directories of MKL | `-I$(MKLROOT)/include`     |
-| `MKLLIB`  | the library directories of MKL | `-L$(MKLROOT)/lib/intel64` |
-| `MPIROOT` | the root of Open MPI           |                            |
-| `MPIINC`  | the include directories of MPI | `-I$(MPIROOT)/include`     |
-| `MPILIB`  | the library directories of MPI | `-L$(MPIROOT)/lib`         |
+| Name      | Detail                         | Defalut Value            |
+|-----------|--------------------------------|--------------------------|
+| `MKLROOT` | the root of Intel MKL          |                          |
+| `MKLINC`  | the include directories of MKL | `-I$MKLROOT/include`     |
+| `MKLLIB`  | the library directories of MKL | `-L$MKLROOT/lib/intel64` |
+| `MPIROOT` | the root of Open MPI           |                          |
+| `MPIINC`  | the include directories of MPI | `-I$MPIROOT/include`     |
+| `MPILIB`  | the library directories of MPI | `-L$MPIROOT/lib`         |
 
 ### Makefile
 
-| Command      | Detail               |
-|--------------|----------------------|
-| `make all`   | compile all binaries |
-| `make run`   | run demo code        |
-| `make clean` | clean the directory  |
-| `make kill`  | kill all jobs        |
-| `make killf` | force kill all jobs  |
-| `make del`   | delete all jobs      |
+| Command      | Detail                |
+|--------------|-----------------------|
+| `make all`   | compile all binaries  |
+| `make doc`   | compile documentation |
+| `make run`   | run demo code         |
+| `make clean` | clean the directory   |
+| `make kill`  | kill all jobs         |
+| `make killf` | force kill all jobs   |
+| `make del`   | delete all jobs       |
 
 ## Usage
 
@@ -184,11 +184,11 @@ The following environment variables should be set before compiling.
 # 2st  line:  n p
 # 3rd  line:  * J
 # rest lines: Y X
-# 
+#
 # X: float matrix, n by p, the regressors
 # Y: float vector, n by 1, the regressand
 # J: bool  vector, 1 by p, the chosen indices
-# 
+#
 <data name>
 <n> <p>
 *     J[0]     J[1]     J[2]     ...
@@ -198,8 +198,13 @@ Y[2]  X[2][0]  X[2][1]  X[2][2]  ...
 ...
 ```
 
+Note that the comment lines should has less than 4096 characters.
+
 ## Reference
-* [Chen, R.-B., Huang, C.-C., & Wang, W. (2013). Particle Swarm Stepwise (PaSS) Algorithm for Variable Selection.](http://)
-* [Ing, C.-K., & Lai, T. L. (2011). A stepwise regression method and consistent model selection for high-dimensional sparse linear models.](http://doi.org/10.5705/ss.2010.081)
+* [Chen, R.-B., Huang, C.-C., & Wang, W. (2015). Particle Swarm Stepwise (PaSS) Algorithm for Variable Selection.](http://)
 * [Chen, J., & Chen, Z. (2008). Extended Bayesian information criteria for model selection with large model spaces. Biometrika, 95(3), 759–771.](http://www.stat.ubc.ca/~jhchen/paper/Bio08.pdf)
+* [Liu, Z., & Liu, M. (2011). Logistic Regression Parameter Estimation Based on Parallel Matrix Computation. In Q. Zhou (Ed.), Communications in Computer and Information Science (Vol. 164, pp. 268–275). Berlin, Heidelberg: Springer Berlin Heidelberg.](http://doi.org/10.1007/978-3-642-24999-0_38)
+* [Singh, S., Kubica, J., Larsen, S., & Sorokina, D. (2013). Parallel Large Scale Feature Selection for Logistic Regression (pp. 1172–1183). Philadelphia, PA: Society for Industrial and Applied Mathematics.](http://doi.org/10.1137/1.9781611972795.100)
+* [Barbu, A., She, Y., Ding, L., & Gramajo, G. (2014). Feature Selection with Annealing for Big Data Learning.](http://arxiv.org/pdf/1310.288)
+* [Ing, C.-K., & Lai, T. L. (2011). A stepwise regression method and consistent model selection for high-dimensional sparse linear models.](http://doi.org/10.5705/ss.2010.081)
 * [Hung, H., Chen, P.-W., Wang, C.-C., Huang, S.-Y., & Tzeng, J.-Y. (2013). Detection of Gene-Gene Interactions using Multistage Sparse and Low-Rank Regression.](http://arxiv.org/abs/1304.3769)

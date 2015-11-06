@@ -4,7 +4,7 @@
 MAKEFLAGS += --no-print-directory
 
 PROJ      ?= pass
-PASS      ?= genlog
+PASS      ?= genlin
 MODEL     ?= inglai
 MODELOPTS ?=
 
@@ -19,16 +19,16 @@ ARCHIVE = ar rv
 ifndef MKLROOT
   $(error MKLROOT is not set!)
 endif
-# MKLINC ?= -I$(MKLROOT)/include
-# MKLLIB ?= -L$(MKLROOT)/lib/intel64
+MKLINC ?= -I$(MKLROOT)/include
+MKLLIB ?= -L$(MKLROOT)/lib/intel64
 MKLLNK  = -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
 
 # MPI
 ifndef MPIROOT
   $(error MPIROOT is not set!)
 endif
-# MPIINC ?= -I$(MPIROOT)/include
-# MPILIB ?= -L$(MPIROOT)/lib
+MPIINC ?= -I$(MPIROOT)/include
+MPILIB ?= -L$(MPIROOT)/lib
 MPILNK  = -lmpi_cxx -lmpi
 
 # OpenMP
