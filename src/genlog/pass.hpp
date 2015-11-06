@@ -1,13 +1,13 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @file   genlin/pass.hpp
-/// @brief  The header of PaSS for general linear regression
+/// @file   genlog/pass.hpp
+/// @brief  The header of PaSS for general logistic regression
 ///
 /// @author Mu Yang <emfomy@gmail.com>
 ///
 
-#ifndef PASS_GENLIN_PASS_HPP_
+#ifndef PASS_GENLOG_PASS_HPP_
 
-#define PASS_GENLIN_PASS_HPP_
+#define PASS_GENLOG_PASS_HPP_
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// The namespace of PaSS
@@ -23,9 +23,9 @@ extern float phi0;                  ///< scalar, the criterion value
 extern struct Parameter parameter;  ///< the PaSS parameters
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//  The PaSS algorithm for linear regression
+//  The PaSS algorithm for logistic regression
 //
-void GenLin();
+void GenLog();
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// The criterions used in the PaSS algorithm
@@ -88,31 +88,33 @@ struct Parameter {
   }
 };
 
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// The structure of particle
 ///
 struct Particle {
-  float *X;           ///< matrix, n by k, the regressors
-  float *Y;           ///< vector, n by 1, the regressand
-  float *Beta;        ///< vector, k by 1, the effects
-  float *Theta;       ///< vector, k by 1, X'*Y
-  float *M;           ///< matrix, k by k, inv( X'*X ), upper general storage
-  float *R;           ///< vector, n by 1, the residual
-  float *B;           ///< vector, n by 1, temporary vector
-  float *D;           ///< vector, n by 1, temporary vector
-  float e;            ///< scalar, the norm of R
-  float phi;          ///< scalar, the criterion value
-  float phi_old;      ///< scalar, the criterion value, past iteration
+  float *X;            ///< matrix, n by (k+1), the regressors
+  float *Y;            ///< vector, n by 1, the regressand
+  float *Beta;         ///< vector, (k+1) by 1, the effects
+  float *Theta;        ///< vector, n by 1, X*Beta, the logit of P
+  float *Eta;          ///< vector, n by 1, exp(Theta)
+  float *P;            ///< vector, n by 1, Eta./(1+Eta), the probability of Y=1
+  float *W;            ///< vector, n by 1, P.*(1-P)
+  float *M;            ///< matrix, (k+1) by (k+1), X'*diag(W)*X, lower packed storage
+  float *STemp;        ///< vector, n by 1, temporary vector
+  float llv;           ///< scalar, the log-likelihood value
+  float phi;           ///< scalar, the criterion value
+  float phi_old;       ///< scalar, the criterion value, past iteration
 
-  int *Idx_lo;        ///< vector, 1 by k, map local effects to original effects
-  int *Idx_ol;        ///< vector, 1 by p, map original effects to local effects
-  int *Idx_temp;      ///< vector, 1 by p, workspace
-  bool *I;            ///< vector, 1 by p, the chosen indices
-  int k;              ///< scalar, the number of chosen effects
+  int *Idx_lo;         ///< vector, 1 by (k+1), map local effects to original effects
+  int *Idx_ol;         ///< vector, 1 by p, map original effects to local effects
+  int *Idx_temp;       ///< vector, 1 by p, workspace
+  bool *I;             ///< vector, 1 by p, the chosen indices
+  int k;               ///< scalar, the number of chosen effects
 
-  bool status;        ///< scalar, the status (forward/backward)
+  bool status;         ///< scalar, the status (forward/backward)
 
-  unsigned int iseed; ///< scalar, the random seed
+  unsigned int iseed;  ///< scalar, the random seed
 
   // Constructor
   Particle();
@@ -126,6 +128,9 @@ struct Particle {
 
   // Update model
   void UpdateModel( const int idx );
+
+  // Compute Beta
+  void ComputeBeta();
 
   // Select the index to add or remove
   void SelectIndex( int& idx );

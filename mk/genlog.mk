@@ -1,5 +1,5 @@
 # Particle Swarm Stepwise (PaSS) Algorithm
-# The Makefile for 'genlin'
+# The Makefile for 'genlog'
 
 include Makefile.inc
 
@@ -8,7 +8,7 @@ INCS = $(MKLINC) $(MPIINC)
 LIBS = $(MKLLIB) $(MPILIB)
 LNKS = $(MKLLNK) $(MPILNK)
 
-NAME = genlin
+NAME = genlog
 BINDIR = bin
 SRCDIR = src/$(NAME)
 OBJDIR = obj/$(NAME)

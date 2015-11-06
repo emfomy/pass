@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @file    genlin/main.cpp
-/// @brief   The main functions of PaSS for general linear regression
+/// @file    genlog/main.cpp
+/// @brief   The main functions of PaSS for general logistic regression
 ///
 /// @author  Mu Yang <emfomy@gmail.com>
 ///
@@ -23,7 +23,7 @@ using namespace pass;
 
 // Default arguments
 const unsigned int kTest = 100;           ///< the default number of tests
-const char *kDataRoot    = "genlin.dat";  ///< the default data file root
+const char *kDataRoot    = "genlog.dat";  ///< the default data file root
 
 // Global variables
 bool *J0;                                 ///< vector, 1 by p, the chosen indices (solution)
@@ -227,27 +227,13 @@ int main( int argc, char **argv ) {
     fflush(stdout);
   }
 
-  // Centralize and normalize X0
+  // Normalize X0
   for ( auto j = 0; j < p; ++j ) {
-    float stemp = 0.0f;
-    for ( auto i = 0; i < n; ++i ) {
-      stemp += X0[i+j*n];
-    }
-    stemp /= n;
-    vsLinearFrac(n, X0+j*n, X0+j*n, 1.0f, -stemp, 0.0f, 1.0f, X0+j*n);
     cblas_sscal(n, (1.0f/cblas_snrm2(n, X0+j*n, 1)), X0+j*n, 1);
   }
 
-  // Centralize and normalize Y0
-  {
-    float stemp = 0.0f;
-    for ( auto i = 0; i < n; ++i ) {
-      stemp += Y0[i];
-    }
-    stemp /= n;
-    vsLinearFrac(n, Y0, Y0, 1.0f, -stemp, 0.0f, 1.0f, Y0);
-    cblas_sscal(n, (1.0f/cblas_snrm2(n, Y0, 1)), Y0, 1);
-  }
+  // Normalize Y0
+  cblas_sscal(n, (1.0f/cblas_snrm2(n, Y0, 1)), Y0, 1);
 
   parameter.is_normalized = true;
 
@@ -285,7 +271,12 @@ int main( int argc, char **argv ) {
     }
     if ( btemp ) {
       particle.k = 0;
-      cblas_scopy(n, Y0, 1, particle.R, 1);
+      #pragma omp simd
+      for ( auto i = 0; i < n; ++i ) {
+        particle.X[i] = 1.0f;
+      }
+      cblas_scopy(n, Y0, 1, particle.Y, 1);
+      particle.ComputeBeta();
     }
     particle.ComputeCriterion();
 
@@ -311,7 +302,7 @@ int main( int argc, char **argv ) {
     }
 
     // Run PaSS
-    GenLin();
+    GenLog();
 
     // Find best model
     struct { float value; int rank; } send, recv;
@@ -351,7 +342,12 @@ int main( int argc, char **argv ) {
       }
       if ( btemp ) {
         particle.k = 0;
-        cblas_scopy(n, Y0, 1, particle.R, 1);
+        #pragma omp simd
+        for ( auto i = 0; i < n; ++i ) {
+          particle.X[i] = 1.0f;
+        }
+        cblas_scopy(n, Y0, 1, particle.Y, 1);
+        particle.ComputeBeta();
       }
       particle.ComputeCriterion();
 
@@ -377,7 +373,7 @@ int main( int argc, char **argv ) {
       printf("\n");
 
       // Compute accuracy rate
-      rate_positive_selection[t] = static_cast<float>(num_correct)   / num_true_selection;
+      rate_positive_selection[t] = static_cast<float>(num_correct) / num_true_selection;
       rate_false_discovery[t] =    static_cast<float>(num_incorrect) / num_test_selection;
     }
   }

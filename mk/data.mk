@@ -1,5 +1,5 @@
 # Particle Swarm Stepwise (PaSS) Algorithm
-# The Makafile for 'data'
+# The Makefile for 'data'
 
 include Makefile.inc
 

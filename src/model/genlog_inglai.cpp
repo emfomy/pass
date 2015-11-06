@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// @file    model/genlin_inglai.cpp
-/// @brief   Create a general linear regression data using Ing and Lai's method
+/// @file    model/genlog_inglai.cpp
+/// @brief   Create a general logistic regression data using Ing and Lai's method
 ///
 /// @author  Mu Yang <emfomy@gmail.com>
 
@@ -20,26 +20,26 @@
 #include <mkl.h>
 
 // Default arguments
-const int kN          = 400;                      ///< the default value of n
-const int kP          = 4000;                     ///< the default value of p
-const int kR          = 10;                       ///< the default value of r
-const char *kDataRoot = "genlin.dat";             ///< the default data file root
-const char *kDataName = "General_Linear_IngLai";  ///< the default data name
+const int kN          = 400;                        ///< the default value of n
+const int kP          = 4000;                       ///< the default value of p
+const int kR          = 10;                         ///< the default value of r
+const char *kDataRoot = "genlog.dat";               ///< the default data file root
+const char *kDataName = "General_Logistic_IngLai";  ///< the default data name
 
 // Global variables
-int n;                                            ///< scalar, the number of statistical units
-int p;                                            ///< scalar, the number of total effects
-int r;                                            ///< scalar, the number of given effects
-float *X;                                         ///< matrix, n by p, the regressors
-float *Y;                                         ///< vector, n by 1, the regressand
-float *Beta;                                      ///< vector, r by 1, the effects
-bool *J;                                          ///< vector, 1 by p, the chosen indices
-const char *dataroot;                             ///< string, the root of the data file
-const char *dataname;                             ///< string, the name of the data
+int n;                                              ///< scalar, the number of statistical units
+int p;                                              ///< scalar, the number of total effects
+int r;                                              ///< scalar, the number of given effects
+float *X;                                           ///< matrix, n by p, the regressors
+float *Y;                                           ///< vector, n by 1, the regressand
+float *Beta;                                        ///< vector, r by 1, the effects
+bool *J;                                            ///< vector, 1 by p, the chosen indices
+const char *dataroot;                               ///< string, the root of the data file
+const char *dataname;                               ///< string, the name of the data
 
 // Functions
-void GenLinIngLaiHelp( const char *cmd );
-void GenLinIngLaiSave( const char *fileroot );
+void GenLogIngLaiHelp( const char *cmd );
+void GenLogIngLaiSave( const char *fileroot );
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Main function
@@ -86,7 +86,7 @@ int main( int argc, char **argv ) {
         n = atoi(optarg);
         if ( n <= 0 ) {
           fprintf(stderr, "%s: invalid option -- <n> must be a positive integer!\n", argv[0]);
-          GenLinIngLaiHelp(argv[0]);
+          GenLogIngLaiHelp(argv[0]);
           exit(1);
         }
         break;
@@ -95,7 +95,7 @@ int main( int argc, char **argv ) {
         p = atoi(optarg);
         if ( p <= 0 ) {
           fprintf(stderr, "%s: invalid option -- <p> must be a positive integer!\n", argv[0]);
-          GenLinIngLaiHelp(argv[0]);
+          GenLogIngLaiHelp(argv[0]);
           exit(1);
         }
         break;
@@ -104,7 +104,7 @@ int main( int argc, char **argv ) {
         r = atoi(optarg);
         if ( r < 0 ) {
           fprintf(stderr, "%s: invalid option -- <r> must be a non-negative integer!\n", argv[0]);
-          GenLinIngLaiHelp(argv[0]);
+          GenLogIngLaiHelp(argv[0]);
           exit(1);
         }
         break;
@@ -114,11 +114,11 @@ int main( int argc, char **argv ) {
         break;
       }
       case 'h': {
-        GenLinIngLaiHelp(argv[0]);
+        GenLogIngLaiHelp(argv[0]);
         exit(0);
       }
       default: {
-        GenLinIngLaiHelp(argv[0]);
+        GenLogIngLaiHelp(argv[0]);
         exit(1);
       }
     }
@@ -134,7 +134,7 @@ int main( int argc, char **argv ) {
   } else {
     Beta = new float[r];
     for ( auto i = 0; i < r; ++i ) {
-      Beta[i] = 3.0f + 0.75f*i;
+      Beta[i] = 0.3f + 0.075f*i;
     }
   }
 
@@ -168,15 +168,26 @@ int main( int argc, char **argv ) {
     cblas_saxpy(n, 1.0f, X+i*n, 1, S, 1);
   }
 
-  // X[i col] := sqrt(.75/r) * S + 0.5 * X[i col], i >= r
+  // X[i col] := sqrt(0.75/r) * S + 0.5 * X[i col], i >= r
   cblas_sscal(n, sqrt(0.75f/r), S, 1);
   cblas_sscal(n*(p-r), 0.5f, X+r*n, 1);
   for ( auto i = r; i < p; ++i ) {
     cblas_saxpy(n, 1.0f, S, 1, X+i*n, 1);
   }
 
-  // Y += X[0~r cols] * Beta
-  cblas_sgemv(CblasColMajor, CblasNoTrans, n, r, 1.0f, X, n, Beta, 1, 1.0f, Y, 1);
+  // S = X[0~r cols] * Beta
+  cblas_sgemv(CblasColMajor, CblasNoTrans, n, r, 1.0f, X, n, Beta, 1, 0.0f, S, 1);
+
+  // S := exp(S)
+  vsExp(n, S, S);
+
+  // S := S ./ (1+S)
+  vsLinearFrac(n, S, S, 1.0, 0.0, 1.0, 1.0, S);
+
+  // Compute Y
+  for( auto i = 0; i < n; i++ ) {
+    Y[i] = ( Y[i] < S[i] );
+  }
 
   // Generate J
   memset(J, false, sizeof(bool) * p);
@@ -187,13 +198,14 @@ int main( int argc, char **argv ) {
   // ====================================================================================================================== //
 
   // Save data
-  GenLinIngLaiSave(dataroot);
+  GenLogIngLaiSave(dataroot);
 
   // Free memory
   delete[] X;
   delete[] Y;
   delete[] Beta;
   delete[] J;
+  delete[] S;
 
   printf("================================================================"
          "================================================================\n");
@@ -206,7 +218,7 @@ int main( int argc, char **argv ) {
 ///
 /// @param  cmd  the command name
 ///
-void GenLinIngLaiHelp( const char *cmd ) {
+void GenLogIngLaiHelp( const char *cmd ) {
   printf("Usage: %s [options] ...\n", cmd);
   printf("\n%-32s%-40s%s\n\n", "Option",                   "Detail",                          "Defalut Value");
   printf("%-32s%-40s%s\n",     "-f <file>, --file <file>", "save data into <file>",           kDataRoot);
@@ -224,7 +236,7 @@ void GenLinIngLaiHelp( const char *cmd ) {
 ///
 /// @param  fileroot  the root of data file
 ///
-void GenLinIngLaiSave( const char *fileroot ) {
+void GenLogIngLaiSave( const char *fileroot ) {
   FILE *file;
 
   printf("Saving data into '%s'... ", fileroot);

@@ -5,11 +5,11 @@ MAKEFLAGS += --no-print-directory
 
 PROJ      ?= pass
 PASS      ?= genlin
-MODEL     ?= power
+MODEL     ?= inglai
 MODELOPTS ?=
 
 CXX      = g++
-CXXFLAGS = -O3 -std=c++11 -Wall
+CXXFLAGS = -O3 -std=c++11 -Wall -Wextra -pedantic
 
 RM      = rm -rf
 RANLIB  = ranlib
@@ -27,8 +27,8 @@ MKLLNK  = -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
 ifndef MPIROOT
   $(error MPIROOT is not set!)
 endif
-MKLINC ?= -I$(MPIROOT)/include
-MKLLIB ?= -L$(MPIROOT)/lib
+MPIINC ?= -I$(MPIROOT)/include
+MPILIB ?= -L$(MPIROOT)/lib
 MPILNK  = -lmpi_cxx -lmpi
 
 # OpenMP
