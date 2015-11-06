@@ -31,12 +31,14 @@ all: $(MKS)
 $(MKS):
 	@ $(MAKE) -f $(MKDIR)/$@.mk all
 
-doc: $(DOCS)
-	@ sed -i '' 's|PaSS Documentation|Particle Swarm Stepwise (PaSS) Algorithm|g' $(HTMLDIR)/index.html
-	ln -sf $(HTMLDIR)/index.html $(PASSHTML)
+doc: $(DOCS) $(PASSHTML)
+	sed -ig 's|PaSS Documentation|Particle Swarm Stepwise (PaSS) Algorithm|g' $(HTMLDIR)/index.html
 
 $(DOCS): | $(PWD)/$(HTMLDIR)
 	doxygen $(DOCDIR)/$@.inc
+
+$(PASSHTML):
+	echo "<html><META HTTP-EQUIV='refresh' CONTENT='0; URL=$(HTMLDIR)/index.html'></html>" > $@
 
 run: run-$(PASS)
 	@ jbinfo
