@@ -1,94 +1,98 @@
-////////////////////////////////////////////////////////////////////////////////
-// Particle Swarm Stepwise (PaSS) Algorithm                                   //
-//                                                                            //
-// pass.cpp                                                                   //
-// The PaSS algorithm for general logistic regression                         //
-//                                                                            //
-// Author: emfo<emfomy@gmail.com>                                             //
-//                                                                            //
-// ========================================================================== //
-//                                                                            //
-// Notation:                                                                  //
-// X     : the regressors                                                     //
-// Y     : the regressand                                                     //
-// Beta  : the effects                                                        //
-// P     : the probability of Y=1                                             //
-// Theta : the logit function of P                                            //
-// lv    : the likelihood value                                               //
-// llv   : the log-likelihood value                                           //
-//                                                                            //
-// ========================================================================== //
-//                                                                            //
-// Logistic model:                                                            //
-// P     := exp(X*Beta) ./ 1+exp(X*Beta)                                      //
-// Theta := logit(P) = X*Beta                                                 //
-//                                                                            //
-// Update Beta:                                                               //
-// Theta := X * Beta                                                          //
-// Eta   := exp(Theta)                                                        //
-// P     := Eta ./ (1+Eta)                                                    //
-// 1-P    = 1 ./ (1+Eta)                                                      //
-// W     := P .* (1-P)                                                        //
-// Beta  += inv( X'*diag(W)*X ) * X' * (Y-P)                                  //
-//                                                                            //
-// Compute log-likelihood:                                                    //
-// lv    := prod( p^y * (1-p)^(1-y) )                                         //
-// llv   := log( lv )                                                         //
-//        = sum( y * log(p) + (1-y) * log(1-p) )                              //
-//        = sum( y * log(eta) - y * log(1+eta) - (1-y) * log(1+eta) )         //
-//        = Y' * Theta - sum( log(1+eta) )                                    //
-//                                                                            //
-// Newton-Raphson method:                                                     //
-// d(llv)/d(Beta)     =   X' * (Y-P)                                          //
-// d^2(llv)/d(Beta)^2 = - X' * diag(W) * X                                    //
-//                                                                            //
-// ========================================================================== //
-//                                                                            //
-// Select index in forward step:                                              //
-// idx = argmax_{i not in I} llv_hat                                          //
-// Theta_hat := Theta_new - Theta = Beta[i] * X[i col]                        //
-// Eta_hat   := Eta_new  ./ Eta   = exp( Theta_hat )                          //
-// llv_hat   := llv_new - llv                                                 //
-//            = ( Y' * Theta_new - Y' * Theta )                               //
-//              - ( sum( log(1+eta_new) ) - sum( log(1+eta) ) )               //
-//            = Y' * Theta_hat - sum( log( (1+eta_new)/(1+eta) ) )            //
-//            = Y' * Theta_hat - sum( log( 1 + (eta_hat-1)*p ) )              //
-//                                                                            //
-// Approximate Beta[i] with Newton-Raphson method:                            //
-// Beta[i]   += ( X[i col]'*(Y-P_new) ) / ( X[i col]'*diag(W_new)*X[i col] )  //
-//                                                                            //
-// ========================================================================== //
-//                                                                            //
-// Select index in backward step:                                             //
-// idx = argmax_{i in I} llv_hat                                              //
-// Theta_hat := Theta_new - Theta = -Beta[i] * X[i col]                       //
-// Eta_hat   := Eta_new  ./ Eta   = exp( Theta_hat )                          //
-// llv_hat   := llv_new - llv                                                 //
-//            = ( Y' * Theta_new - Y' * Theta )                               //
-//              - ( sum( log(1+eta_new) ) - sum( log(1+eta) ) )               //
-//            = Y' * Theta_hat - sum( log( (1+eta_new)/(1+eta) ) )            //
-//            = Y' * Theta_hat - sum( log( 1 + (eta_hat-1)*p ) )              //
-//                                                                            //
-// ========================================================================== //
-//                                                                            //
-// References:                                                                //
-// Chen, R.-B., Huang, C.-C., & Wang, W. (2013). Particle Swarm Stepwise      //
-//   (PaSS) Algorithm for Variable Selection.                                 //
-//                                                                            //
-// Liu, Z., & Liu, M. (2011). Logistic Regression Parameter Estimation Based  //
-//   on Parallel Matrix Computation. In Q. Zhou (Ed.), Communications in      //
-//   Computer and Information Science (Vol. 164, pp. 268–275). Berlin,        //
-//   Heidelberg: Springer Berlin Heidelberg.                                  //
-//   http://doi.org/10.1007/978-3-642-24999-0_38                              //
-//                                                                            //
-// Singh, S., Kubica, J., Larsen, S., & Sorokina, D. (2013). Parallel Large   //
-//   Scale Feature Selection for Logistic Regression (pp. 1172–1183).         //
-//   Philadelphia, PA: Society for Industrial and Applied Mathematics.        //
-//   http://doi.org/10.1137/1.9781611972795.100                               //
-//                                                                            //
-// Barbu, A., She, Y., Ding, L., & Gramajo, G. (2014). Feature Selection with //
-//   Annealing for Big Data Learning. http://arxiv.org/pdf/1310.288           //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// @file   genlog/pass.cpp
+/// @brief  The main PaSS algorithm for general logistic regression
+///
+/// @author Mu Yang <emfomy@gmail.com>
+///
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// @mainpage Particle Swarm Stepwise (PaSS) Algorithm for General Logistic Regression
+///
+/// @code{.unparsed}
+/// ==========================================================================================================================
+///
+/// Notation:
+/// X     : the regressors
+/// Y     : the regressand
+/// Beta  : the effects
+/// P     : the probability of Y=1
+/// Theta : the logit function of P
+/// lv    : the likelihood value
+/// llv   : the log-likelihood value
+///
+/// ==========================================================================================================================
+///
+/// Logistic model:
+/// P     := exp(X*Beta) ./ 1+exp(X*Beta)
+/// Theta := logit(P) = X*Beta
+///
+/// Update Beta:
+/// Theta := X * Beta
+/// Eta   := exp(Theta)
+/// P     := Eta ./ (1+Eta)
+/// 1-P    = 1 ./ (1+Eta)
+/// W     := P .* (1-P)
+/// Beta  += inv( X'*diag(W)*X ) * X' * (Y-P)
+///
+/// Compute log-likelihood:
+/// lv    := prod( p^y * (1-p)^(1-y) )
+/// llv   := log( lv )
+///        = sum( y * log(p) + (1-y) * log(1-p) )
+///        = sum( y * log(eta) - y * log(1+eta) - (1-y) * log(1+eta) )
+///        = Y' * Theta - sum( log(1+eta) )
+///
+/// Newton-Raphson method:
+/// d(llv)/d(Beta)     =   X' * (Y-P)
+/// d^2(llv)/d(Beta)^2 = - X' * diag(W) * X
+///
+/// ==========================================================================================================================
+///
+/// Select index in forward step:
+/// idx = argmax_{i not in I} llv_hat
+/// Theta_hat := Theta_new - Theta = Beta[i] * X[i col]
+/// Eta_hat   := Eta_new  ./ Eta   = exp( Theta_hat )
+/// llv_hat   := llv_new - llv
+///            = ( Y' * Theta_new - Y' * Theta )
+///              - ( sum( log(1+eta_new) ) - sum( log(1+eta) ) )
+///            = Y' * Theta_hat - sum( log( (1+eta_new)/(1+eta) ) )
+///            = Y' * Theta_hat - sum( log( 1 + (eta_hat-1)*p ) )
+///
+/// Approximate Beta[i] with Newton-Raphson method:
+/// Beta[i]   += ( X[i col]'*(Y-P_new) ) / ( X[i col]'*diag(W_new)*X[i col] )
+///
+/// ==========================================================================================================================
+///
+/// Select index in backward step:
+/// idx = argmax_{i in I} llv_hat
+/// Theta_hat := Theta_new - Theta = -Beta[i] * X[i col]
+/// Eta_hat   := Eta_new  ./ Eta   = exp( Theta_hat )
+/// llv_hat   := llv_new - llv
+///            = ( Y' * Theta_new - Y' * Theta )
+///              - ( sum( log(1+eta_new) ) - sum( log(1+eta) ) )
+///            = Y' * Theta_hat - sum( log( (1+eta_new)/(1+eta) ) )
+///            = Y' * Theta_hat - sum( log( 1 + (eta_hat-1)*p ) )
+///
+/// ==========================================================================================================================
+///
+/// References:
+/// Chen, R.-B., Huang, C.-C., & Wang, W. (2015). Particle Swarm Stepwise (PaSS) Algorithm for Variable Selection.
+///
+/// Liu, Z., & Liu, M. (2011). Logistic Regression Parameter Estimation Based on Parallel Matrix Computation.
+///   In Q. Zhou (Ed.), Communications in Computer and Information Science (Vol. 164, pp. 268–275).
+///   Berlin, Heidelberg: Springer Berlin Heidelberg. http://doi.org/10.1007/978-3-642-24999-0_38
+///
+/// Singh, S., Kubica, J., Larsen, S., & Sorokina, D. (2013).
+///   Parallel Large Scale Feature Selection for Logistic Regression (pp. 1172–1183).
+///   Philadelphia, PA: Society for Industrial and Applied Mathematics. http://doi.org/10.1137/1.9781611972795.100
+///
+/// Barbu, A., She, Y., Ding, L., & Gramajo, G. (2014). Feature Selection with Annealing for Big Data Learning.
+///   http://arxiv.org/pdf/1310.288
+///
+/// ==========================================================================================================================
+/// @endcode
+///
+/// @author  Mu Yang <emfomy@gmail.com>
+///
 
 #include "pass.hpp"
 #include <cstdlib>
@@ -97,16 +101,24 @@
 #include <mkl.h>
 #include <omp.h>
 
-// The log-binomial function
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// The log-binomial function
+///
+/// @param   n  a number
+/// @param   k  a number
+///
+/// @return     return the log-binomial value of n and k
+///
 static inline float lbinom( const int n, const int k ) {
   int i;
   return (lgammaf_r(n+1, &i) - lgammaf_r(n-k+1, &i) - lgammaf_r(k+1, &i));
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// The namespace pass                                                         //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//  The namespace of PaSS
+//
 namespace pass {
+
 int n;                // scalar, the number of statistical units
 int p;                // scalar, the number of total effects
 float* X0;            // matrix, n by p, the regressors
@@ -115,32 +127,26 @@ bool* I0;             // vector, 1 by p, the chosen indices
 float phi0;           // scalar, the criterion value
 Parameter parameter;  // the PaSS parameters
 
-////////////////////////////////////////////////////////////////////////////////
-// The PaSS algorithm for Logistic Regression                                 //
-//                                                                            //
-// Input Global Parameters:                                                   //
-// n:         scalar, the number of statistical units                         //
-// p:         scalar, the number of total effects                             //
-// X0:        matrix, n by p, the regressors                                  //
-// Y0:        vector, n by 1, the regressand                                  //
-// parameter: the PaSS parameters                                             //
-//                                                                            //
-// Output Global Variables:                                                   //
-// I0:        vector, 1 by p, the chosen indices                              //
-// phi0:      scalar, the criterion value                                     //
-//                                                                            //
-// Note:                                                                      //
-// Please call srand before using this routine.                               //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// The PaSS algorithm for linear regression
+///
+/// @param[in]   pass::n          scalar, the number of statistical units
+/// @param[in]   pass::p          scalar, the number of total effects
+/// @param[in]   pass::X0         matrix, n by p, the regressors
+/// @param[in]   pass::Y0         vector, n by 1, the regressand
+/// @param[in]   pass::parameter  the PaSS parameters
+///
+/// @param[out]  pass::I0         vector, 1 by p, the chosen indices
+/// @param[out]  pass::phi0       scalar, the criterion value
+///
+/// @note        Please call @c srand() before using this routine.
+///
 void GenLog() {
-
   // Check parameters
   auto num_thread = omp_get_max_threads();
   auto num_particle = num_thread * parameter.num_particle_thread;
 
-  ////////////////////////////////////////////////////////////////////////////
-  // Normalize the original data                                            //
-  ////////////////////////////////////////////////////////////////////////////
+  // ======== Normalize the original data ================================================================================= //
 
   if ( !parameter.is_normalized ) {
     // Normalize X0
@@ -152,9 +158,7 @@ void GenLog() {
     cblas_sscal(n, (1.0f/cblas_snrm2(n, Y0, 1)), Y0, 1);
   }
 
-  ////////////////////////////////////////////////////////////////////////////
-  // Run PaSS                                                               //
-  ////////////////////////////////////////////////////////////////////////////
+  // ======== Run PaSS ==================================================================================================== //
 
   // Allocate particles
   auto particle = new Particle[num_particle];
@@ -217,15 +221,15 @@ void GenLog() {
     }
   }
 
-  ////////////////////////////////////////////////////////////////////////////
+  // ====================================================================================================================== //
 
   // Delete memory
   delete[] particle;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// The constructor of Particle                                                //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// The constructor
+///
 Particle::Particle() {
   X        = new float[n*n];
   Y        = new float[n];
@@ -245,9 +249,9 @@ Particle::Particle() {
   iseed    = rand();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// The destructor of Particle                                                 //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// The destructor
+///
 Particle::~Particle() {
   delete[] X;
   delete[] Y;
@@ -265,19 +269,18 @@ Particle::~Particle() {
   delete[] I;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Initialize the model of Particle randomly                                  //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Initialize the model randomly
+///
 void Particle::InitializeModel() {
   InitializeModel(rand_r(&iseed) % p);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Initialize the model of Particle                                           //
-//                                                                            //
-// Parameters:                                                                //
-// idx: the index of the effect                                               //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Initialize the model
+///
+/// @param[in]  idx  the index of the effect
+///
 void Particle::InitializeModel( const int idx ) {
   // Initialize size
   k = 0;
@@ -300,12 +303,11 @@ void Particle::InitializeModel( const int idx ) {
   UpdateModel(idx);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Update the model of Particle                                               //
-//                                                                            //
-// Parameters:                                                                //
-// idx: the index of the effect                                               //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Update the model
+///
+/// @param[in]  idx  the index of the effect
+///
 void Particle::UpdateModel( const int idx ) {
   if ( status ) {  // forward step
     // Update size
@@ -347,20 +349,17 @@ void Particle::UpdateModel( const int idx ) {
   ComputeBeta();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Compute Beta                                                               //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Compute Beta
+///
 void Particle::ComputeBeta() {
   auto kp = k+1;
 
-  ////////////////////////////////////////////////////////////////////////////
-  // Find Beta using Newton-Raphson's method                                //
-  ////////////////////////////////////////////////////////////////////////////
+  // ======== Find Beta using Newton-Raphson's method ===================================================================== //
 
   do {
     // Theta := X * Beta
-    cblas_sgemv(CblasColMajor, CblasNoTrans,
-                n, kp, 1.0f, X, n, Beta, 1, 0.0f, Theta, 1);
+    cblas_sgemv(CblasColMajor, CblasNoTrans, n, kp, 1.0f, X, n, Beta, 1, 0.0f, Theta, 1);
 
     // Eta := exp(Theta)
     vsExp(n, Theta, Eta);
@@ -371,9 +370,7 @@ void Particle::ComputeBeta() {
     // W := P .* (1-P)
     vsLinearFrac(n, P, Eta, 1.0f, 0.0f, 1.0f, 1.0f, W);
 
-    ////////////////////////////////////////////////////////////////////////
-    // Beta += inv(X'*diag(W)*X) * X' * (Y-P)                             //
-    ////////////////////////////////////////////////////////////////////////
+    // -------- Beta += inv(X'*diag(W)*X) * X' * (Y-P) ------------------------------------------------------------------ //
 
     // M := X' * diag(W) * X
     for ( auto i = 0; i < kp*(kp+1)/2; ++i ) {
@@ -390,32 +387,28 @@ void Particle::ComputeBeta() {
     vsSub(n, Y, P, W);
 
     // STemp := X' * W
-    cblas_sgemv(CblasColMajor, CblasTrans,
-                n, kp, 1.0f, X, n, W, 1, 0.0f, STemp, 1);
+    cblas_sgemv(CblasColMajor, CblasTrans, n, kp, 1.0f, X, n, W, 1, 0.0f, STemp, 1);
 
     // Solve STemp = inv(M) * STemp
-    cblas_stpsv(CblasColMajor, CblasLower, CblasNoTrans, CblasNonUnit,
-                kp, M, STemp, 1);
+    cblas_stpsv(CblasColMajor, CblasLower, CblasNoTrans, CblasNonUnit, kp, M, STemp, 1);
 
     // Solve STemp = inv(M') * STemp
-    cblas_stpsv(CblasColMajor, CblasLower, CblasTrans, CblasNonUnit,
-                kp, M, STemp, 1);
+    cblas_stpsv(CblasColMajor, CblasLower, CblasTrans, CblasNonUnit, kp, M, STemp, 1);
 
     // Beta += STemp
     vsAdd(kp, Beta, STemp, Beta);
 
-    ////////////////////////////////////////////////////////////////////////
+    // ------------------------------------------------------------------------------------------------------------------ //
   } while ( cblas_snrm2(kp, STemp, 1) > sqrt(kp) * 1e-4f );
 
-  ////////////////////////////////////////////////////////////////////////////
+  // ====================================================================================================================== //
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Select index of the effect to update                                       //
-//                                                                            //
-// Output Parameters:                                                         //
-// idx: the index of the effect                                               //
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Select index of the effect to update
+///
+/// @param[out]  idx  the index of the effect
+///
 void Particle::SelectIndex( int& idx ) {
   auto srand = static_cast<float>(rand_r(&iseed)) / RAND_MAX;
 
@@ -437,13 +430,9 @@ void Particle::SelectIndex( int& idx ) {
 
     int choose;
     if ( itemp ) {
-      choose = (srand < parameter.prob_forward_global)
-             + (srand < parameter.prob_forward_global+
-                        parameter.prob_forward_local);
+      choose = (srand < parameter.prob_forward_global) + (srand < parameter.prob_forward_global+parameter.prob_forward_local);
     } else {
-      choose = srand < parameter.prob_forward_local
-                     / (parameter.prob_forward_local+
-                        parameter.prob_forward_random);
+      choose = srand < parameter.prob_forward_local / (parameter.prob_forward_local+parameter.prob_forward_random);
     }
 
     switch( choose ) {
@@ -463,9 +452,7 @@ void Particle::SelectIndex( int& idx ) {
           // stemp := Xnew' * Y
           auto stemp = cblas_sdot(n, Xnew, 1, Y, 1);
 
-          //////////////////////////////////////////////////////////////////
-          // Find Beta using Newton-Raphson's method                      //
-          //////////////////////////////////////////////////////////////////
+          // ======== Solve Y = X * Beta for Beta ========================================================================= //
 
           auto beta_temp = 0.0f;
           do {
@@ -484,14 +471,11 @@ void Particle::SelectIndex( int& idx ) {
 
             // beta += (Xnew'*(Y-P_new)) / (Xnew'*diag(W_new)*Xnew)
             vsMul(n, W, Xnew, W);
-            beta_temp = (stemp - cblas_sdot(n, Xnew, 1, STemp, 1)) /
-                        cblas_sdot(n, Xnew, 1, W, 1);
+            beta_temp = (stemp - cblas_sdot(n, Xnew, 1, STemp, 1)) / cblas_sdot(n, Xnew, 1, W, 1);
             beta += beta_temp;
           } while ( beta_temp > 1e-4f );
 
-          //////////////////////////////////////////////////////////////////
-          // stemp := Y' * Theta_hat - sum( log( 1 + (eta_hat-1)*p ) )    //
-          //////////////////////////////////////////////////////////////////
+          // ======== stemp := Y' * Theta_hat - sum( log( 1 + (eta_hat-1)*p ) ) =========================================== //
 
           // STemp(Theta_hat) := beta * Xnew
           cblas_saxpby(n, beta, Xnew, 1, 0.0f, STemp, 1);
@@ -509,7 +493,7 @@ void Particle::SelectIndex( int& idx ) {
             stemp += STemp[j];
           }
 
-          //////////////////////////////////////////////////////////////////
+          // ============================================================================================================== //
 
           // Check if this value is maximum
           if ( llv_temp < stemp ) {
@@ -528,9 +512,7 @@ void Particle::SelectIndex( int& idx ) {
     if ( srand < parameter.prob_backward_local ) {  // Local best
       auto llv_temp = INFINITY;
       for ( auto i = 1; i <= k; ++i ) {
-        //////////////////////////////////////////////////////////////////
-        // stemp := Y' * Theta_hat - sum( log( 1 + (eta_hat-1)*p ) )    //
-        //////////////////////////////////////////////////////////////////
+        // ======== stemp := Y' * Theta_hat - sum( log( 1 + (eta_hat-1)*p ) ) ============================================= //
 
         // STemp(Theta_hat) := -Beta[i] * X[i]
         cblas_saxpby(n, -Beta[i], X+i*n, 1, 0.0f, STemp, 1);
@@ -548,7 +530,7 @@ void Particle::SelectIndex( int& idx ) {
           stemp += STemp[j];
         }
 
-        //////////////////////////////////////////////////////////////////
+          // ============================================================================================================== //
 
         // Check if this value is minimal
         if ( llv_temp > stemp ) {
@@ -562,9 +544,10 @@ void Particle::SelectIndex( int& idx ) {
   }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Compute the criterion value                                                //
-////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Compute the criterion value
+///
 void Particle::ComputeCriterion() {
   // llv := Y' * Theta - sum(log(1+Eta))
   vsLog1p(n, Eta, STemp);
