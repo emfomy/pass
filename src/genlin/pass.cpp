@@ -204,6 +204,7 @@ Particle::Particle() {
   R        = new float[n];
   B        = new float[n];
   D        = new float[n];
+  E        = new float[p];
 
   Idx_lo   = new int[n];
   Idx_ol   = new int[p];
@@ -222,9 +223,10 @@ Particle::~Particle() {
   delete[] Beta;
   delete[] Theta;
   delete[] M;
+  delete[] R;
   delete[] B;
   delete[] D;
-  delete[] R;
+  delete[] E;
 
   delete[] Idx_lo;
   delete[] Idx_ol;
@@ -372,8 +374,7 @@ void Particle::UpdateModel( const int idx ) {
     // ======== Solve Y = X * Beta for Beta =============================================================================== //
 
     // M -= 1/a * D * D'
-    cblas_ssyr(CblasColMajor, CblasUpper,
-               k, -1.0f/a, D, 1, M, n);
+    cblas_ssyr(CblasColMajor, CblasUpper, k, -1.0f/a, D, 1, M, n);
 
     // Beta -= b/a * D
     cblas_saxpy(k, -b/a, D, 1, Beta, 1);
@@ -423,19 +424,17 @@ void Particle::SelectIndex( int& idx ) {
         break;
       }
       case 1: {  // Local best
-        auto e_temp = -INFINITY;
-        for ( auto i = 0; i < p; ++i ) {
-          if ( !I[i] ) {
-            // stemp := abs( X0[i col]' * R )
-            auto stemp = fabs(cblas_sdot(n, X0+i*n, 1, R, 1));
+        // E := abs( X0' * R )
+        cblas_sgemv(CblasColMajor, CblasTrans, n, p, 1.0, X0, n, R, 1, 0.0, E, 1);
+        vsAbs( p, E, E );
 
-            // Check if this value is maximum
-            if ( e_temp < stemp ) {
-              e_temp = stemp;
-              idx = i;
-            }
-          }
+        // Remove selected entries
+        for ( auto i = 0; i < k; ++i ) {
+          E[Idx_lo[i]] = 0.0;
         }
+
+        // Find maximum element
+        idx = cblas_isamax(p, E, 1);
         break;
       }
       case 0: {  // Random

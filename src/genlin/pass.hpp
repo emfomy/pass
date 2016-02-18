@@ -100,6 +100,7 @@ struct Particle {
   float *R;           ///< vector, n by 1, the residual
   float *B;           ///< vector, n by 1, temporary vector
   float *D;           ///< vector, n by 1, temporary vector
+  float *E;           ///< vector, p by 1, temporary vector
   float e;            ///< scalar, the norm of R
   float phi;          ///< scalar, the criterion value
   float phi_old;      ///< scalar, the criterion value, past iteration
