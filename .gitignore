@@ -33,6 +33,7 @@ obj
 dep
 run
 log
+sh
 html
 latex
 pass.html

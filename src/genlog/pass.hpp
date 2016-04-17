@@ -14,6 +14,11 @@
 ///
 namespace pass {
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//  The namespace of general logistic regression
+//
+namespace genlog {
+
 extern int n;                       ///< scalar, the number of statistical units
 extern int p;                       ///< scalar, the number of total effects
 extern float *X0;                   ///< matrix, n by p, the regressors
@@ -139,6 +144,8 @@ struct Particle {
   void ComputeCriterion();
 };
 
-}
+}  // namespace genlog
 
-#endif
+}  // namespace pass
+
+#endif  // PASS_GENLOG_PASS_HPP_

@@ -19,7 +19,7 @@
 #include "pass.hpp"
 
 using namespace std;
-using namespace pass;
+using namespace pass::genlin;
 
 // Default arguments
 const unsigned int kTest = 100;           ///< the default number of tests
@@ -205,7 +205,7 @@ int main( int argc, char **argv ) {
 
   // Load data and allocate memory
   PassLoad(dataroot);
-  I0 = new bool[p];
+  I0 = static_cast<bool*>(mkl_malloc(p * sizeof(bool), 64));
 
   // Display parameters
   if ( mpi_rank == 0 ) {
@@ -425,9 +425,10 @@ int main( int argc, char **argv ) {
   // ====================================================================================================================== //
 
   // Delete memory
-  delete[] X0;
-  delete[] Y0;
-  delete[] J0;
+  mkl_free(X0);
+  mkl_free(Y0);
+  mkl_free(I0);
+  mkl_free(J0);
 
   // Finalize MPI
   MPI_Finalize();
@@ -509,9 +510,9 @@ void PassLoad( const char *fileroot ) {
   fscanf(file, "%d%d\n", &n, &p);
 
   // Alloocate memory
-  X0 = new float[n*p];
-  Y0 = new float[n];
-  J0 = new bool[p];
+  X0 = static_cast<float*>(mkl_malloc(n * p * sizeof(float), 64));
+  Y0 = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
+  J0 = static_cast<bool* >(mkl_malloc(p     * sizeof(bool),  64));
 
   // Read J0
   fscanf(file, "%*s\n");

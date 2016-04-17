@@ -68,6 +68,11 @@ static inline float lbinom( const int n, const int k ) {
 //
 namespace pass {
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//  The namespace of general linear regression
+//
+namespace genlin {
+
 int n;                // scalar, the number of statistical units
 int p;                // scalar, the number of total effects
 float *X0;            // matrix, n by p, the regressors
@@ -196,20 +201,20 @@ void GenLin() {
 /// The constructor
 ///
 Particle::Particle() {
-  X        = static_cast<float*>(mkl_malloc(sizeof(float) * n * n, 64));
-  Y        = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
-  Beta     = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
-  Theta    = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
-  M        = static_cast<float*>(mkl_malloc(sizeof(float) * n * n, 64));
-  R        = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
-  B        = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
-  D        = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
-  E        = static_cast<float*>(mkl_malloc(sizeof(float) * p, 64));
+  X        = static_cast<float*>(mkl_malloc(n * n * sizeof(float), 64));
+  Y        = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
+  Beta     = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
+  Theta    = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
+  M        = static_cast<float*>(mkl_malloc(n * n * sizeof(float), 64));
+  R        = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
+  B        = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
+  D        = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
+  E        = static_cast<float*>(mkl_malloc(p     * sizeof(float), 64));
 
-  Idx_lo   = static_cast<int*>(mkl_malloc(sizeof(int) * n, 64));
-  Idx_ol   = static_cast<int*>(mkl_malloc(sizeof(int) * p, 64));
-  Idx_temp = static_cast<int*>(mkl_malloc(sizeof(int) * p, 64));
-  I        = static_cast<bool*>(mkl_malloc(sizeof(bool) * p, 64));
+  Idx_lo   = static_cast<int*  >(mkl_malloc(n     * sizeof(int),   64));
+  Idx_ol   = static_cast<int*  >(mkl_malloc(p     * sizeof(int),   64));
+  Idx_temp = static_cast<int*  >(mkl_malloc(p     * sizeof(int),   64));
+  I        = static_cast<bool* >(mkl_malloc(p     * sizeof(bool),  64));
 
   iseed    = rand();
 }
@@ -501,4 +506,6 @@ void Particle::ComputeCriterion() {
   }
 }
 
-}
+}  // namespace genlin
+
+}  // namespace pass

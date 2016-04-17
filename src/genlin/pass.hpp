@@ -14,6 +14,11 @@
 ///
 namespace pass {
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//  The namespace of general linear regression
+//
+namespace genlin {
+
 extern int n;                       ///< scalar, the number of statistical units
 extern int p;                       ///< scalar, the number of total effects
 extern float *X0;                   ///< matrix, n by p, the regressors
@@ -135,6 +140,8 @@ struct Particle {
   void ComputeCriterion();
 };
 
-}
+}  // namespace genlin
 
-#endif
+}  // namespace pass
+
+#endif  // PASS_GENLIN_PASS_HPP_
