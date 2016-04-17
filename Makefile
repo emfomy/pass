@@ -53,6 +53,9 @@ $(PWD)/$(RUNDIR) $(PWD)/$(HTMLDIR):
 	@ mkdir -p $@
 
 clean:
+	$(RM) $(BINDIR) $(OBJDIR) $(DEPDIR) $(RUNDIR)
+
+distclean:
 	$(RM) $(BINDIR) $(OBJDIR) $(DEPDIR) $(HTMLDIR) $(PASSHTML) $(RUNDIR) $(LOGDIR)
 
 kill killf del:

@@ -94,7 +94,7 @@ int main( int argc, char **argv ) {
         if ( n <= 0 ) {
           fprintf(stderr, "%s: invalid option -- <n> must be a positive integer!\n", argv[0]);
           GenLinChenChenHelp(argv[0]);
-          exit(1);
+          abort();
         }
         break;
       }
@@ -103,7 +103,7 @@ int main( int argc, char **argv ) {
         if ( p <= 0 ) {
           fprintf(stderr, "%s: invalid option -- <p> must be a positive integer!\n", argv[0]);
           GenLinChenChenHelp(argv[0]);
-          exit(1);
+          abort();
         }
         break;
       }
@@ -112,7 +112,7 @@ int main( int argc, char **argv ) {
         if ( r < 0 ) {
           fprintf(stderr, "%s: invalid option -- <r> must be a non-negative integer!\n", argv[0]);
           GenLinChenChenHelp(argv[0]);
-          exit(1);
+          abort();
         }
         break;
       }
@@ -121,7 +121,7 @@ int main( int argc, char **argv ) {
         if ( type < 1 || type > 3 ) {
           fprintf(stderr, "%s: invalid option -- <type> must be 1, 2, or 3!\n", argv[0]);
           GenLinChenChenHelp(argv[0]);
-          exit(1);
+          abort();
         }
         break;
       }
@@ -130,7 +130,7 @@ int main( int argc, char **argv ) {
         if ( rho < 0 || rho > 1 ) {
           fprintf(stderr, "%s: invalid option -- <rho> must be in range [0, 1]!\n", argv[0]);
           GenLinChenChenHelp(argv[0]);
-          exit(1);
+          abort();
         }
         break;
       }
@@ -144,7 +144,7 @@ int main( int argc, char **argv ) {
       }
       default: {
         GenLinChenChenHelp(argv[0]);
-        exit(1);
+        abort();
       }
     }
   }

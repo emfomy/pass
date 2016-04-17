@@ -9,7 +9,7 @@ MODEL     ?= inglai
 MODELOPTS ?=
 
 CXX      = g++
-CXXFLAGS = -O3 -std=c++11 -Wall -Wextra -pedantic
+CXXFLAGS = -O3 -std=c++11 -Wall -Wextra -Wpedantic
 
 RM      = rm -rf
 RANLIB  = ranlib

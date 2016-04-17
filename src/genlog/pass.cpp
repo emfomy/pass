@@ -231,20 +231,20 @@ void GenLog() {
 /// The constructor
 ///
 Particle::Particle() {
-  X        = new float[n*n];
-  Y        = new float[n];
-  Beta     = new float[n];
-  Theta    = new float[n];
-  Eta      = new float[n];
-  P        = new float[n];
-  W        = new float[n];
-  M        = new float[n*(n+1)/2];
-  STemp    = new float[n];
+  X        = static_cast<float*>(mkl_malloc(sizeof(float) * n * n, 64));
+  Y        = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
+  Beta     = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
+  Theta    = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
+  Eta      = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
+  P        = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
+  W        = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
+  M        = static_cast<float*>(mkl_malloc(sizeof(float) * n*(n+1)/2, 64));
+  STemp    = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
 
-  Idx_lo   = new int[n];
-  Idx_ol   = new int[p];
-  Idx_temp = new int[p];
-  I        = new bool[p];
+  Idx_lo   = static_cast<int*>(mkl_malloc(sizeof(int) * n, 64));
+  Idx_ol   = static_cast<int*>(mkl_malloc(sizeof(int) * p, 64));
+  Idx_temp = static_cast<int*>(mkl_malloc(sizeof(int) * p, 64));
+  I        = static_cast<bool*>(mkl_malloc(sizeof(bool) * p, 64));
 
   iseed    = rand();
 }
@@ -253,20 +253,20 @@ Particle::Particle() {
 /// The destructor
 ///
 Particle::~Particle() {
-  delete[] X;
-  delete[] Y;
-  delete[] Beta;
-  delete[] Theta;
-  delete[] Eta;
-  delete[] P;
-  delete[] W;
-  delete[] M;
-  delete[] STemp;
+  mkl_free(X);
+  mkl_free(Y);
+  mkl_free(Beta);
+  mkl_free(Theta);
+  mkl_free(Eta);
+  mkl_free(P);
+  mkl_free(W);
+  mkl_free(M);
+  mkl_free(STemp);
 
-  delete[] Idx_lo;
-  delete[] Idx_ol;
-  delete[] Idx_temp;
-  delete[] I;
+  mkl_free(Idx_lo);
+  mkl_free(Idx_ol);
+  mkl_free(Idx_temp);
+  mkl_free(I);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

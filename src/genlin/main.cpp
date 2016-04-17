@@ -26,7 +26,7 @@ const unsigned int kTest = 100;           ///< the default number of tests
 const char *kDataRoot    = "genlin.dat";  ///< the default data file root
 
 // Global variables
-bool *J0;                                 ///< vector, 1 by p, the chosen indices (solution)
+bool *J0;                                 ///< vector, 1 by p, the chosen indices (real model)
 char *dataname;                           ///< string, the name of data
 int mpi_size;                             ///< the size of MPI communicator
 int mpi_rank;                             ///< the rank of MPI processes
@@ -258,7 +258,7 @@ int main( int argc, char **argv ) {
   // ======== Run PaSS ==================================================================================================== //
 
   // Declare variables
-  int num_true_selection = 0;
+  int num_real_selection = 0;
   double start_time = 0.0, total_time = 0.0;
   float *rate_positive_selection = nullptr, *rate_false_discovery = nullptr;
   Particle particle;
@@ -295,7 +295,7 @@ int main( int argc, char **argv ) {
     for ( auto i = 0; i < p; i++ ) {
       if ( J0[i] ) {
         printf("%-*d ", isize, i);
-        num_true_selection++;
+        num_real_selection++;
       } else if (verbose) {
         printf("%*s ", isize, "");
       }
@@ -307,7 +307,7 @@ int main( int argc, char **argv ) {
     // Record beginning time
     MPI_Barrier(MPI_COMM_WORLD);
     if ( mpi_rank == 0 ) {
-      start_time = omp_get_wtime();
+      start_time = dsecnd();
     }
 
     // Run PaSS
@@ -322,7 +322,7 @@ int main( int argc, char **argv ) {
     // Record ending time
     MPI_Barrier(MPI_COMM_WORLD);
     if ( mpi_rank == 0 ) {
-      total_time += omp_get_wtime() - start_time;
+      total_time += dsecnd() - start_time;
     }
 
     // Transfer best model
@@ -377,7 +377,7 @@ int main( int argc, char **argv ) {
       printf("\n");
 
       // Compute accuracy rate
-      rate_positive_selection[t] = static_cast<float>(num_correct)   / num_true_selection;
+      rate_positive_selection[t] = static_cast<float>(num_correct)   / num_real_selection;
       rate_false_discovery[t] =    static_cast<float>(num_incorrect) / num_test_selection;
     }
   }
@@ -393,8 +393,8 @@ int main( int argc, char **argv ) {
     auto rate_false_discovery_mean    = accumulate(rate_false_discovery,    rate_false_discovery+num_test,    0.0f) / num_test;
     for_each(rate_positive_selection, rate_positive_selection+num_test, [=](float& f) { f-=rate_positive_selection_mean; });
     for_each(rate_false_discovery,    rate_false_discovery+num_test,    [=](float& f) { f-=rate_false_discovery_mean;    });
-    auto rate_positive_selection_sd   = cblas_snrm2(num_test, rate_positive_selection, 1);
-    auto rate_false_discovery_sd      = cblas_snrm2(num_test, rate_false_discovery,    1);
+    auto rate_positive_selection_sd   = cblas_snrm2(num_test, rate_positive_selection, 1) / sqrt(num_test-1.0f);
+    auto rate_false_discovery_sd      = cblas_snrm2(num_test, rate_false_discovery,    1) / sqrt(num_test-1.0f);
 
     // Display statistic report
     printf("%s\n", dataname);

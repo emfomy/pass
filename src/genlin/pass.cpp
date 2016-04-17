@@ -196,20 +196,20 @@ void GenLin() {
 /// The constructor
 ///
 Particle::Particle() {
-  X        = new float[n*n];
-  Y        = new float[n];
-  Beta     = new float[n];
-  Theta    = new float[n];
-  M        = new float[n*n];
-  R        = new float[n];
-  B        = new float[n];
-  D        = new float[n];
-  E        = new float[p];
+  X        = static_cast<float*>(mkl_malloc(sizeof(float) * n * n, 64));
+  Y        = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
+  Beta     = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
+  Theta    = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
+  M        = static_cast<float*>(mkl_malloc(sizeof(float) * n * n, 64));
+  R        = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
+  B        = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
+  D        = static_cast<float*>(mkl_malloc(sizeof(float) * n, 64));
+  E        = static_cast<float*>(mkl_malloc(sizeof(float) * p, 64));
 
-  Idx_lo   = new int[n];
-  Idx_ol   = new int[p];
-  Idx_temp = new int[p];
-  I        = new bool[p];
+  Idx_lo   = static_cast<int*>(mkl_malloc(sizeof(int) * n, 64));
+  Idx_ol   = static_cast<int*>(mkl_malloc(sizeof(int) * p, 64));
+  Idx_temp = static_cast<int*>(mkl_malloc(sizeof(int) * p, 64));
+  I        = static_cast<bool*>(mkl_malloc(sizeof(bool) * p, 64));
 
   iseed    = rand();
 }
@@ -218,20 +218,20 @@ Particle::Particle() {
 /// The destructor
 ///
 Particle::~Particle() {
-  delete[] X;
-  delete[] Y;
-  delete[] Beta;
-  delete[] Theta;
-  delete[] M;
-  delete[] R;
-  delete[] B;
-  delete[] D;
-  delete[] E;
+  mkl_free(X);
+  mkl_free(Y);
+  mkl_free(Beta);
+  mkl_free(Theta);
+  mkl_free(M);
+  mkl_free(R);
+  mkl_free(B);
+  mkl_free(D);
+  mkl_free(E);
 
-  delete[] Idx_lo;
-  delete[] Idx_ol;
-  delete[] Idx_temp;
-  delete[] I;
+  mkl_free(Idx_lo);
+  mkl_free(Idx_ol);
+  mkl_free(Idx_temp);
+  mkl_free(I);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
