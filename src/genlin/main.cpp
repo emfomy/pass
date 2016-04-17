@@ -106,7 +106,7 @@ int main( int argc, char **argv ) {
           }
           MPI_Abort(MPI_COMM_WORLD, 1);
         }
-        parameter.prob_forward_global = atof(argv[optind]);
+        parameter.prob_forward_best = atof(argv[optind]);
         optind++;
         if ( argv[optind] == nullptr ) {
           if ( mpi_rank == 0 ) {
@@ -115,7 +115,7 @@ int main( int argc, char **argv ) {
           }
           MPI_Abort(MPI_COMM_WORLD, 1);
         }
-        parameter.prob_forward_local = atof(argv[optind]);
+        parameter.prob_forward_improve = atof(argv[optind]);
         optind++;
         if ( argv[optind] == nullptr ) {
           if ( mpi_rank == 0 ) {
@@ -133,7 +133,7 @@ int main( int argc, char **argv ) {
           }
           MPI_Abort(MPI_COMM_WORLD, 1);
         }
-        parameter.prob_backward_local = atof(argv[optind]);
+        parameter.prob_backward_improve = atof(argv[optind]);
         optind++;
         if ( argv[optind] == nullptr ) {
           if ( mpi_rank == 0 ) {
@@ -402,10 +402,10 @@ int main( int argc, char **argv ) {
     printf("#Thread    = %d\n",        num_thread);
     printf("#Particle  = %d\n",        num_particle);
     printf("#Iteration = %d\n",        parameter.num_iteration);
-    printf("pfg        = %.2f\n",      parameter.prob_forward_global);
-    printf("pfl        = %.2f\n",      parameter.prob_forward_local);
+    printf("pfb        = %.2f\n",      parameter.prob_forward_best);
+    printf("pfi        = %.2f\n",      parameter.prob_forward_improve);
     printf("pfr        = %.2f\n",      parameter.prob_forward_random);
-    printf("pbl        = %.2f\n",      parameter.prob_backward_local);
+    printf("pbi        = %.2f\n",      parameter.prob_backward_improve);
     printf("pbr        = %.2f\n",      parameter.prob_backward_random);
     if ( parameter.criterion == EBIC ) {
       printf("Criterion  = %s%.1f\n",  Criterion2String(parameter.criterion), parameter.ebic_gamma);
@@ -455,12 +455,12 @@ void PassHelp( const char *cmd ) {
   printf("  %-46s%-40s\n",       "-h, --help",               "display help messages");
 
   printf("\nProbability Options:\n");
-  printf("  --prob <pfg> <pfl> <pfr> <pbl> <pbr>\n");
-  printf("    %-44s%-48s%.2f\n", "<pfg>", "the probabilities of forward step: global",  temp.prob_forward_global);
-  printf("    %-44s%-48s%.2f\n", "<pfl>", "the probabilities of forward step: local",   temp.prob_forward_local);
-  printf("    %-44s%-48s%.2f\n", "<pfr>", "the probabilities of forward step: random",  temp.prob_forward_random);
-  printf("    %-44s%-48s%.2f\n", "<pbl>", "the probabilities of backward step: local",  temp.prob_backward_local);
-  printf("    %-44s%-48s%.2f\n", "<pbr>", "the probabilities of backward step: random", temp.prob_backward_random);
+  printf("  --prob <pfb> <pfi> <pfr> <pbi> <pbr>\n");
+  printf("    %-44s%-48s%.2f\n", "<pfb>", "the probabilities of forward step: best",  temp.prob_forward_best);
+  printf("    %-44s%-48s%.2f\n", "<pfi>", "the probabilities of forward step: improve",   temp.prob_forward_improve);
+  printf("    %-44s%-48s%.2f\n", "<pfr>", "the probabilities of forward step: randomly",  temp.prob_forward_random);
+  printf("    %-44s%-48s%.2f\n", "<pbi>", "the probabilities of backward step: improve",  temp.prob_backward_improve);
+  printf("    %-44s%-48s%.2f\n", "<pbr>", "the probabilities of backward step: randomly", temp.prob_backward_random);
 
   printf("\nCriterion Options:\n");
   printf("  %-46s%-48s\n",       "--AIC",              "Akaike information criterion");

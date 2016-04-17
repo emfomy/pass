@@ -16,9 +16,9 @@ namespace pass {
 
 extern int n;                       ///< scalar, the number of statistical units
 extern int p;                       ///< scalar, the number of total effects
-extern float* X0;                   ///< matrix, n by p, the regressors
-extern float* Y0;                   ///< vector, n by 1, the regressand
-extern bool* I0;                    ///< vector, 1 by p, the chosen indices
+extern float *X0;                   ///< matrix, n by p, the regressors
+extern float *Y0;                   ///< vector, n by 1, the regressand
+extern bool *I0;                    ///< vector, 1 by p, the chosen indices
 extern float phi0;                  ///< scalar, the criterion value
 extern struct Parameter parameter;  ///< the PaSS parameters
 
@@ -64,11 +64,11 @@ static inline const char* Criterion2String( const Criterion criterion ) {
 struct Parameter {
   unsigned int num_iteration;        ///< the number of iterations
   unsigned int num_particle_thread;  ///< the number of particles per thread
-  float prob_forward_global;         ///< the probability of forward step: global
-  float prob_forward_local;          ///< the probability of forward step: local
-  float prob_forward_random;         ///< the probability of forward step: random
-  float prob_backward_local;         ///< the probability of backward step: local
-  float prob_backward_random;        ///< the probability of backward step: random
+  float prob_forward_best;           ///< the probability of forward step: choose randomly from best model
+  float prob_forward_improve;        ///< the probability of forward step: choose most improvement index
+  float prob_forward_random;         ///< the probability of forward step: choose randomly
+  float prob_backward_improve;       ///< the probability of backward step: choose most improvement index
+  float prob_backward_random;        ///< the probability of backward step: choose randomly
   Criterion criterion;               ///< the criterion
   float ebic_gamma;                  ///< the penalty parameter for EBIC
   bool is_normalized;                ///< the data is normalized of not
@@ -77,10 +77,10 @@ struct Parameter {
   Parameter() {
     num_iteration = 1024;
     num_particle_thread = 16;
-    prob_forward_global = 0.1;
-    prob_forward_local = 0.8;
+    prob_forward_best = 0.1;
+    prob_forward_improve = 0.8;
     prob_forward_random = 0.1;
-    prob_backward_local = 0.9;
+    prob_backward_improve = 0.9;
     prob_backward_random = 0.1;
     criterion = HDBIC;
     ebic_gamma = 1.0;

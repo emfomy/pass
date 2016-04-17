@@ -121,9 +121,9 @@ namespace pass {
 
 int n;                // scalar, the number of statistical units
 int p;                // scalar, the number of total effects
-float* X0;            // matrix, n by p, the regressors
-float* Y0;            // vector, n by 1, the regressand
-bool* I0;             // vector, 1 by p, the chosen indices
+float *X0;            // matrix, n by p, the regressors
+float *Y0;            // vector, n by 1, the regressand
+bool *I0;             // vector, 1 by p, the chosen indices
 float phi0;           // scalar, the criterion value
 Parameter parameter;  // the PaSS parameters
 
@@ -430,9 +430,9 @@ void Particle::SelectIndex( int& idx ) {
 
     int choose;
     if ( itemp ) {
-      choose = (srand < parameter.prob_forward_global) + (srand < parameter.prob_forward_global+parameter.prob_forward_local);
+      choose = (srand < parameter.prob_forward_best) + (srand < parameter.prob_forward_best+parameter.prob_forward_improve);
     } else {
-      choose = srand < parameter.prob_forward_local / (parameter.prob_forward_local+parameter.prob_forward_random);
+      choose = srand < parameter.prob_forward_improve / (parameter.prob_forward_improve+parameter.prob_forward_random);
     }
 
     switch( choose ) {
@@ -509,7 +509,7 @@ void Particle::SelectIndex( int& idx ) {
       }
     }
   } else {  // backward step
-    if ( srand < parameter.prob_backward_local ) {  // Local best
+    if ( srand < parameter.prob_backward_improve ) {  // Local best
       auto llv_temp = INFINITY;
       for ( auto i = 1; i <= k; ++i ) {
         // ======== stemp := Y' * Theta_hat - sum( log( 1 + (eta_hat-1)*p ) ) ============================================= //

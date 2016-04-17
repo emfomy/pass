@@ -87,11 +87,11 @@ The following environment variables should be set before compiling.
 | `--verbose`                            | switch to verbose mode                              |               |
 | `-h, --help`                           | display help messages                               |               |
 |                                        |                                                     |               |
-| `--prob <pfg> <pfl> <pfr> <pbl> <pbr>` | the probabilities                                   |               |
-| `<pfg>`                                | the probabilities of forward step: global           | `0.1`         |
-| `<pfl>`                                | the probabilities of forward step: local            | `0.8`         |
+| `--prob <pfb> <pfi> <pfr> <pbi> <pbr>` | the probabilities                                   |               |
+| `<pfb>`                                | the probabilities of forward step: best             | `0.1`         |
+| `<pfi>`                                | the probabilities of forward step: improve          | `0.8`         |
 | `<pfr>`                                | the probabilities of forward step: random           | `0.1`         |
-| `<pbl>`                                | the probabilities of backward step: local           | `0.9`         |
+| `<pbi>`                                | the probabilities of backward step: improve         | `0.9`         |
 | `<pbr>`                                | the probabilities of backward step: random          | `0.1`         |
 |                                        |                                                     |               |
 | `--AIC`                                | Akaike information criterion                        |               |
@@ -116,11 +116,11 @@ The following environment variables should be set before compiling.
 | `--verbose`                            | switch to verbose mode                              |               |
 | `-h, --help`                           | display help messages                               |               |
 |                                        |                                                     |               |
-| `--prob <pfg> <pfl> <pfr> <pbl> <pbr>` | the probabilities                                   |               |
-| `<pfg>`                                | the probabilities of forward step: global           | `0.1`         |
-| `<pfl>`                                | the probabilities of forward step: local            | `0.8`         |
+| `--prob <pfb> <pfi> <pfr> <pbi> <pbr>` | the probabilities                                   |               |
+| `<pfb>`                                | the probabilities of forward step: best             | `0.1`         |
+| `<pfi>`                                | the probabilities of forward step: local            | `0.8`         |
 | `<pfr>`                                | the probabilities of forward step: random           | `0.1`         |
-| `<pbl>`                                | the probabilities of backward step: local           | `0.9`         |
+| `<pbi>`                                | the probabilities of backward step: local           | `0.9`         |
 | `<pbr>`                                | the probabilities of backward step: random          | `0.1`         |
 |                                        |                                                     |               |
 | `--AIC`                                | Akaike information criterion                        |               |
