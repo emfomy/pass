@@ -262,6 +262,7 @@ int main( int argc, char **argv ) {
   double start_time = 0.0, total_time = 0.0;
   float *rate_positive_selection = nullptr, *rate_false_discovery = nullptr;
   Particle particle;
+  particle.E = static_cast<float*>(mkl_malloc(p * sizeof(float), 64));
 
   if ( mpi_rank == 0 ) {
     printf("================================================================"
@@ -429,6 +430,7 @@ int main( int argc, char **argv ) {
   mkl_free(Y0);
   mkl_free(I0);
   mkl_free(J0);
+  mkl_free(particle.E);
 
   // Finalize MPI
   MPI_Finalize();

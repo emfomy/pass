@@ -6,7 +6,7 @@ include Makefile.inc
 CXXFLAGS += $(OMPFLAGS)
 INCS = $(MKLINC) $(MPIINC)
 LIBS = $(MKLLIB) $(MPILIB)
-LNKS = $(MKLLNK) $(MPILNK)
+LNKS = $(MKLLNKSEQ) $(MPILNK)
 
 NAME = genlog
 BINDIR = bin

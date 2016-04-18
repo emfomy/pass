@@ -40,7 +40,7 @@ $(DOCS): | $(PWD)/$(HTMLDIR)
 $(PASSHTML):
 	echo "<html><META HTTP-EQUIV='refresh' CONTENT='0; URL=$(HTMLDIR)/index.html'></html>" > $@
 
-run: run-$(PASS)
+run: $(MKS) run-$(PASS)
 	@ jbinfo
 
 run-$(PASS): $(SH) $(BINDIR)/$(PASS) run-$(MODEL) | $(PWD)/$(RUNDIR)
