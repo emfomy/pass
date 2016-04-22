@@ -23,8 +23,6 @@ extern int n;                       ///< scalar, the number of statistical units
 extern int p;                       ///< scalar, the number of total effects
 extern float *X0;                   ///< matrix, n by p, the regressors
 extern float *Y0;                   ///< vector, n by 1, the regressand
-extern float *R0;                   ///< vector, n by #Particle, the residual
-extern float *E0;                   ///< vector, p by #Particle, temporary vector
 extern bool *I0;                    ///< vector, 1 by p, the chosen indices
 extern float phi0;                  ///< scalar, the criterion value
 extern struct Parameter parameter;  ///< the PaSS parameters
@@ -123,11 +121,11 @@ struct Particle {
 
   int *Idx_lo;        ///< vector, 1 by k, map local effects to original effects
   int *Idx_ol;        ///< vector, 1 by p, map original effects to local effects
-  int *Idx_temp;      ///< vector, 1 by p, workspace
+  int *Idx_best;      ///< vector, 1 by p, I0 exclude I
   bool *I;            ///< vector, 1 by p, the chosen indices
   int k;              ///< scalar, the number of chosen effects
+  int kbest;          ///< scalar, the size of Idx_best
   int idx;            ///< scalar, the index of the updating effect
-  int itemp;          ///< scalar, the size of workspace
 
   bool status;        ///< scalar, the status (forward/backward)
   int option;         ///< scalar, the updating option (0=random, 1=improve, 2=best)

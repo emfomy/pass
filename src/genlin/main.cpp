@@ -13,9 +13,10 @@
 #include <algorithm>
 #include <numeric>
 #include <getopt.h>
-#include <mkl.h>
-#include <mpi.h>
 #include <omp.h>
+#include <mpi.h>
+#include <mkl.h>
+#include <magma.h>
 #include "pass.hpp"
 
 using namespace std;
@@ -47,6 +48,10 @@ int main( int argc, char **argv ) {
   // Initialize random seed
   srand(time(NULL) ^ mpi_rank);
   srand(rand());
+
+  // Initialize MAGMA
+  magma_init();
+  magma_print_environment();
 
   // ======== Load arguments ============================================================================================== //
 
@@ -255,13 +260,12 @@ int main( int argc, char **argv ) {
     printf("Done.\n");
   }
 
-  // ======== Run PaSS ==================================================================================================== //
-
   // Declare variables
   int num_real_selection = 0;
   double start_time = 0.0, total_time = 0.0;
   float *rate_positive_selection = nullptr, *rate_false_discovery = nullptr;
   Particle particle;
+  particle.R = static_cast<float*>(mkl_malloc(n * sizeof(float), 64));
   particle.E = static_cast<float*>(mkl_malloc(p * sizeof(float), 64));
 
   if ( mpi_rank == 0 ) {
@@ -430,7 +434,11 @@ int main( int argc, char **argv ) {
   mkl_free(Y0);
   mkl_free(I0);
   mkl_free(J0);
+  mkl_free(particle.R);
   mkl_free(particle.E);
+
+  // Finalize MAGMA
+  magma_finalize();
 
   // Finalize MPI
   MPI_Finalize();

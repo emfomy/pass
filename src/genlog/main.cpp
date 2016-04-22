@@ -13,9 +13,9 @@
 #include <algorithm>
 #include <numeric>
 #include <getopt.h>
-#include <mkl.h>
-#include <mpi.h>
 #include <omp.h>
+#include <mpi.h>
+#include <mkl.h>
 #include "pass.hpp"
 
 using namespace std;

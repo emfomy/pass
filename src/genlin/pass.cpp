@@ -47,8 +47,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
-#include <mkl.h>
 #include <omp.h>
+#include <mkl.h>
+#include <magma.h>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// The log-binomial function
@@ -62,6 +63,8 @@ static inline float lbinom( const int n, const int k ) {
   int i;
   return (lgammaf_r(n+1, &i) - lgammaf_r(n-k+1, &i) - lgammaf_r(k+1, &i));
 }
+
+float *R0, *E0, *dX0, *dR0, *dE0;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //  The namespace of PaSS
@@ -77,8 +80,6 @@ int n;                // scalar, the number of statistical units
 int p;                // scalar, the number of total effects
 float *X0;            // matrix, n by p, the regressors
 float *Y0;            // vector, n by 1, the regressand
-float *R0;            // vector, n by #Particle, the residual
-float *E0;            // vector, p by #Particle, temporary vector
 bool *I0;             // vector, 1 by p, the chosen indices
 float phi0;           // scalar, the criterion value
 Parameter parameter;  // the PaSS parameters
@@ -133,13 +134,22 @@ void GenLin() {
   // ======== Run PaSS ==================================================================================================== //
 
   // Allocate particles
-  R0 = static_cast<float*>(mkl_malloc(n * num_particle * sizeof(float), 64));
-  E0 = static_cast<float*>(mkl_malloc(p * num_particle * sizeof(float), 64));
   phi0 = INFINITY;
   auto particle = new Particle[num_particle];
 
+  // Allocate GPU memory
+  magma_smalloc_cpu(&R0, n * num_particle);
+  magma_smalloc_cpu(&E0, p * num_particle);
+  magma_smalloc(&dX0, n * p);
+  magma_smalloc(&dR0, n * num_particle);
+  magma_smalloc(&dE0, p * num_particle);
+  magma_ssetmatrix(n, p, X0, n, dX0, n);
+
   // Initialize particles
+  #pragma omp parallel for
   for ( auto j = 0u; j < num_particle; ++j ) {
+    particle[j].R = R0 + j*n;
+    particle[j].E = E0 + j*p;
     particle[j].InitializeModel();
     particle[j].ComputeCriterion();
     particle[j].phi_old = particle[j].phi;
@@ -153,23 +163,15 @@ void GenLin() {
 
   // Find best model
   for ( auto i = 1u; i < parameter.num_iteration; ++i ) {
-    // Select updating option
-    auto itemp = 0;
-    for ( auto j = 0u; j < num_particle; ++j ) {
-      particle[j].SelectOption();
-      if ( particle[j].status && particle[j].option == Option::IMPROVE ) {
-        particle[j].ComputeResidual();
-        cblas_scopy(n, particle[j].R, 1, R0+itemp*n, 1);
-        particle[j].E = E0+itemp*p;
-        ++itemp;
-      }
-    }
-
     // E0 := X0' * R0
-    cblas_sgemm(CblasColMajor, CblasTrans, CblasNoTrans, p, itemp, n, 1.0, X0, n, R0, n, 0.0, E0, p);
+    magma_ssetmatrix(n, num_particle, R0, n, dR0, n);
+    magma_sgemm(MagmaTrans, MagmaNoTrans, p, num_particle, n, 1.0, dX0, n, dR0, n, 0.0, dE0, p);
+    magma_sgetmatrix(p, num_particle, dE0, p, E0, p);
 
+    #pragma omp parallel for
     for ( auto j = 0u; j < num_particle; ++j ) {
       // Update model
+      particle[j].SelectOption();
       particle[j].SelectIndex();
       particle[j].UpdateModel();
       particle[j].ComputeCriterion();
@@ -205,8 +207,11 @@ void GenLin() {
 
   // Delete memory
   delete[] particle;
-  mkl_free(R0);
-  mkl_free(E0);
+  magma_free_cpu(R0);
+  magma_free_cpu(E0);
+  magma_free(dX0);
+  magma_free(dR0);
+  magma_free(dE0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -218,13 +223,12 @@ Particle::Particle() {
   Beta     = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
   Theta    = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
   M        = static_cast<float*>(mkl_malloc(n * n * sizeof(float), 64));
-  R        = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
   B        = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
   D        = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
 
   Idx_lo   = static_cast<int*  >(mkl_malloc(n     * sizeof(int),   64));
   Idx_ol   = static_cast<int*  >(mkl_malloc(p     * sizeof(int),   64));
-  Idx_temp = static_cast<int*  >(mkl_malloc(p     * sizeof(int),   64));
+  Idx_best = static_cast<int*  >(mkl_malloc(p     * sizeof(int),   64));
   I        = static_cast<bool* >(mkl_malloc(p     * sizeof(bool),  64));
 
   iseed    = rand();
@@ -239,13 +243,12 @@ Particle::~Particle() {
   mkl_free(Beta);
   mkl_free(Theta);
   mkl_free(M);
-  mkl_free(R);
   mkl_free(B);
   mkl_free(D);
 
   mkl_free(Idx_lo);
   mkl_free(Idx_ol);
-  mkl_free(Idx_temp);
+  mkl_free(Idx_best);
   mkl_free(I);
 }
 
@@ -428,22 +431,22 @@ void Particle::ComputeResidual() {
 void Particle::SelectOption() {
   auto srand = static_cast<float>(rand_r(&iseed)) / RAND_MAX;
   if ( status ) {  // Forward step
-    // Idx_temp[0~itemp] := I0 exclude I
-    // Idx_temp[0~(p-k)] := complement of I
-    itemp = 0;
+    // Idx_best[0~kbest] := I0 exclude I
+    // Idx_best[0~(p-k)] := complement of I
+    kbest = 0;
     for ( auto i = 0, j = p-k; i < p; ++i ) {
       if ( !I[i] ) {
         if ( I0[i] ) {
-          Idx_temp[itemp] = i;
-          itemp++;
+          Idx_best[kbest] = i;
+          kbest++;
         } else {
           j--;
-          Idx_temp[j] = i;
+          Idx_best[j] = i;
         }
       }
     }
 
-    if ( itemp ) {
+    if ( kbest ) {
       option = (srand < parameter.prob_forward_best) + (srand < parameter.prob_forward_best+parameter.prob_forward_improve);
     } else {
       option = srand < parameter.prob_forward_improve / (parameter.prob_forward_improve+parameter.prob_forward_random);
@@ -460,7 +463,7 @@ void Particle::SelectIndex() {
   if ( status ) {  // Forward step
     switch( option ) {
       case Option::BEST: {  // Choose randomly from best model
-        idx = Idx_temp[rand_r(&iseed) % itemp];
+        idx = Idx_best[rand_r(&iseed) % kbest];
         break;
       }
       case Option::IMPROVE: {  // Choose most improvement index
@@ -477,7 +480,7 @@ void Particle::SelectIndex() {
         break;
       }
       case Option::RANDOM: {  // Choose randomly
-        idx = Idx_temp[rand_r(&iseed) % (p-k)];
+        idx = Idx_best[rand_r(&iseed) % (p-k)];
         break;
       }
     }
