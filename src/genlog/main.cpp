@@ -210,7 +210,7 @@ int main( int argc, char **argv ) {
   // Display parameters
   if ( mpi_rank == 0 ) {
     if ( parameter.criterion == EBIC ) {
-      printf("%s: n=%d, p=%d, #Node=%d, #Thread=%d, #Particle=%d, #Iteration=%d, #Test=%d, Criterion=%s%.1f\n",
+      printf("%s: n=%d, p=%d, #Node=%d, #Thread=%d, #Particle=%d, #Iteration=%d, #Test=%d, Criterion=%s%.2f\n",
              dataname, n, p, mpi_size, num_thread, num_particle, parameter.num_iteration, num_test,
              Criterion2String(parameter.criterion), parameter.ebic_gamma);
     } else {
@@ -404,7 +404,7 @@ int main( int argc, char **argv ) {
     printf("pbi        = %.2f\n",      parameter.prob_backward_improve);
     printf("pbr        = %.2f\n",      parameter.prob_backward_random);
     if ( parameter.criterion == EBIC ) {
-      printf("Criterion  = %s%.1f\n",  Criterion2String(parameter.criterion), parameter.ebic_gamma);
+      printf("Criterion  = %s%.2f\n",  Criterion2String(parameter.criterion), parameter.ebic_gamma);
     } else {
       printf("Criterion  = %s\n",      Criterion2String(parameter.criterion));
     }

@@ -6,6 +6,7 @@ MAKEFLAGS += --no-print-directory
 PROJ      ?= pass
 PASS      ?= genlin
 MODEL     ?= inglai
+PASSOPTS  ?=
 MODELOPTS ?=
 
 CXX      = g++

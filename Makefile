@@ -23,7 +23,7 @@ SH = $(SHDIR)/pass.sh
 MKS = $(notdir $(basename $(wildcard $(MKDIR)/*.mk)))
 DOCS = $(notdir $(basename $(wildcard $(DOCDIR)/*.inc)))
 
-.PHONY: all $(MKS) doc $(DOCS) run run-$(PASS) run-$(MODEL) clean kill killf del
+.PHONY: all $(MKS) doc $(DOCS) run run-pass run-model run-$(PASS) run-$(MODEL) clean kill killf del
 
 all: $(MKS)
 	@ echo > /dev/null
@@ -43,8 +43,12 @@ $(PASSHTML):
 run: $(MKS) run-$(PASS)
 	@ jbinfo
 
+run-pass: run-$(PASS)
+
+run-model: run-$(MODEL)
+
 run-$(PASS): $(SH) $(BINDIR)/$(PASS) run-$(MODEL) | $(PWD)/$(RUNDIR)
-	( cd $(RUNDIR) && ../$< $(PROJ) $(PASS) $(MODEL) )
+	( cd $(RUNDIR) && ../$< $(PROJ) $(PASS) $(MODEL) $(PASSOPTS) )
 
 run-$(MODEL): $(BINDIR)/$(PASS)_$(MODEL) | $(PWD)/$(RUNDIR)
 	( cd $(RUNDIR) && ../$< $(MODELOPTS) )
