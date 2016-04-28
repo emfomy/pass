@@ -194,12 +194,18 @@ void GenLin() {
       }
 
       particle[j].phi_old = particle[j].phi;
+    }
 
-      // Copy best model
+    // Copy best model
+    int j_best = -1;
+    for ( auto j = 0u; j < num_particle; ++j ) {
       if ( phi0 > particle[j].phi ) {
         phi0 = particle[j].phi;
-        memcpy(I0, particle[j].I, sizeof(bool) * p);
+        j_best = j;
       }
+    }
+    if ( j_best != -1 ) {
+      memcpy(I0, particle[j_best].I, sizeof(bool) * p);
     }
   }
 

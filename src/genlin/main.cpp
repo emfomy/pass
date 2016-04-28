@@ -278,7 +278,7 @@ int main( int argc, char **argv ) {
     rate_positive_selection = new float[num_test];
     rate_false_discovery    = new float[num_test];
 
-    // Build solution model
+    // Build real model
     bool btemp = true;
     for ( auto i = 0; i < p; i++ ) {
       if ( J0[i] ) {
@@ -296,7 +296,7 @@ int main( int argc, char **argv ) {
     }
     particle.ComputeCriterion();
 
-    // Display solution model
+    // Display real model
     auto isize = static_cast<int>(log10(p))+1;
     printf("True(**):\t%12.6f; ", particle.phi);
     for ( auto i = 0; i < p; i++ ) {
