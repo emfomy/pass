@@ -538,16 +538,20 @@ void Particle::ComputeCriterion() {
       phi = n*logf(e*e/n) + k*logf(n);
       break;
     }
+    case HQC: {    // phi := n*log(e^2/n) + 2k*log(log(n))
+      phi = n*logf(e*e/n) + 2.0f*k*logf(logf(n));
+      break;
+    }
     case EBIC: {   // phi := n*log(e^2/n) + k*log(n) + 2gamma*log(binom(p, k))
       phi = n*logf(e*e/n) + k*logf(n) + 2.0f*parameter.ebic_gamma*lbinom(p, k);
       break;
     }
-    case HDBIC: {  // phi := n*log(e^2/n) + k*log(n)*log(p)
-      phi = n*logf(e*e/n) + k*logf(n)*logf(p);
+    case HDAIC: {  // phi := n*log(e^2/n) + 2k*log(p)
+      phi = n*logf(e*e/n) + 2.0f*k*logf(p);
       break;
     }
-    case HQC: {    // phi := n*log(e^2/n) + 2k*log(log(n))
-      phi = n*logf(e*e/n) + 2.0f*k*logf(logf(n));
+    case HDBIC: {  // phi := n*log(e^2/n) + k*log(n)*log(p)
+      phi = n*logf(e*e/n) + k*logf(n)*logf(p);
       break;
     }
     case HDHQC: {  // phi := n*log(e^2/n) + 2k*log(log(n))*log(p)

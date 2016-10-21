@@ -5,6 +5,8 @@
 /// @author  Mu Yang <emfomy@gmail.com>
 ///
 
+/// @todo  Load data in master rank and broadcast using MPI
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>

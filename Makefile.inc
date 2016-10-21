@@ -5,11 +5,11 @@ MAKEFLAGS += --no-print-directory
 
 PROJ      ?= pass
 PASS      ?= genlin
-MODEL     ?= inglai
+MODEL     ?= hung_1_1
 PASSOPTS  ?=
 MODELOPTS ?=
 
-CXX      = g++
+CXX      ?= g++
 CXXFLAGS = -O3 -std=c++11 -Wall -Wextra -Wpedantic -m64
 
 RM      = rm -rf
