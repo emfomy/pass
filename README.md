@@ -1,10 +1,10 @@
 # Particle Swarm Stepwise (PaSS) Algorithm
 
 ### Git
-* https://bitbucket.org/emfomy/pass/
+* https://github.com/emfomy/pass
 
 ### Documentation
-* https://dl.dropboxusercontent.com/u/71338658/PaSS/index.html
+* http://emfomy.github.io/pass
 
 ### Author
 * Mu Yang <emfomy@gmail.com>

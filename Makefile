@@ -15,7 +15,7 @@ DATDIR = dat
 MKDIR  = mk
 SHDIR  = sh
 DOCDIR = doc
-HTMLDIR = html
+HTMLDIR = docs
 PASSHTML = pass.html
 
 SH = $(SHDIR)/pass.sh
