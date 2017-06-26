@@ -41,7 +41,6 @@ $(PASSHTML):
 	echo "<html><META HTTP-EQUIV='refresh' CONTENT='0; URL=$(HTMLDIR)/index.html'></html>" > $@
 
 run: $(MKS) run-$(PASS)
-	@ jbinfo
 
 run-pass: run-$(PASS)
 

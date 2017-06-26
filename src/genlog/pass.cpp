@@ -199,7 +199,7 @@ void GenLog() {
         particle[j].ComputeCriterion();
 
         // Check singularity
-        if ( isnan(particle[j].phi) ) {
+        if ( std::isnan(particle[j].phi) ) {
           particle[j].InitializeModel();
           particle[j].ComputeCriterion();
         }

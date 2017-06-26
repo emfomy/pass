@@ -5,11 +5,11 @@ MAKEFLAGS += --no-print-directory
 
 PROJ      ?= pass
 PASS      ?= genlin
-MODEL     ?= hung_1_1
+MODEL     ?= inglai
 PASSOPTS  ?=
 MODELOPTS ?=
 
-CXX      ?= g++
+CXX      = mpicxx
 CXXFLAGS = -O3 -std=c++11 -Wall -Wextra -Wpedantic -m64
 
 RM      = rm -rf
@@ -32,8 +32,8 @@ ifndef CUDAROOT
   $(error CUDAROOT is not set!)
 endif
 CUDAINC ?= -isystem $(CUDAROOT)/include
-CUDALIB ?=
-CUDALNK  =
+CUDALIB ?= -L$(CUDAROOT)/lib64
+CUDALNK  = -lcudart -lcublas -lcusparse
 
 # MKL
 ifndef MKLROOT
