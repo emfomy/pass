@@ -5,6 +5,8 @@
 /// @author  Mu Yang <emfomy@gmail.com>
 ///
 
+/// @todo  Load data in master rank and broadcast using MPI
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -13,20 +15,21 @@
 #include <algorithm>
 #include <numeric>
 #include <getopt.h>
-#include <mkl.h>
-#include <mpi.h>
 #include <omp.h>
+#include <mpi.h>
+#include <mkl.h>
+#include <magma.h>
 #include "pass.hpp"
 
 using namespace std;
-using namespace pass;
+using namespace pass::genlin;
 
 // Default arguments
 const unsigned int kTest = 100;           ///< the default number of tests
 const char *kDataRoot    = "genlin.dat";  ///< the default data file root
 
 // Global variables
-bool *J0;                                 ///< vector, 1 by p, the chosen indices (solution)
+bool *J0;                                 ///< vector, 1 by p, the chosen indices (real model)
 char *dataname;                           ///< string, the name of data
 int mpi_size;                             ///< the size of MPI communicator
 int mpi_rank;                             ///< the rank of MPI processes
@@ -47,6 +50,12 @@ int main( int argc, char **argv ) {
   // Initialize random seed
   srand(time(NULL) ^ mpi_rank);
   srand(rand());
+
+  // Initialize MAGMA
+  magma_init();
+  if ( mpi_rank == 0 ) {
+    magma_print_environment();
+  }
 
   // ======== Load arguments ============================================================================================== //
 
@@ -106,7 +115,7 @@ int main( int argc, char **argv ) {
           }
           MPI_Abort(MPI_COMM_WORLD, 1);
         }
-        parameter.prob_forward_global = atof(argv[optind]);
+        parameter.prob_forward_best = atof(argv[optind]);
         optind++;
         if ( argv[optind] == nullptr ) {
           if ( mpi_rank == 0 ) {
@@ -115,7 +124,7 @@ int main( int argc, char **argv ) {
           }
           MPI_Abort(MPI_COMM_WORLD, 1);
         }
-        parameter.prob_forward_local = atof(argv[optind]);
+        parameter.prob_forward_improve = atof(argv[optind]);
         optind++;
         if ( argv[optind] == nullptr ) {
           if ( mpi_rank == 0 ) {
@@ -133,7 +142,7 @@ int main( int argc, char **argv ) {
           }
           MPI_Abort(MPI_COMM_WORLD, 1);
         }
-        parameter.prob_backward_local = atof(argv[optind]);
+        parameter.prob_backward_improve = atof(argv[optind]);
         optind++;
         if ( argv[optind] == nullptr ) {
           if ( mpi_rank == 0 ) {
@@ -205,12 +214,12 @@ int main( int argc, char **argv ) {
 
   // Load data and allocate memory
   PassLoad(dataroot);
-  I0 = new bool[p];
+  I0 = static_cast<bool*>(mkl_malloc(p * sizeof(bool), 64));
 
   // Display parameters
   if ( mpi_rank == 0 ) {
     if ( parameter.criterion == EBIC ) {
-      printf("%s: n=%d, p=%d, #Node=%d, #Thread=%d, #Particle=%d, #Iteration=%d, #Test=%d, Criterion=%s%.1f\n",
+      printf("%s: n=%d, p=%d, #Node=%d, #Thread=%d, #Particle=%d, #Iteration=%d, #Test=%d, Criterion=%s%.2f\n",
              dataname, n, p, mpi_size, num_thread, num_particle, parameter.num_iteration, num_test,
              Criterion2String(parameter.criterion), parameter.ebic_gamma);
     } else {
@@ -255,13 +264,13 @@ int main( int argc, char **argv ) {
     printf("Done.\n");
   }
 
-  // ======== Run PaSS ==================================================================================================== //
-
   // Declare variables
-  int num_true_selection = 0;
+  int num_real_selection = 0;
   double start_time = 0.0, total_time = 0.0;
   float *rate_positive_selection = nullptr, *rate_false_discovery = nullptr;
   Particle particle;
+  particle.R = static_cast<float*>(mkl_malloc(n * sizeof(float), 64));
+  particle.E = static_cast<float*>(mkl_malloc(p * sizeof(float), 64));
 
   if ( mpi_rank == 0 ) {
     printf("================================================================"
@@ -271,7 +280,7 @@ int main( int argc, char **argv ) {
     rate_positive_selection = new float[num_test];
     rate_false_discovery    = new float[num_test];
 
-    // Build solution model
+    // Build real model
     bool btemp = true;
     for ( auto i = 0; i < p; i++ ) {
       if ( J0[i] ) {
@@ -289,13 +298,13 @@ int main( int argc, char **argv ) {
     }
     particle.ComputeCriterion();
 
-    // Display solution model
+    // Display real model
     auto isize = static_cast<int>(log10(p))+1;
     printf("True(**):\t%12.6f; ", particle.phi);
     for ( auto i = 0; i < p; i++ ) {
       if ( J0[i] ) {
         printf("%-*d ", isize, i);
-        num_true_selection++;
+        num_real_selection++;
       } else if (verbose) {
         printf("%*s ", isize, "");
       }
@@ -307,7 +316,7 @@ int main( int argc, char **argv ) {
     // Record beginning time
     MPI_Barrier(MPI_COMM_WORLD);
     if ( mpi_rank == 0 ) {
-      start_time = omp_get_wtime();
+      start_time = dsecnd();
     }
 
     // Run PaSS
@@ -322,7 +331,7 @@ int main( int argc, char **argv ) {
     // Record ending time
     MPI_Barrier(MPI_COMM_WORLD);
     if ( mpi_rank == 0 ) {
-      total_time += omp_get_wtime() - start_time;
+      total_time += dsecnd() - start_time;
     }
 
     // Transfer best model
@@ -377,7 +386,7 @@ int main( int argc, char **argv ) {
       printf("\n");
 
       // Compute accuracy rate
-      rate_positive_selection[t] = static_cast<float>(num_correct)   / num_true_selection;
+      rate_positive_selection[t] = static_cast<float>(num_correct)   / num_real_selection;
       rate_false_discovery[t] =    static_cast<float>(num_incorrect) / num_test_selection;
     }
   }
@@ -393,8 +402,8 @@ int main( int argc, char **argv ) {
     auto rate_false_discovery_mean    = accumulate(rate_false_discovery,    rate_false_discovery+num_test,    0.0f) / num_test;
     for_each(rate_positive_selection, rate_positive_selection+num_test, [=](float& f) { f-=rate_positive_selection_mean; });
     for_each(rate_false_discovery,    rate_false_discovery+num_test,    [=](float& f) { f-=rate_false_discovery_mean;    });
-    auto rate_positive_selection_sd   = cblas_snrm2(num_test, rate_positive_selection, 1);
-    auto rate_false_discovery_sd      = cblas_snrm2(num_test, rate_false_discovery,    1);
+    auto rate_positive_selection_sd   = cblas_snrm2(num_test, rate_positive_selection, 1) / sqrt(num_test-1.0f);
+    auto rate_false_discovery_sd      = cblas_snrm2(num_test, rate_false_discovery,    1) / sqrt(num_test-1.0f);
 
     // Display statistic report
     printf("%s\n", dataname);
@@ -402,13 +411,13 @@ int main( int argc, char **argv ) {
     printf("#Thread    = %d\n",        num_thread);
     printf("#Particle  = %d\n",        num_particle);
     printf("#Iteration = %d\n",        parameter.num_iteration);
-    printf("pfg        = %.2f\n",      parameter.prob_forward_global);
-    printf("pfl        = %.2f\n",      parameter.prob_forward_local);
+    printf("pfb        = %.2f\n",      parameter.prob_forward_best);
+    printf("pfi        = %.2f\n",      parameter.prob_forward_improve);
     printf("pfr        = %.2f\n",      parameter.prob_forward_random);
-    printf("pbl        = %.2f\n",      parameter.prob_backward_local);
+    printf("pbi        = %.2f\n",      parameter.prob_backward_improve);
     printf("pbr        = %.2f\n",      parameter.prob_backward_random);
     if ( parameter.criterion == EBIC ) {
-      printf("Criterion  = %s%.1f\n",  Criterion2String(parameter.criterion), parameter.ebic_gamma);
+      printf("Criterion  = %s%.2f\n",  Criterion2String(parameter.criterion), parameter.ebic_gamma);
     } else {
       printf("Criterion  = %s\n",      Criterion2String(parameter.criterion));
     }
@@ -425,9 +434,15 @@ int main( int argc, char **argv ) {
   // ====================================================================================================================== //
 
   // Delete memory
-  delete[] X0;
-  delete[] Y0;
-  delete[] J0;
+  mkl_free(X0);
+  mkl_free(Y0);
+  mkl_free(I0);
+  mkl_free(J0);
+  mkl_free(particle.R);
+  mkl_free(particle.E);
+
+  // Finalize MAGMA
+  magma_finalize();
 
   // Finalize MPI
   MPI_Finalize();
@@ -455,12 +470,12 @@ void PassHelp( const char *cmd ) {
   printf("  %-46s%-40s\n",       "-h, --help",               "display help messages");
 
   printf("\nProbability Options:\n");
-  printf("  --prob <pfg> <pfl> <pfr> <pbl> <pbr>\n");
-  printf("    %-44s%-48s%.2f\n", "<pfg>", "the probabilities of forward step: global",  temp.prob_forward_global);
-  printf("    %-44s%-48s%.2f\n", "<pfl>", "the probabilities of forward step: local",   temp.prob_forward_local);
-  printf("    %-44s%-48s%.2f\n", "<pfr>", "the probabilities of forward step: random",  temp.prob_forward_random);
-  printf("    %-44s%-48s%.2f\n", "<pbl>", "the probabilities of backward step: local",  temp.prob_backward_local);
-  printf("    %-44s%-48s%.2f\n", "<pbr>", "the probabilities of backward step: random", temp.prob_backward_random);
+  printf("  --prob <pfb> <pfi> <pfr> <pbi> <pbr>\n");
+  printf("    %-44s%-48s%.2f\n", "<pfb>", "the probabilities of forward step: best",  temp.prob_forward_best);
+  printf("    %-44s%-48s%.2f\n", "<pfi>", "the probabilities of forward step: improve",   temp.prob_forward_improve);
+  printf("    %-44s%-48s%.2f\n", "<pfr>", "the probabilities of forward step: randomly",  temp.prob_forward_random);
+  printf("    %-44s%-48s%.2f\n", "<pbi>", "the probabilities of backward step: improve",  temp.prob_backward_improve);
+  printf("    %-44s%-48s%.2f\n", "<pbr>", "the probabilities of backward step: randomly", temp.prob_backward_random);
 
   printf("\nCriterion Options:\n");
   printf("  %-46s%-48s\n",       "--AIC",              "Akaike information criterion");
@@ -509,9 +524,9 @@ void PassLoad( const char *fileroot ) {
   fscanf(file, "%d%d\n", &n, &p);
 
   // Alloocate memory
-  X0 = new float[n*p];
-  Y0 = new float[n];
-  J0 = new bool[p];
+  X0 = static_cast<float*>(mkl_malloc(n * p * sizeof(float), 64));
+  Y0 = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
+  J0 = static_cast<bool* >(mkl_malloc(p     * sizeof(bool),  64));
 
   // Read J0
   fscanf(file, "%*s\n");
