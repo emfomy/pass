@@ -3,6 +3,7 @@
 
 include Makefile.inc
 
+CXXFLAGS += $(OMPFLAGS)
 INCS = $(MKLINC)
 LIBS = $(MKLLIB)
 LNKS = $(MKLLNK)

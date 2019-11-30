@@ -47,7 +47,7 @@
 ///
 /// ==========================================================================================================================
 ///
-/// Select index in forward step:
+/// Select the index in forward step:
 /// idx = argmax_{i not in I} llv_hat
 /// Theta_hat := Theta_new - Theta = Beta[i] * X[i col]
 /// Eta_hat   := Eta_new  ./ Eta   = exp( Theta_hat )
@@ -62,7 +62,7 @@
 ///
 /// ==========================================================================================================================
 ///
-/// Select index in backward step:
+/// Select the index in backward step:
 /// idx = argmax_{i in I} llv_hat
 /// Theta_hat := Theta_new - Theta = -Beta[i] * X[i col]
 /// Eta_hat   := Eta_new  ./ Eta   = exp( Theta_hat )
@@ -98,8 +98,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
-#include <mkl.h>
 #include <omp.h>
+#include <mkl.h>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// The log-binomial function
@@ -199,7 +199,7 @@ void GenLog() {
         particle[j].ComputeCriterion();
 
         // Check singularity
-        if ( isnan(particle[j].phi) ) {
+        if ( std::isnan(particle[j].phi) ) {
           particle[j].InitializeModel();
           particle[j].ComputeCriterion();
         }
@@ -331,7 +331,7 @@ void Particle::UpdateModel( const int idx ) {
 
     // insert Beta by zero
     Beta[k] = 0.0f;
-  } else {  // backward step
+  } else {  // Backward step
     // Update index
     I[idx] = false;
 
@@ -410,7 +410,7 @@ void Particle::ComputeBeta() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Select index of the effect to update
+/// Select the index of the effect to update
 ///
 /// @param[out]  idx  the index of the effect
 ///
@@ -441,11 +441,11 @@ void Particle::SelectIndex( int& idx ) {
     }
 
     switch( choose ) {
-      case 2: {  // Global best
+      case 2: {  // Choose randomly from best model
         idx = Idx_temp[rand_r(&iseed) % itemp];
         break;
       }
-      case 1: {  // Local best
+      case 1: {  // Choose most improvement index
         auto llv_temp = -INFINITY;
         for ( auto i = 0; i < p-k; ++i ) {
           // beta := 0
@@ -508,13 +508,13 @@ void Particle::SelectIndex( int& idx ) {
         }
         break;
       }
-      case 0: {  // Random
+      case 0: {  // Choose randomly
         idx = Idx_temp[rand_r(&iseed) % (p-k)];
         break;
       }
     }
-  } else {  // backward step
-    if ( srand < parameter.prob_backward_improve ) {  // Local best
+  } else {  // Backward step
+    if ( srand < parameter.prob_backward_improve ) {  // Choose most improvement index
       auto llv_temp = INFINITY;
       for ( auto i = 1; i <= k; ++i ) {
         // ======== stemp := Y' * Theta_hat - sum( log( 1 + (eta_hat-1)*p ) ) ============================================= //
@@ -543,7 +543,7 @@ void Particle::SelectIndex( int& idx ) {
           idx = Idx_lo[i];
         }
       }
-    } else {  // Random
+    } else {  // Choose randomly
       idx = Idx_lo[rand_r(&iseed) % k + 1];
     }
   }
@@ -571,16 +571,20 @@ void Particle::ComputeCriterion() {
       phi = -2.0f*llv + k*logf(n);
       break;
     }
-    case EBIC: {   // phi := n*log(e^2/n) + k*log(n) + 2gamma*log(p choose k)
+    case HQC: {    // phi := n*log(e^2/n) + 2k*log(log(n))
+      phi = -2.0f*llv + 2.0f*k*logf(logf(n));
+      break;
+    }
+    case EBIC: {   // phi := n*log(e^2/n) + k*log(n) + 2gamma*log(binom(p, k))
       phi = -2.0f*llv + k*logf(n) + 2.0f*parameter.ebic_gamma*lbinom(p, k);
+      break;
+    }
+    case HDAIC: {  // phi := n*log(e^2/n) + 2k*log(p)
+      phi = -2.0f*llv + 2.0f*k*logf(p);
       break;
     }
     case HDBIC: {  // phi := n*log(e^2/n) + k*log(n)*log(p)
       phi = -2.0f*llv + k*logf(n)*logf(p);
-      break;
-    }
-    case HQC: {    // phi := n*log(e^2/n) + 2k*log(log(n))
-      phi = -2.0f*llv + 2.0f*k*logf(logf(n));
       break;
     }
     case HDHQC: {  // phi := n*log(e^2/n) + 2k*log(log(n))*log(p)

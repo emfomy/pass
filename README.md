@@ -1,10 +1,10 @@
 # Particle Swarm Stepwise (PaSS) Algorithm
 
 ### Git
-* https://bitbucket.org/emfomy/pass/
+* https://github.com/emfomy/pass
 
 ### Documentation
-* https://dl.dropboxusercontent.com/u/71338658/PaSS/index.html
+* http://emfomy.github.io/pass
 
 ### Author
 * Mu Yang <emfomy@gmail.com>
@@ -201,10 +201,10 @@ Y[2]  X[2][0]  X[2][1]  X[2][2]  ...
 Note that the comment lines should has less than 4096 characters.
 
 ## Reference
-* [Chen, R.-B., Huang, C.-C., & Wang, W. (2015). Particle Swarm Stepwise (PaSS) Algorithm for Variable Selection.](http://)
-* [Chen, J., & Chen, Z. (2008). Extended Bayesian information criteria for model selection with large model spaces. Biometrika, 95(3), 759–771.](http://www.stat.ubc.ca/~jhchen/paper/Bio08.pdf)
-* [Liu, Z., & Liu, M. (2011). Logistic Regression Parameter Estimation Based on Parallel Matrix Computation. In Q. Zhou (Ed.), Communications in Computer and Information Science (Vol. 164, pp. 268–275). Berlin, Heidelberg: Springer Berlin Heidelberg.](http://doi.org/10.1007/978-3-642-24999-0_38)
-* [Singh, S., Kubica, J., Larsen, S., & Sorokina, D. (2013). Parallel Large Scale Feature Selection for Logistic Regression (pp. 1172–1183). Philadelphia, PA: Society for Industrial and Applied Mathematics.](http://doi.org/10.1137/1.9781611972795.100)
-* [Barbu, A., She, Y., Ding, L., & Gramajo, G. (2014). Feature Selection with Annealing for Big Data Learning.](http://arxiv.org/pdf/1310.288)
-* [Ing, C.-K., & Lai, T. L. (2011). A stepwise regression method and consistent model selection for high-dimensional sparse linear models.](http://doi.org/10.5705/ss.2010.081)
-* [Hung, H., Chen, P.-W., Wang, C.-C., Huang, S.-Y., & Tzeng, J.-Y. (2013). Detection of Gene-Gene Interactions using Multistage Sparse and Low-Rank Regression.](http://arxiv.org/abs/1304.3769)
+* [Mu Yang, Ray-Bing Chen, I-Hsin Chung, Weichung Wang (2016). Particle Swarm Stepwise Algorithm (PaSS) on Multicore Hybrid CPU-GPU Clusters.](https://doi.org/10.1109/CIT.2016.101)
+* [Jiahua Chen, Zehua Chen (2008). Extended Bayesian information criteria for model selection with large model spaces. Biometrika, 95(3), 759–771.](http://www.stat.ubc.ca/~jhchen/paper/Bio08.pdf)
+* [Zhen Liu, Meng Liu (2011). Logistic Regression Parameter Estimation Based on Parallel Matrix Computation. In Q. Zhou (Ed.), Communications in Computer and Information Science (Vol. 164, pp. 268–275). Berlin, Heidelberg: Springer Berlin Heidelberg.](http://doi.org/10.1007/978-3-642-24999-0_38)
+* [Sameer Singh, Jeremy Kubica, Scott Larsen, Daria Sorokina (2013). Parallel Large Scale Feature Selection for Logistic Regression (pp. 1172–1183). Philadelphia, PA: Society for Industrial and Applied Mathematics.](http://doi.org/10.1137/1.9781611972795.100)
+* [Adrian Barbu, Yiyuan She, Liangjing Ding, Gary Gramajo (2014). Feature Selection with Annealing for Big Data Learning.](https://arxiv.org/pdf/1310.2880)
+* [Ching-Kang Ing, Tze Leung Lai (2011). A stepwise regression method and consistent model selection for high-dimensional sparse linear models.](http://doi.org/10.5705/ss.2010.081)
+* [Hung Hung, Yu-Tin Lin, Pengwen Chen, Chen-Chien Wang, Su-Yun Huang, Jung-Ying Tzeng (2013). Detection of Gene-Gene Interactions using Multistage Sparse and Low-Rank Regression.](http://arxiv.org/abs/1304.3769)

@@ -5,6 +5,8 @@
 /// @author  Mu Yang <emfomy@gmail.com>
 ///
 
+/// @todo  Load data in master rank and broadcast using MPI
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -13,9 +15,9 @@
 #include <algorithm>
 #include <numeric>
 #include <getopt.h>
-#include <mkl.h>
-#include <mpi.h>
 #include <omp.h>
+#include <mpi.h>
+#include <mkl.h>
 #include "pass.hpp"
 
 using namespace std;
@@ -210,7 +212,7 @@ int main( int argc, char **argv ) {
   // Display parameters
   if ( mpi_rank == 0 ) {
     if ( parameter.criterion == EBIC ) {
-      printf("%s: n=%d, p=%d, #Node=%d, #Thread=%d, #Particle=%d, #Iteration=%d, #Test=%d, Criterion=%s%.1f\n",
+      printf("%s: n=%d, p=%d, #Node=%d, #Thread=%d, #Particle=%d, #Iteration=%d, #Test=%d, Criterion=%s%.2f\n",
              dataname, n, p, mpi_size, num_thread, num_particle, parameter.num_iteration, num_test,
              Criterion2String(parameter.criterion), parameter.ebic_gamma);
     } else {
@@ -257,7 +259,7 @@ int main( int argc, char **argv ) {
     rate_positive_selection = new float[num_test];
     rate_false_discovery    = new float[num_test];
 
-    // Build solution model
+    // Build real model
     bool btemp = true;
     for ( auto i = 0; i < p; i++ ) {
       if ( J0[i] ) {
@@ -280,7 +282,7 @@ int main( int argc, char **argv ) {
     }
     particle.ComputeCriterion();
 
-    // Display solution model
+    // Display real model
     auto isize = static_cast<int>(log10(p))+1;
     printf("True(**):\t%12.6f; ", particle.phi);
     for ( auto i = 0; i < p; i++ ) {
@@ -404,7 +406,7 @@ int main( int argc, char **argv ) {
     printf("pbi        = %.2f\n",      parameter.prob_backward_improve);
     printf("pbr        = %.2f\n",      parameter.prob_backward_random);
     if ( parameter.criterion == EBIC ) {
-      printf("Criterion  = %s%.1f\n",  Criterion2String(parameter.criterion), parameter.ebic_gamma);
+      printf("Criterion  = %s%.2f\n",  Criterion2String(parameter.criterion), parameter.ebic_gamma);
     } else {
       printf("Criterion  = %s\n",      Criterion2String(parameter.criterion));
     }

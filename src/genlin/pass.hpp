@@ -36,12 +36,22 @@ void GenLin();
 /// The criterions used in the PaSS algorithm
 ///
 enum Criterion {
-  AIC,   ///< Akaike information criterion
-  BIC,   ///< Bayesian information criterion
-  EBIC,  ///< Extended Bayesian information criterion
-  HDBIC, ///< High-dimensional Bayesian information criterion
-  HQC,   ///< Hannan-Quinn information criterion
-  HDHQC  ///< High-dimensional Hannan-Quinn information criterion
+  AIC,    ///< Akaike information criterion
+  BIC,    ///< Bayesian information criterion
+  HQC,    ///< Hannan-Quinn information criterion
+  EBIC,   ///< Extended Bayesian information criterion
+  HDAIC,  ///< High-dimensional Akaike information criterion
+  HDBIC,  ///< High-dimensional Bayesian information criterion
+  HDHQC,  ///< High-dimensional Hannan-Quinn information criterion
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// The option of selecting update-index
+///
+enum Option {
+  RANDOM = 0,   ///< choose randomly from best model
+  IMPROVE = 1,  ///< choose most improvement index
+  BEST = 2,     ///< choose randomly
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -112,11 +122,16 @@ struct Particle {
 
   int *Idx_lo;        ///< vector, 1 by k, map local effects to original effects
   int *Idx_ol;        ///< vector, 1 by p, map original effects to local effects
-  int *Idx_temp;      ///< vector, 1 by p, workspace
+  int *Idx_best;      ///< vector, 1 by p, I0 exclude I
   bool *I;            ///< vector, 1 by p, the chosen indices
   int k;              ///< scalar, the number of chosen effects
+  int kbest;          ///< scalar, the size of Idx_best
+  int idx;            ///< scalar, the index of the updating effect
 
   bool status;        ///< scalar, the status (forward/backward)
+  int option;         ///< scalar, the updating option (0=random, 1=improve, 2=best)
+
+  bool r_computed;    ///< scalar, whether the residual is computed or not.
 
   unsigned int iseed; ///< scalar, the random seed
 
@@ -131,10 +146,17 @@ struct Particle {
   void InitializeModel( const int idx );
 
   // Update model
+  void UpdateModel();
   void UpdateModel( const int idx );
 
+  // Compute the residual
+  void ComputeResidual();
+
+  // Select the updating option
+  void SelectOption();
+
   // Select the index to add or remove
-  void SelectIndex( int& idx );
+  void SelectIndex();
 
   // Compute the criterion value
   void ComputeCriterion();

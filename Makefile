@@ -15,7 +15,7 @@ DATDIR = dat
 MKDIR  = mk
 SHDIR  = sh
 DOCDIR = doc
-HTMLDIR = html
+HTMLDIR = docs
 PASSHTML = pass.html
 
 SH = $(SHDIR)/pass.sh
@@ -23,7 +23,7 @@ SH = $(SHDIR)/pass.sh
 MKS = $(notdir $(basename $(wildcard $(MKDIR)/*.mk)))
 DOCS = $(notdir $(basename $(wildcard $(DOCDIR)/*.inc)))
 
-.PHONY: all $(MKS) doc $(DOCS) run run-$(PASS) run-$(MODEL) clean kill killf del
+.PHONY: all $(MKS) doc $(DOCS) run run-pass run-model run-$(PASS) run-$(MODEL) clean kill killf del
 
 all: $(MKS)
 	@ echo > /dev/null
@@ -40,11 +40,14 @@ $(DOCS): | $(PWD)/$(HTMLDIR)
 $(PASSHTML):
 	echo "<html><META HTTP-EQUIV='refresh' CONTENT='0; URL=$(HTMLDIR)/index.html'></html>" > $@
 
-run: run-$(PASS)
-	@ jbinfo
+run: $(MKS) run-$(PASS)
+
+run-pass: run-$(PASS)
+
+run-model: run-$(MODEL)
 
 run-$(PASS): $(SH) $(BINDIR)/$(PASS) run-$(MODEL) | $(PWD)/$(RUNDIR)
-	( cd $(RUNDIR) && ../$< $(PROJ) $(PASS) $(MODEL) )
+	( cd $(RUNDIR) && ../$< $(PROJ) $(PASS) $(MODEL) $(PASSOPTS) )
 
 run-$(MODEL): $(BINDIR)/$(PASS)_$(MODEL) | $(PWD)/$(RUNDIR)
 	( cd $(RUNDIR) && ../$< $(MODELOPTS) )

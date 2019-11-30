@@ -25,10 +25,10 @@
 ///
 /// ==========================================================================================================================
 ///
-/// Select index in forward step:
+/// Select the index in forward step:
 /// idx = argmax_{i not in I} abs( X[i col]' * R  )
 ///
-/// Select index in backward step:
+/// Select the index in backward step:
 /// idx = argmin_{i in I} norm( R_{I exclude i} )
 ///     = argmin_{i in I} norm( R + Beta[i] * X[i col] )
 ///
@@ -47,8 +47,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
-#include <mkl.h>
 #include <omp.h>
+#include <mkl.h>
+#include <magma.h>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// The log-binomial function
@@ -62,6 +63,8 @@ static inline float lbinom( const int n, const int k ) {
   int i;
   return (lgammaf_r(n+1, &i) - lgammaf_r(n-k+1, &i) - lgammaf_r(k+1, &i));
 }
+
+float *R0, *E0, *dX0, *dR0, *dE0;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //  The namespace of PaSS
@@ -131,63 +134,78 @@ void GenLin() {
   // ======== Run PaSS ==================================================================================================== //
 
   // Allocate particles
-  auto particle = new Particle[num_particle];
   phi0 = INFINITY;
+  auto particle = new Particle[num_particle];
 
-  // Use openMP parallel
-  #pragma omp parallel
-  {
-    unsigned int tid = omp_get_thread_num();
+  // Allocate GPU memory
+  magma_smalloc_cpu(&R0, n * num_particle);
+  magma_smalloc_cpu(&E0, p * num_particle);
+  magma_smalloc(&dX0, n * p);
+  magma_smalloc(&dR0, n * num_particle);
+  magma_smalloc(&dE0, p * num_particle);
+  magma_ssetmatrix(n, p, X0, n, dX0, n);
 
-    for ( auto j = tid; j < num_particle; j+=num_thread ) {
-      // Initialize particles
-      particle[j].InitializeModel();
+  // Initialize particles
+  #pragma omp parallel for
+  for ( auto j = 0u; j < num_particle; ++j ) {
+    particle[j].R = R0 + j*n;
+    particle[j].E = E0 + j*p;
+    particle[j].InitializeModel();
+    particle[j].ComputeCriterion();
+    particle[j].phi_old = particle[j].phi;
+
+    // Copy best model
+    if ( phi0 > particle[j].phi ) {
+      phi0 = particle[j].phi;
+      memcpy(I0, particle[j].I, sizeof(bool) * p);
+    }
+  }
+
+  // Find best model
+  for ( auto i = 1u; i < parameter.num_iteration; ++i ) {
+    // E0 := X0' * R0
+    magma_ssetmatrix(n, num_particle, R0, n, dR0, n);
+    magma_sgemm(MagmaTrans, MagmaNoTrans, p, num_particle, n, 1.0, dX0, n, dR0, n, 0.0, dE0, p);
+    magma_sgetmatrix(p, num_particle, dE0, p, E0, p);
+
+    #pragma omp parallel for
+    for ( auto j = 0u; j < num_particle; ++j ) {
+      // Update model
+      particle[j].SelectOption();
+      particle[j].SelectIndex();
+      particle[j].UpdateModel();
       particle[j].ComputeCriterion();
-      particle[j].phi_old = particle[j].phi;
 
-      // Copy best model
-      if ( phi0 > particle[j].phi ) {
-        phi0 = particle[j].phi;
-        memcpy(I0, particle[j].I, sizeof(bool) * p);
+      // Check singularity
+      if ( std::isnan(particle[j].phi) ) {
+        particle[j].InitializeModel();
+        particle[j].ComputeCriterion();
       }
+
+      // Change status
+      if ( particle[j].phi > particle[j].phi_old ) {
+        particle[j].status = !particle[j].status;
+      }
+      if ( particle[j].k <= 1 ) {
+        particle[j].status = true;
+      }
+      if ( particle[j].k >= n || particle[j].k >= p-4 ) {
+        particle[j].status = false;
+      }
+
+      particle[j].phi_old = particle[j].phi;
     }
 
-    #pragma omp barrier
-
-    // Find best model
-    for ( auto i = 1u; i < parameter.num_iteration; ++i ) {
-      for ( auto j = tid; j < num_particle; j+=num_thread ) {
-        // Update model
-        int idx;
-        particle[j].SelectIndex(idx);
-        particle[j].UpdateModel(idx);
-        particle[j].ComputeCriterion();
-
-        // Check singularity
-        if ( isnan(particle[j].phi) ) {
-          particle[j].InitializeModel();
-          particle[j].ComputeCriterion();
-        }
-
-        // Change status
-        if ( particle[j].phi > particle[j].phi_old ) {
-          particle[j].status = !particle[j].status;
-        }
-        if ( particle[j].k <= 1 ) {
-          particle[j].status = true;
-        }
-        if ( particle[j].k >= n || particle[j].k >= p-4 ) {
-          particle[j].status = false;
-        }
-
-        particle[j].phi_old = particle[j].phi;
-
-        // Copy best model
-        if ( phi0 > particle[j].phi ) {
-          phi0 = particle[j].phi;
-          memcpy(I0, particle[j].I, sizeof(bool) * p);
-        }
+    // Copy best model
+    int j_best = -1;
+    for ( auto j = 0u; j < num_particle; ++j ) {
+      if ( phi0 > particle[j].phi ) {
+        phi0 = particle[j].phi;
+        j_best = j;
       }
+    }
+    if ( j_best != -1 ) {
+      memcpy(I0, particle[j_best].I, sizeof(bool) * p);
     }
   }
 
@@ -195,6 +213,11 @@ void GenLin() {
 
   // Delete memory
   delete[] particle;
+  magma_free_cpu(R0);
+  magma_free_cpu(E0);
+  magma_free(dX0);
+  magma_free(dR0);
+  magma_free(dE0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -206,14 +229,12 @@ Particle::Particle() {
   Beta     = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
   Theta    = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
   M        = static_cast<float*>(mkl_malloc(n * n * sizeof(float), 64));
-  R        = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
   B        = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
   D        = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
-  E        = static_cast<float*>(mkl_malloc(p     * sizeof(float), 64));
 
   Idx_lo   = static_cast<int*  >(mkl_malloc(n     * sizeof(int),   64));
   Idx_ol   = static_cast<int*  >(mkl_malloc(p     * sizeof(int),   64));
-  Idx_temp = static_cast<int*  >(mkl_malloc(p     * sizeof(int),   64));
+  Idx_best = static_cast<int*  >(mkl_malloc(p     * sizeof(int),   64));
   I        = static_cast<bool* >(mkl_malloc(p     * sizeof(bool),  64));
 
   iseed    = rand();
@@ -228,14 +249,12 @@ Particle::~Particle() {
   mkl_free(Beta);
   mkl_free(Theta);
   mkl_free(M);
-  mkl_free(R);
   mkl_free(B);
   mkl_free(D);
-  mkl_free(E);
 
   mkl_free(Idx_lo);
   mkl_free(Idx_ol);
-  mkl_free(Idx_temp);
+  mkl_free(Idx_best);
   mkl_free(I);
 }
 
@@ -284,6 +303,8 @@ void Particle::InitializeModel( const int idx ) {
 
   // Set status
   status = true;
+  option = 0;
+  r_computed = false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -292,6 +313,16 @@ void Particle::InitializeModel( const int idx ) {
 /// @param[in]  idx  the index of the effect
 ///
 void Particle::UpdateModel( const int idx ) {
+  this->idx = idx;
+  UpdateModel();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Update the model
+///
+void Particle::UpdateModel() {
+  r_computed = false;
+
   if ( status ) {  // forward step
     // Update size
     auto km = k;
@@ -340,7 +371,7 @@ void Particle::UpdateModel( const int idx ) {
     cblas_saxpy(k, a*cblas_sdot(k, D, 1, Theta, 1), D, 1, Beta, 1);
 
     // ==================================================================================================================== //
-  } else {  // backward step
+  } else {  // Backward step
     // Update size
     k--;
 
@@ -386,52 +417,64 @@ void Particle::UpdateModel( const int idx ) {
 
     // ==================================================================================================================== //
   }
-
-  // R = Y - X * Beta
-  cblas_scopy(n, Y, 1, R, 1);
-  cblas_sgemv(CblasColMajor, CblasNoTrans, n, k, -1.0f, X, n, Beta, 1, 1.0f, R, 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Select index of the effect to update
+/// Compute the residual
 ///
-/// @param[out]  idx  the index of the effect
-///
-void Particle::SelectIndex( int& idx ) {
-  auto srand = static_cast<float>(rand_r(&iseed)) / RAND_MAX;
+void Particle::ComputeResidual() {
+  if ( !r_computed ) {
+    // R = Y - X * Beta
+    cblas_scopy(n, Y, 1, R, 1);
+    cblas_sgemv(CblasColMajor, CblasNoTrans, n, k, -1.0f, X, n, Beta, 1, 1.0f, R, 1);
+    r_computed = true;
+  }
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Select the updating option
+///
+void Particle::SelectOption() {
+  auto srand = static_cast<float>(rand_r(&iseed)) / RAND_MAX;
   if ( status ) {  // Forward step
-    // Idx_temp[0~itemp] := I0 exclude I
-    // Idx_temp[0~(p-k)] := complement of I
-    int itemp = 0;
+    // Idx_best[0~kbest] := I0 exclude I
+    // Idx_best[0~(p-k)] := complement of I
+    kbest = 0;
     for ( auto i = 0, j = p-k; i < p; ++i ) {
       if ( !I[i] ) {
         if ( I0[i] ) {
-          Idx_temp[itemp] = i;
-          itemp++;
+          Idx_best[kbest] = i;
+          kbest++;
         } else {
           j--;
-          Idx_temp[j] = i;
+          Idx_best[j] = i;
         }
       }
     }
 
-    int choose;
-    if ( itemp ) {
-      choose = (srand < parameter.prob_forward_best) + (srand < parameter.prob_forward_best+parameter.prob_forward_improve);
+    if ( kbest ) {
+      option = (srand < parameter.prob_forward_best) + (srand < parameter.prob_forward_best+parameter.prob_forward_improve);
     } else {
-      choose = srand < parameter.prob_forward_improve / (parameter.prob_forward_improve+parameter.prob_forward_random);
+      option = srand < parameter.prob_forward_improve / (parameter.prob_forward_improve+parameter.prob_forward_random);
     }
+  } else {  // Backward step
+    option = (srand < parameter.prob_backward_improve);
+  }
+}
 
-    switch( choose ) {
-      case 2: {  // Global best
-        idx = Idx_temp[rand_r(&iseed) % itemp];
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Select the index of the effect to update
+///
+void Particle::SelectIndex() {
+  if ( status ) {  // Forward step
+    switch( option ) {
+      case Option::BEST: {  // Choose randomly from best model
+        idx = Idx_best[rand_r(&iseed) % kbest];
         break;
       }
-      case 1: {  // Local best
-        // E := abs( X0' * R )
-        cblas_sgemv(CblasColMajor, CblasTrans, n, p, 1.0, X0, n, R, 1, 0.0, E, 1);
-        vsAbs( p, E, E );
+      case Option::IMPROVE: {  // Choose most improvement index
+        // E := abs( E )
+        vsAbs(p, E, E);
 
         // Remove selected entries
         for ( auto i = 0; i < k; ++i ) {
@@ -442,30 +485,36 @@ void Particle::SelectIndex( int& idx ) {
         idx = cblas_isamax(p, E, 1);
         break;
       }
-      case 0: {  // Random
-        idx = Idx_temp[rand_r(&iseed) % (p-k)];
+      case Option::RANDOM: {  // Choose randomly
+        idx = Idx_best[rand_r(&iseed) % (p-k)];
         break;
       }
     }
-  } else {  // backward step
-    if ( srand < parameter.prob_backward_improve ) {  // Local best
-      auto e_temp = INFINITY;
-      for ( auto i = 0; i < k; ++i ) {
-        // B := R + Beta[i] * X[i col]
-        cblas_scopy(n, R, 1, B, 1);
-        cblas_saxpy(n, Beta[i], X+i*n, 1, B, 1);
+  } else {  // Backward step
+    switch( option ) {
+      case Option::IMPROVE: {  // Choose most improvement index
+        ComputeResidual();
+        auto e_temp = INFINITY;
+        for ( auto i = 0; i < k; ++i ) {
+          // B := R + Beta[i] * X[i col]
+          cblas_scopy(n, R, 1, B, 1);
+          cblas_saxpy(n, Beta[i], X+i*n, 1, B, 1);
 
-        // stemp = norm(B)
-        auto stemp = cblas_snrm2(n, B, 1);
+          // stemp = norm(B)
+          auto stemp = cblas_snrm2(n, B, 1);
 
-        // Check if this value is minimal
-        if ( e_temp > stemp ) {
-          e_temp = stemp;
-          idx = Idx_lo[i];
+          // Check if this value is minimal
+          if ( e_temp > stemp ) {
+            e_temp = stemp;
+            idx = Idx_lo[i];
+          }
         }
+        break;
       }
-    } else {  // Random
-      idx = Idx_lo[rand_r(&iseed) % k];
+      case Option::RANDOM: {  // Choose randomly
+        idx = Idx_lo[rand_r(&iseed) % k];
+        break;
+      }
     }
   }
 }
@@ -474,6 +523,8 @@ void Particle::SelectIndex( int& idx ) {
 /// Compute the criterion value
 ///
 void Particle::ComputeCriterion() {
+  ComputeResidual();
+
   // e := norm(R)
   e = cblas_snrm2(n, R, 1);
 
@@ -487,16 +538,20 @@ void Particle::ComputeCriterion() {
       phi = n*logf(e*e/n) + k*logf(n);
       break;
     }
-    case EBIC: {   // phi := n*log(e^2/n) + k*log(n) + 2gamma*log(p choose k)
+    case HQC: {    // phi := n*log(e^2/n) + 2k*log(log(n))
+      phi = n*logf(e*e/n) + 2.0f*k*logf(logf(n));
+      break;
+    }
+    case EBIC: {   // phi := n*log(e^2/n) + k*log(n) + 2gamma*log(binom(p, k))
       phi = n*logf(e*e/n) + k*logf(n) + 2.0f*parameter.ebic_gamma*lbinom(p, k);
+      break;
+    }
+    case HDAIC: {  // phi := n*log(e^2/n) + 2k*log(p)
+      phi = n*logf(e*e/n) + 2.0f*k*logf(p);
       break;
     }
     case HDBIC: {  // phi := n*log(e^2/n) + k*log(n)*log(p)
       phi = n*logf(e*e/n) + k*logf(n)*logf(p);
-      break;
-    }
-    case HQC: {    // phi := n*log(e^2/n) + 2k*log(log(n))
-      phi = n*logf(e*e/n) + 2.0f*k*logf(logf(n));
       break;
     }
     case HDHQC: {  // phi := n*log(e^2/n) + 2k*log(log(n))*log(p)

@@ -36,12 +36,13 @@ void GenLog();
 /// The criterions used in the PaSS algorithm
 ///
 enum Criterion {
-  AIC,   ///< Akaike information criterion
-  BIC,   ///< Bayesian information criterion
-  EBIC,  ///< Extended Bayesian information criterion
-  HDBIC, ///< High-dimensional Bayesian information criterion
-  HQC,   ///< Hannan-Quinn information criterion
-  HDHQC  ///< High-dimensional Hannan-Quinn information criterion
+  AIC,    ///< Akaike information criterion
+  BIC,    ///< Bayesian information criterion
+  HQC,    ///< Hannan-Quinn information criterion
+  EBIC,   ///< Extended Bayesian information criterion
+  HDAIC,  ///< High-dimensional Akaike information criterion
+  HDBIC,  ///< High-dimensional Bayesian information criterion
+  HDHQC,  ///< High-dimensional Hannan-Quinn information criterion
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
