@@ -28,7 +28,13 @@
 *.app
 
 # Other
+bin
+obj
+dep
 run
 log
+sh
+docs
 html
 latex
+pass.html

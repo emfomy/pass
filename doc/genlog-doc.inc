@@ -1,7 +1,6 @@
 @INCLUDE               = doc/Doxyfile
 
 HTML_HEADER            = doc/genlog-header.html
-HTML_OUTPUT            = html/genlog
+HTML_OUTPUT            = docs/genlog
 INPUT                  = src/genlog
-RECURSIVE              = YES
 SOURCE_BROWSER         = YES

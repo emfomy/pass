@@ -87,7 +87,7 @@ int main( int argc, char **argv ) {
         if ( n <= 0 ) {
           fprintf(stderr, "%s: invalid option -- <n> must be a positive integer!\n", argv[0]);
           GenLinIngLaiHelp(argv[0]);
-          exit(1);
+          abort();
         }
         break;
       }
@@ -96,7 +96,7 @@ int main( int argc, char **argv ) {
         if ( p <= 0 ) {
           fprintf(stderr, "%s: invalid option -- <p> must be a positive integer!\n", argv[0]);
           GenLinIngLaiHelp(argv[0]);
-          exit(1);
+          abort();
         }
         break;
       }
@@ -105,7 +105,7 @@ int main( int argc, char **argv ) {
         if ( r < 0 ) {
           fprintf(stderr, "%s: invalid option -- <r> must be a non-negative integer!\n", argv[0]);
           GenLinIngLaiHelp(argv[0]);
-          exit(1);
+          abort();
         }
         break;
       }
@@ -119,7 +119,7 @@ int main( int argc, char **argv ) {
       }
       default: {
         GenLinIngLaiHelp(argv[0]);
-        exit(1);
+        abort();
       }
     }
   }
@@ -127,12 +127,12 @@ int main( int argc, char **argv ) {
   // Create Beta
   if ( bflag ) {
     r = argc - optind;
-    Beta = new float[r];
+    Beta = static_cast<float*>(mkl_malloc(r * sizeof(float), 64));
     for ( auto i = 0; i < r; ++i ) {
       Beta[i] = atof(argv[i+optind]);
     }
   } else {
-    Beta = new float[r];
+    Beta = static_cast<float*>(mkl_malloc(r * sizeof(float), 64));
     for ( auto i = 0; i < r; ++i ) {
       Beta[i] = 3.0f + 0.75f*i;
     }
@@ -154,10 +154,11 @@ int main( int argc, char **argv ) {
   fflush(stdout);
 
   // Allocate memory
-  X = new float[n*p];
-  Y = new float[n];
-  J = new bool[p];
-  auto S = new float[n]();
+  float *S;
+  X = static_cast<float*>(mkl_malloc(n * p * sizeof(float), 64));
+  Y = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
+  S = static_cast<float*>(mkl_calloc(n     , sizeof(float), 64));
+  J = static_cast<bool* >(mkl_malloc(p     * sizeof(bool),  64));
 
   // Generate X & Y using normal random
   LAPACKE_slarnv(3, iseed, n*p, X);
@@ -190,10 +191,11 @@ int main( int argc, char **argv ) {
   GenLinIngLaiSave(dataroot);
 
   // Free memory
-  delete[] X;
-  delete[] Y;
-  delete[] Beta;
-  delete[] J;
+  mkl_free(X);
+  mkl_free(Y);
+  mkl_free(Beta);
+  mkl_free(S);
+  mkl_free(J);
 
   printf("================================================================"
          "================================================================\n");

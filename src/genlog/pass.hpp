@@ -14,11 +14,16 @@
 ///
 namespace pass {
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//  The namespace of general logistic regression
+//
+namespace genlog {
+
 extern int n;                       ///< scalar, the number of statistical units
 extern int p;                       ///< scalar, the number of total effects
-extern float* X0;                   ///< matrix, n by p, the regressors
-extern float* Y0;                   ///< vector, n by 1, the regressand
-extern bool* I0;                    ///< vector, 1 by p, the chosen indices
+extern float *X0;                   ///< matrix, n by p, the regressors
+extern float *Y0;                   ///< vector, n by 1, the regressand
+extern bool *I0;                    ///< vector, 1 by p, the chosen indices
 extern float phi0;                  ///< scalar, the criterion value
 extern struct Parameter parameter;  ///< the PaSS parameters
 
@@ -31,12 +36,13 @@ void GenLog();
 /// The criterions used in the PaSS algorithm
 ///
 enum Criterion {
-  AIC,   ///< Akaike information criterion
-  BIC,   ///< Bayesian information criterion
-  EBIC,  ///< Extended Bayesian information criterion
-  HDBIC, ///< High-dimensional Bayesian information criterion
-  HQC,   ///< Hannan-Quinn information criterion
-  HDHQC  ///< High-dimensional Hannan-Quinn information criterion
+  AIC,    ///< Akaike information criterion
+  BIC,    ///< Bayesian information criterion
+  HQC,    ///< Hannan-Quinn information criterion
+  EBIC,   ///< Extended Bayesian information criterion
+  HDAIC,  ///< High-dimensional Akaike information criterion
+  HDBIC,  ///< High-dimensional Bayesian information criterion
+  HDHQC,  ///< High-dimensional Hannan-Quinn information criterion
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -64,11 +70,11 @@ static inline const char* Criterion2String( const Criterion criterion ) {
 struct Parameter {
   unsigned int num_iteration;        ///< the number of iterations
   unsigned int num_particle_thread;  ///< the number of particles per thread
-  float prob_forward_global;         ///< the probability of forward step: global
-  float prob_forward_local;          ///< the probability of forward step: local
-  float prob_forward_random;         ///< the probability of forward step: random
-  float prob_backward_local;         ///< the probability of backward step: local
-  float prob_backward_random;        ///< the probability of backward step: random
+  float prob_forward_best;           ///< the probability of forward step: choose randomly from best model
+  float prob_forward_improve;        ///< the probability of forward step: choose most improvement index
+  float prob_forward_random;         ///< the probability of forward step: choose randomly
+  float prob_backward_improve;       ///< the probability of backward step: choose most improvement index
+  float prob_backward_random;        ///< the probability of backward step: choose randomly
   Criterion criterion;               ///< the criterion
   float ebic_gamma;                  ///< the penalty parameter for EBIC
   bool is_normalized;                ///< the data is normalized of not
@@ -77,10 +83,10 @@ struct Parameter {
   Parameter() {
     num_iteration = 1024;
     num_particle_thread = 16;
-    prob_forward_global = 0.1;
-    prob_forward_local = 0.8;
+    prob_forward_best = 0.1;
+    prob_forward_improve = 0.8;
     prob_forward_random = 0.1;
-    prob_backward_local = 0.9;
+    prob_backward_improve = 0.9;
     prob_backward_random = 0.1;
     criterion = HDBIC;
     ebic_gamma = 1.0;
@@ -139,6 +145,8 @@ struct Particle {
   void ComputeCriterion();
 };
 
-}
+}  // namespace genlog
 
-#endif
+}  // namespace pass
+
+#endif  // PASS_GENLOG_PASS_HPP_

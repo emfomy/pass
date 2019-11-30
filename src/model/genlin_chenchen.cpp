@@ -94,7 +94,7 @@ int main( int argc, char **argv ) {
         if ( n <= 0 ) {
           fprintf(stderr, "%s: invalid option -- <n> must be a positive integer!\n", argv[0]);
           GenLinChenChenHelp(argv[0]);
-          exit(1);
+          abort();
         }
         break;
       }
@@ -103,7 +103,7 @@ int main( int argc, char **argv ) {
         if ( p <= 0 ) {
           fprintf(stderr, "%s: invalid option -- <p> must be a positive integer!\n", argv[0]);
           GenLinChenChenHelp(argv[0]);
-          exit(1);
+          abort();
         }
         break;
       }
@@ -112,7 +112,7 @@ int main( int argc, char **argv ) {
         if ( r < 0 ) {
           fprintf(stderr, "%s: invalid option -- <r> must be a non-negative integer!\n", argv[0]);
           GenLinChenChenHelp(argv[0]);
-          exit(1);
+          abort();
         }
         break;
       }
@@ -121,7 +121,7 @@ int main( int argc, char **argv ) {
         if ( type < 1 || type > 3 ) {
           fprintf(stderr, "%s: invalid option -- <type> must be 1, 2, or 3!\n", argv[0]);
           GenLinChenChenHelp(argv[0]);
-          exit(1);
+          abort();
         }
         break;
       }
@@ -130,7 +130,7 @@ int main( int argc, char **argv ) {
         if ( rho < 0 || rho > 1 ) {
           fprintf(stderr, "%s: invalid option -- <rho> must be in range [0, 1]!\n", argv[0]);
           GenLinChenChenHelp(argv[0]);
-          exit(1);
+          abort();
         }
         break;
       }
@@ -144,7 +144,7 @@ int main( int argc, char **argv ) {
       }
       default: {
         GenLinChenChenHelp(argv[0]);
-        exit(1);
+        abort();
       }
     }
   }
@@ -152,12 +152,12 @@ int main( int argc, char **argv ) {
   // Create Beta
   if ( bflag ) {
     r = argc - optind;
-    Beta = new float[r];
+    Beta = static_cast<float*>(mkl_malloc(r * sizeof(float), 64));
     for ( auto i = 0; i < r; ++i ) {
       Beta[i] = atof(argv[i+optind]);
     }
   } else {
-    Beta = new float[r];
+    Beta = static_cast<float*>(mkl_malloc(r * sizeof(float), 64));
     float Beta_temp[8] = {0.7f, 0.9f, 0.4f, 0.3f, 1.0f, 0.2f, 0.2f, 0.1f};
     for ( auto i = 0; i < r; i++ ) {
       Beta[i] = Beta_temp[i%8];
@@ -180,10 +180,11 @@ int main( int argc, char **argv ) {
   fflush(stdout);
 
   // Allocate memory
-  X = new float[n*p];
-  Y = new float[n];
-  J = new bool[p];
-  auto L = new float[p*p];
+  float *L;
+  X = static_cast<float*>(mkl_malloc(n * p * sizeof(float), 64));
+  Y = static_cast<float*>(mkl_malloc(n     * sizeof(float), 64));
+  L = static_cast<float*>(mkl_malloc(p * p * sizeof(float), 64));
+  J = static_cast<bool* >(mkl_malloc(p     * sizeof(bool),  64));
 
   // Generate X & Y using normal random
   LAPACKE_slarnv(3, iseed, n*p, X);
@@ -254,11 +255,11 @@ int main( int argc, char **argv ) {
   GenLinChenChenSave(dataroot);
 
   // Free memory
-  delete[] X;
-  delete[] Y;
-  delete[] Beta;
-  delete[] J;
-  delete[] L;
+  mkl_free(X);
+  mkl_free(Y);
+  mkl_free(Beta);
+  mkl_free(L);
+  mkl_free(J);
 
   printf("================================================================"
          "================================================================\n");

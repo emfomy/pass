@@ -47,7 +47,7 @@
 ///
 /// ==========================================================================================================================
 ///
-/// Select index in forward step:
+/// Select the index in forward step:
 /// idx = argmax_{i not in I} llv_hat
 /// Theta_hat := Theta_new - Theta = Beta[i] * X[i col]
 /// Eta_hat   := Eta_new  ./ Eta   = exp( Theta_hat )
@@ -62,7 +62,7 @@
 ///
 /// ==========================================================================================================================
 ///
-/// Select index in backward step:
+/// Select the index in backward step:
 /// idx = argmax_{i in I} llv_hat
 /// Theta_hat := Theta_new - Theta = -Beta[i] * X[i col]
 /// Eta_hat   := Eta_new  ./ Eta   = exp( Theta_hat )
@@ -98,8 +98,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
-#include <mkl.h>
 #include <omp.h>
+#include <mkl.h>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// The log-binomial function
@@ -119,11 +119,16 @@ static inline float lbinom( const int n, const int k ) {
 //
 namespace pass {
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//  The namespace of general logistic regression
+//
+namespace genlog {
+
 int n;                // scalar, the number of statistical units
 int p;                // scalar, the number of total effects
-float* X0;            // matrix, n by p, the regressors
-float* Y0;            // vector, n by 1, the regressand
-bool* I0;             // vector, 1 by p, the chosen indices
+float *X0;            // matrix, n by p, the regressors
+float *Y0;            // vector, n by 1, the regressand
+bool *I0;             // vector, 1 by p, the chosen indices
 float phi0;           // scalar, the criterion value
 Parameter parameter;  // the PaSS parameters
 
@@ -194,7 +199,7 @@ void GenLog() {
         particle[j].ComputeCriterion();
 
         // Check singularity
-        if ( isnan(particle[j].phi) ) {
+        if ( std::isnan(particle[j].phi) ) {
           particle[j].InitializeModel();
           particle[j].ComputeCriterion();
         }
@@ -231,20 +236,20 @@ void GenLog() {
 /// The constructor
 ///
 Particle::Particle() {
-  X        = new float[n*n];
-  Y        = new float[n];
-  Beta     = new float[n];
-  Theta    = new float[n];
-  Eta      = new float[n];
-  P        = new float[n];
-  W        = new float[n];
-  M        = new float[n*(n+1)/2];
-  STemp    = new float[n];
+  X        = static_cast<float*>(mkl_malloc(n * n     * sizeof(float), 64));
+  Y        = static_cast<float*>(mkl_malloc(n         * sizeof(float), 64));
+  Beta     = static_cast<float*>(mkl_malloc(n         * sizeof(float), 64));
+  Theta    = static_cast<float*>(mkl_malloc(n         * sizeof(float), 64));
+  Eta      = static_cast<float*>(mkl_malloc(n         * sizeof(float), 64));
+  P        = static_cast<float*>(mkl_malloc(n         * sizeof(float), 64));
+  W        = static_cast<float*>(mkl_malloc(n         * sizeof(float), 64));
+  M        = static_cast<float*>(mkl_malloc(n*(n+1)/2 * sizeof(float), 64));
+  STemp    = static_cast<float*>(mkl_malloc(n         * sizeof(float), 64));
 
-  Idx_lo   = new int[n];
-  Idx_ol   = new int[p];
-  Idx_temp = new int[p];
-  I        = new bool[p];
+  Idx_lo   = static_cast<int*  >(mkl_malloc(n         * sizeof(int),   64));
+  Idx_ol   = static_cast<int*  >(mkl_malloc(p         * sizeof(int),   64));
+  Idx_temp = static_cast<int*  >(mkl_malloc(p         * sizeof(int),   64));
+  I        = static_cast<bool* >(mkl_malloc(p         * sizeof(bool),  64));
 
   iseed    = rand();
 }
@@ -253,20 +258,20 @@ Particle::Particle() {
 /// The destructor
 ///
 Particle::~Particle() {
-  delete[] X;
-  delete[] Y;
-  delete[] Beta;
-  delete[] Theta;
-  delete[] Eta;
-  delete[] P;
-  delete[] W;
-  delete[] M;
-  delete[] STemp;
+  mkl_free(X);
+  mkl_free(Y);
+  mkl_free(Beta);
+  mkl_free(Theta);
+  mkl_free(Eta);
+  mkl_free(P);
+  mkl_free(W);
+  mkl_free(M);
+  mkl_free(STemp);
 
-  delete[] Idx_lo;
-  delete[] Idx_ol;
-  delete[] Idx_temp;
-  delete[] I;
+  mkl_free(Idx_lo);
+  mkl_free(Idx_ol);
+  mkl_free(Idx_temp);
+  mkl_free(I);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -326,7 +331,7 @@ void Particle::UpdateModel( const int idx ) {
 
     // insert Beta by zero
     Beta[k] = 0.0f;
-  } else {  // backward step
+  } else {  // Backward step
     // Update index
     I[idx] = false;
 
@@ -405,7 +410,7 @@ void Particle::ComputeBeta() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Select index of the effect to update
+/// Select the index of the effect to update
 ///
 /// @param[out]  idx  the index of the effect
 ///
@@ -430,17 +435,17 @@ void Particle::SelectIndex( int& idx ) {
 
     int choose;
     if ( itemp ) {
-      choose = (srand < parameter.prob_forward_global) + (srand < parameter.prob_forward_global+parameter.prob_forward_local);
+      choose = (srand < parameter.prob_forward_best) + (srand < parameter.prob_forward_best+parameter.prob_forward_improve);
     } else {
-      choose = srand < parameter.prob_forward_local / (parameter.prob_forward_local+parameter.prob_forward_random);
+      choose = srand < parameter.prob_forward_improve / (parameter.prob_forward_improve+parameter.prob_forward_random);
     }
 
     switch( choose ) {
-      case 2: {  // Global best
+      case 2: {  // Choose randomly from best model
         idx = Idx_temp[rand_r(&iseed) % itemp];
         break;
       }
-      case 1: {  // Local best
+      case 1: {  // Choose most improvement index
         auto llv_temp = -INFINITY;
         for ( auto i = 0; i < p-k; ++i ) {
           // beta := 0
@@ -503,13 +508,13 @@ void Particle::SelectIndex( int& idx ) {
         }
         break;
       }
-      case 0: {  // Random
+      case 0: {  // Choose randomly
         idx = Idx_temp[rand_r(&iseed) % (p-k)];
         break;
       }
     }
-  } else {  // backward step
-    if ( srand < parameter.prob_backward_local ) {  // Local best
+  } else {  // Backward step
+    if ( srand < parameter.prob_backward_improve ) {  // Choose most improvement index
       auto llv_temp = INFINITY;
       for ( auto i = 1; i <= k; ++i ) {
         // ======== stemp := Y' * Theta_hat - sum( log( 1 + (eta_hat-1)*p ) ) ============================================= //
@@ -538,7 +543,7 @@ void Particle::SelectIndex( int& idx ) {
           idx = Idx_lo[i];
         }
       }
-    } else {  // Random
+    } else {  // Choose randomly
       idx = Idx_lo[rand_r(&iseed) % k + 1];
     }
   }
@@ -566,16 +571,20 @@ void Particle::ComputeCriterion() {
       phi = -2.0f*llv + k*logf(n);
       break;
     }
-    case EBIC: {   // phi := n*log(e^2/n) + k*log(n) + 2gamma*log(p choose k)
+    case HQC: {    // phi := n*log(e^2/n) + 2k*log(log(n))
+      phi = -2.0f*llv + 2.0f*k*logf(logf(n));
+      break;
+    }
+    case EBIC: {   // phi := n*log(e^2/n) + k*log(n) + 2gamma*log(binom(p, k))
       phi = -2.0f*llv + k*logf(n) + 2.0f*parameter.ebic_gamma*lbinom(p, k);
+      break;
+    }
+    case HDAIC: {  // phi := n*log(e^2/n) + 2k*log(p)
+      phi = -2.0f*llv + 2.0f*k*logf(p);
       break;
     }
     case HDBIC: {  // phi := n*log(e^2/n) + k*log(n)*log(p)
       phi = -2.0f*llv + k*logf(n)*logf(p);
-      break;
-    }
-    case HQC: {    // phi := n*log(e^2/n) + 2k*log(log(n))
-      phi = -2.0f*llv + 2.0f*k*logf(logf(n));
       break;
     }
     case HDHQC: {  // phi := n*log(e^2/n) + 2k*log(log(n))*log(p)
@@ -585,4 +594,6 @@ void Particle::ComputeCriterion() {
   }
 }
 
-}
+}  // namespace genlog
+
+}  // namespace pass
